@@ -1,0 +1,15 @@
+const List<String> kHelpTopics = <String>[
+  'Not Cleaned Properly',
+  'Not Cleaned On Time',
+  'Package Related Query',
+  'Payment Query',
+  'Not Cleaned',
+  'Vehicle Damaged',
+  'Change Mobile Number',
+  'Not Cleaned for Long Time',
+  'This is Not My Vehicle',
+  'Interior Not Done',
+  'Earlier Photos',
+  'I Am Not Available',
+  'Others',
+];
