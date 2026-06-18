@@ -3,6 +3,7 @@ import 'package:carrocare_flutter/core/di/injection.dart';
 import 'package:carrocare_flutter/core/network/auth_token_service.dart';
 import 'package:carrocare_flutter/features/auth/data/datasources/auth_remote_data_source.dart';
 import 'package:carrocare_flutter/core/theme/app_colors.dart';
+import 'package:carrocare_flutter/core/widgets/carro_care_scaffold.dart';
 import 'package:carrocare_flutter/features/checkout/data/local/cart_local_storage.dart';
 import 'package:carrocare_flutter/features/support/domain/entities/content_web_args.dart';
 import 'package:carrocare_flutter/features/support/presentation/utils/profile_actions.dart';
@@ -12,7 +13,6 @@ import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-const Color _mainProfilePageGrey = Color(0xFFEDEFF1);
 const Color _mainProfileLogoutRed = Color(0xFFEA2C1F);
 const Color _mainProfileArrowGrey = Color(0xFF757575);
 
@@ -85,46 +85,13 @@ class _MainProfilePageState extends State<MainProfilePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.primary,
-      body: SafeArea(
+    return CarroCareScaffold(
+      title: 'Profile',
+      onBack: () => context.go('/home'),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.only(bottom: 50),
         child: Column(
           children: <Widget>[
-            SizedBox(
-              height: kToolbarHeight,
-              child: Row(
-                children: <Widget>[
-                  GestureDetector(
-                    onTap: () => context.go('/home'),
-                    child: Container(
-                      width: 35,
-                      height: 35,
-                      margin: const EdgeInsets.only(left: 10),
-                      padding: const EdgeInsets.all(5),
-                      child: Image.asset('assets/images/back.png'),
-                    ),
-                  ),
-                  const SizedBox(width: 5),
-                  const Expanded(
-                    child: Text(
-                      'Welcome to the Carro Care !!',
-                      style: TextStyle(
-                        color: AppColors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: Container(
-                color: _mainProfilePageGrey,
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.only(bottom: 50),
-                  child: Column(
-                    children: <Widget>[
                       _ProfileCard(
                         child: Column(
                           children: <Widget>[
@@ -282,11 +249,6 @@ class _MainProfilePageState extends State<MainProfilePage> {
                     ],
                   ),
                 ),
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

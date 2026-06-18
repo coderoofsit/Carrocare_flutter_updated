@@ -1,10 +1,13 @@
 import 'package:carrocare_flutter/core/di/injection.dart';
 import 'package:carrocare_flutter/core/theme/app_colors.dart';
+import 'package:carrocare_flutter/core/widgets/carro_care_scaffold.dart';
+import 'package:carrocare_flutter/core/widgets/dotted_loader.dart';
 import 'package:carrocare_flutter/core/utils/invoice_download_helper.dart';
 import 'package:carrocare_flutter/features/orders/domain/entities/order_item.dart';
 import 'package:carrocare_flutter/features/orders/domain/entities/payment_detail.dart';
 import 'package:carrocare_flutter/features/orders/domain/repositories/orders_repository.dart';
 import 'package:carrocare_flutter/features/orders/presentation/pages/wash_calendar_page.dart';
+import 'package:carrocare_flutter/features/orders/presentation/utils/order_date_time_display.dart';
 import 'package:carrocare_flutter/features/orders/presentation/utils/order_pricing_display.dart';
 import 'package:carrocare_flutter/features/orders/presentation/widgets/cancel_order_dialog.dart';
 import 'package:flutter/material.dart';
@@ -46,61 +49,36 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
     final ui = _OrderDetailUi.fromOrder(_order);
     final pricing = OrderPricingDisplay.fromOrder(_order);
 
-    return Scaffold(
-      backgroundColor: AppColors.primary,
+    return CarroCareScaffold(
+      title: 'Order Details',
+      onBack: () => context.pop(),
       body: Stack(
         children: <Widget>[
-          SafeArea(
-        child: Column(
-          children: <Widget>[
-            SizedBox(
-              height: kToolbarHeight,
-              child: Row(
-                children: <Widget>[
-                  GestureDetector(
-                    onTap: () => context.pop(),
-                    child: Container(
-                      width: 35,
-                      height: 35,
-                      margin: const EdgeInsets.all(10),
-                      padding: const EdgeInsets.all(5),
-                      child: Image.asset('assets/images/back.png'),
-                    ),
-                  ),
-                  const Expanded(
-                    child: Text(
-                      'ORDER DETAILS',
-                      style: TextStyle(
-                        color: AppColors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
+          Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.bottomCenter,
+                end: Alignment.topCenter,
+                colors: <Color>[
+                  Color(0xFFEA2C1F),
+                  Color(0xFFFF5722),
+                  Color(0xFFEE3131),
                 ],
               ),
             ),
-            Expanded(
-              child: Container(
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.bottomCenter,
-                    end: Alignment.topCenter,
-                    colors: <Color>[
-                      Color(0xFFEA2C1F),
-                      Color(0xFFFF5722),
-                      Color(0xFFEE3131),
-                    ],
-                  ),
-                ),
-                child: Stack(
-                  children: <Widget>[
-                    SingleChildScrollView(
+            child: Stack(
+              children: <Widget>[
+                SingleChildScrollView(
                       padding: const EdgeInsets.only(bottom: 24),
                       child: Column(
                         children: <Widget>[
                           const SizedBox(height: 10),
-                          _DetailRow(label: 'Created at', value: _order.dateAndTime),
+                          _DetailRow(
+                            label: 'Created at',
+                            value: OrderDateTimeDisplay.formatDateTime(
+                              _order.dateAndTime,
+                            ),
+                          ),
                           _DetailRow(label: 'Order Id', value: _order.orderId),
                           _DetailRow(
                             label: 'Service type',
@@ -211,7 +189,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                           if (ui.showViewHistory)
                             _fullWidthButton(
                               'View History',
-                              const Color(0xFF54A46B),
+                              AppColors.primary,
                               () => setState(() => _showPaymentHistory = true),
                             ),
                           if (ui.showCancelOrder)
@@ -223,7 +201,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                           if (ui.showDownloadInvoice)
                             _fullWidthButton(
                               'Download Invoice',
-                              const Color(0xFF54A46B),
+                              AppColors.primary,
                               () => _downloadInvoice(_order.invoice, _order.orderId),
                             ),
                           if (ui.showImageField) ...<Widget>[
@@ -243,7 +221,9 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                                   ),
                                   Expanded(
                                     child: Text(
-                                      _order.imageDateAndTime,
+                                      OrderDateTimeDisplay.formatDateTime(
+                                        _order.imageDateAndTime,
+                                      ),
                                       style: const TextStyle(
                                         color: AppColors.white,
                                         fontSize: 16,
@@ -289,14 +269,10 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                   ],
                 ),
               ),
-            ),
-          ],
-        ),
-          ),
           if (_busy)
             const ColoredBox(
               color: Color(0x55000000),
-              child: Center(child: CircularProgressIndicator()),
+              child: CarroCareLoadingOverlay(),
             ),
         ],
       ),
@@ -761,7 +737,13 @@ class _PaymentHistoryOverlay extends StatelessWidget {
                       .map(
                         (payment) => DataRow(
                           cells: <DataCell>[
-                            DataCell(Text(payment.paymentDate)),
+                            DataCell(
+                              Text(
+                                OrderDateTimeDisplay.formatDateTime(
+                                  payment.paymentDate,
+                                ),
+                              ),
+                            ),
                             DataCell(Text(payment.razorpayPaymentId)),
                             DataCell(Text(payment.amount)),
                             DataCell(Text(payment.status)),

@@ -1,4 +1,9 @@
 import 'package:carrocare_flutter/core/theme/app_colors.dart';
+import 'package:carrocare_flutter/core/theme/app_decorations.dart';
+import 'package:carrocare_flutter/core/theme/app_typography.dart';
+import 'package:carrocare_flutter/core/widgets/bill_line_row.dart';
+import 'package:carrocare_flutter/core/widgets/dotted_divider.dart';
+import 'package:carrocare_flutter/core/widgets/dotted_loader.dart';
 import 'package:carrocare_flutter/features/checkout/core/cart_display_helper.dart';
 import 'package:carrocare_flutter/features/checkout/domain/entities/cart_item.dart';
 import 'package:flutter/material.dart';
@@ -21,14 +26,11 @@ class CartItemCard extends StatelessWidget {
     final showSchedule = CartDisplayHelper.showSchedule(item);
     final amount = item.totalAmount;
 
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-      elevation: 3,
-      shadowColor: Colors.black26,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
-      color: AppColors.white,
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: AppDecorations.card(),
       child: Padding(
-        padding: const EdgeInsets.all(5),
+        padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
@@ -36,119 +38,120 @@ class CartItemCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
                 Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.only(left: 10, top: 8),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        Text(
-                          item.carMakeModel.toUpperCase(),
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.black,
-                          ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(
+                        item.carMakeModel.toUpperCase(),
+                        style: AppTypography.quicksand(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.grey800,
                         ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        item.carNo,
+                        style: AppTypography.dmSans(
+                          fontSize: 14,
+                          color: AppColors.grey600,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        serviceLabel.toUpperCase(),
+                        style: AppTypography.quicksand(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                      if (showMonth) ...<Widget>[
                         const SizedBox(height: 4),
                         Text(
-                          item.carNo,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            color: AppColors.black,
+                          CartDisplayHelper.periodLabel(item),
+                          style: AppTypography.dmSans(
+                            fontSize: 14,
+                            color: AppColors.grey700,
                           ),
                         ),
-                        const SizedBox(height: 8),
-                        Text(
-                          serviceLabel.toUpperCase(),
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.primary,
-                          ),
-                        ),
-                        if (showMonth) ...<Widget>[
-                          const SizedBox(height: 4),
-                          Text(
-                            CartDisplayHelper.periodLabel(item),
-                            style: const TextStyle(
-                              fontSize: 18,
-                              color: AppColors.black,
-                            ),
-                          ),
-                        ],
-                        if (showSchedule &&
-                            item.scheduleDate.isNotEmpty) ...<Widget>[
-                          const SizedBox(height: 4),
-                          RichText(
-                            text: TextSpan(
-                              style: const TextStyle(
-                                fontSize: 18,
-                                color: AppColors.black,
-                              ),
-                              children: <TextSpan>[
-                                TextSpan(
-                                  text: 'Schedule Date : ',
-                                  style: TextStyle(
-                                    color: Colors.grey.shade700,
-                                    fontWeight: FontWeight.w400,
-                                  ),
-                                ),
-                                TextSpan(
-                                  text:
-                                      '${item.scheduleDate} ${item.scheduleTime}',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
                       ],
-                    ),
+                      if (showSchedule &&
+                          item.scheduleDate.isNotEmpty) ...<Widget>[
+                        const SizedBox(height: 4),
+                        RichText(
+                          text: TextSpan(
+                            style: AppTypography.dmSans(
+                              fontSize: 13,
+                              color: AppColors.grey700,
+                            ),
+                            children: <TextSpan>[
+                              TextSpan(
+                                text: 'Schedule Date : ',
+                                style: AppTypography.dmSans(
+                                  fontSize: 13,
+                                  color: AppColors.grey500,
+                                ),
+                              ),
+                              TextSpan(
+                                text:
+                                    '${item.scheduleDate} ${item.scheduleTime}',
+                                style: AppTypography.dmSans(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.grey800,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
                 IconButton(
                   onPressed: onDelete,
                   icon: const Icon(
-                    Icons.delete,
+                    Icons.delete_outline,
                     color: AppColors.primary,
-                    size: 25,
+                    size: 22,
                   ),
-                  padding: const EdgeInsets.all(5),
+                  padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
                 ),
               ],
             ),
+            const DottedDivider(margin: EdgeInsets.symmetric(vertical: 10)),
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
                 SizedBox(
-                  width: 150,
-                  height: 100,
+                  width: 120,
+                  height: 80,
                   child: _CartVehicleImage(imageUrl: item.carImage),
                 ),
+                const SizedBox(width: 12),
                 Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.all(10),
-                    child: Column(
-                      children: <Widget>[
-                        _PriceRow(
-                          label: 'Pack price :',
-                          value: CartDisplayHelper.formatRupeeFromString(
-                            item.packAmount.isNotEmpty
-                                ? item.packAmount
-                                : amount,
-                          ),
+                  child: Column(
+                    children: <Widget>[
+                      BillLineRow(
+                        label: 'Pack price',
+                        amount: CartDisplayHelper.formatRupeeFromString(
+                          item.packAmount.isNotEmpty
+                              ? item.packAmount
+                              : amount,
                         ),
-                        const SizedBox(height: 6),
-                        _PriceRow(
-                          label: 'Total :',
-                          value: CartDisplayHelper.formatRupeeFromString(amount),
-                          bold: true,
+                      ),
+                      BillLineRow(
+                        label: 'Total',
+                        amount: CartDisplayHelper.formatRupeeFromString(amount),
+                        amountStyle: AppTypography.quicksand(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.primary,
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -183,43 +186,9 @@ class _CartVehicleImage extends StatelessWidget {
       loadingBuilder: (context, child, progress) {
         if (progress == null) return child;
         return const Center(
-          child: SizedBox(
-            width: 24,
-            height: 24,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              color: AppColors.primary,
-            ),
-          ),
+          child: DottedLoader(size: DottedLoaderSize.small),
         );
       },
-    );
-  }
-}
-
-class _PriceRow extends StatelessWidget {
-  const _PriceRow({
-    required this.label,
-    required this.value,
-    this.bold = false,
-  });
-
-  final String label;
-  final String value;
-  final bool bold;
-
-  @override
-  Widget build(BuildContext context) {
-    final style = TextStyle(
-      fontSize: 18,
-      color: bold ? AppColors.black : Colors.grey.shade700,
-      fontWeight: bold ? FontWeight.w700 : FontWeight.w400,
-    );
-    return Row(
-      children: <Widget>[
-        Expanded(child: Text(label, style: style)),
-        Text(value, style: style),
-      ],
     );
   }
 }

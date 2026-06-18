@@ -1,5 +1,10 @@
 import 'package:carrocare_flutter/core/di/injection.dart';
 import 'package:carrocare_flutter/core/theme/app_colors.dart';
+import 'package:carrocare_flutter/core/theme/app_decorations.dart';
+import 'package:carrocare_flutter/core/theme/app_typography.dart';
+import 'package:carrocare_flutter/core/widgets/bill_line_row.dart';
+import 'package:carrocare_flutter/core/widgets/dotted_divider.dart';
+import 'package:carrocare_flutter/core/widgets/dotted_loader.dart';
 import 'package:carrocare_flutter/features/checkout/core/checkout_block_reason.dart';
 import 'package:carrocare_flutter/features/checkout/core/checkout_vehicle_gate.dart';
 import 'package:carrocare_flutter/features/checkout/core/checkout_service_type_mapper.dart';
@@ -42,42 +47,125 @@ Future<bool> showSmartCheckoutSheet({
   required String customerId,
   required String token,
 }) async {
-  final prefs = await SharedPreferences.getInstance();
-  final gstPercent =
-      int.tryParse(prefs.getString('gst_percentage') ?? '0') ?? 0;
-
-  final isWash = booking.header == CheckoutConstants.serviceWash ||
-      booking.header == CheckoutConstants.serviceBikeWash;
-  final isExtra = booking.header.toLowerCase() == 'extra interior' ||
-      booking.carName.toLowerCase().startsWith('extra');
-
-  final blockReason = await CheckoutVehicleGate.resolve(
-    customerId: customerId,
-    vehicleId: vehicle.id,
-    serviceHeader: booking.header,
-  );
-
-  final subscriptionMessage =
-      CheckoutVehicleGate.activeSubscriptionMessage(blockReason);
-  if (subscriptionMessage != null) {
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(subscriptionMessage)),
+  final added = await showModalBottomSheet<bool>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (sheetContext) {
+      return _SmartCheckoutLoaderSheet(
+        booking: booking,
+        vehicle: vehicle,
+        customerId: customerId,
+        token: token,
       );
-    }
-    return false;
+    },
+  );
+  return added ?? false;
+}
+
+class _SmartCheckoutLoaderSheet extends StatefulWidget {
+  const _SmartCheckoutLoaderSheet({
+    required this.booking,
+    required this.vehicle,
+    required this.customerId,
+    required this.token,
+  });
+
+  final VehicleListArgs booking;
+  final VehicleItem vehicle;
+  final String customerId;
+  final String token;
+
+  @override
+  State<_SmartCheckoutLoaderSheet> createState() =>
+      _SmartCheckoutLoaderSheetState();
+}
+
+class _SmartCheckoutLoaderSheetState extends State<_SmartCheckoutLoaderSheet> {
+  bool _loading = true;
+  OneTimeWashCheckout? _checkout;
+  int _gstPercent = 0;
+  bool _isWash = false;
+  bool _isExtra = false;
+  bool _monthlyBlocked = false;
+  bool _oneTimeBlocked = false;
+  bool _blockOneTimeDueToMonthly = false;
+  bool _blockMonthlyDueToOneTime = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
   }
 
-  OneTimeWashCheckout? checkout;
-  try {
-    checkout = await sl<CheckoutRepository>().fetchOneTimeWashCheckout(
-      customerId: customerId,
-      packAmount: booking.carPrice,
-      vehicleId: vehicle.id,
-      serviceType: CheckoutConstants.oneTimeApiService(booking.header),
-    );
-  } catch (e) {
-    if (context.mounted) {
+  Future<void> _load() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final gstPercent =
+          int.tryParse(prefs.getString('gst_percentage') ?? '0') ?? 0;
+
+      final isWash = widget.booking.header == CheckoutConstants.serviceWash ||
+          widget.booking.header == CheckoutConstants.serviceBikeWash;
+      final isExtra =
+          widget.booking.header.toLowerCase() == 'extra interior' ||
+              widget.booking.carName.toLowerCase().startsWith('extra');
+
+      final blockReason = await CheckoutVehicleGate.resolve(
+        customerId: widget.customerId,
+        vehicleId: widget.vehicle.id,
+        serviceHeader: widget.booking.header,
+      );
+
+      final subscriptionMessage =
+          CheckoutVehicleGate.activeSubscriptionMessage(blockReason);
+      if (subscriptionMessage != null) {
+        if (!mounted) return;
+        Navigator.pop(context, false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(subscriptionMessage)),
+        );
+        return;
+      }
+
+      final checkout = await sl<CheckoutRepository>().fetchOneTimeWashCheckout(
+        customerId: widget.customerId,
+        packAmount: widget.booking.carPrice,
+        vehicleId: widget.vehicle.id,
+        serviceType: CheckoutConstants.oneTimeApiService(widget.booking.header),
+      );
+
+      if (!mounted) return;
+      if (checkout == null) {
+        Navigator.pop(context, false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Checkout unavailable for this vehicle.'),
+          ),
+        );
+        return;
+      }
+
+      var monthlyBlocked = false;
+      var oneTimeBlocked = false;
+      if (isWash && widget.customerId.isNotEmpty) {
+        monthlyBlocked = blockReason.blockMonthlyDueToOneTime;
+        oneTimeBlocked = blockReason.blockOneTimeDueToMonthly;
+      }
+
+      setState(() {
+        _loading = false;
+        _checkout = checkout;
+        _gstPercent = gstPercent;
+        _isWash = isWash;
+        _isExtra = isExtra;
+        _monthlyBlocked = monthlyBlocked;
+        _oneTimeBlocked = oneTimeBlocked;
+        _blockOneTimeDueToMonthly = blockReason.blockOneTimeDueToMonthly;
+        _blockMonthlyDueToOneTime = blockReason.blockMonthlyDueToOneTime;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.pop(context, false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -86,46 +174,53 @@ Future<bool> showSmartCheckoutSheet({
         ),
       );
     }
-    return false;
   }
 
-  if (!context.mounted) return false;
-  if (checkout == null) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Checkout unavailable for this vehicle.')),
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.viewInsetsOf(context).bottom,
+      ),
+      child: Container(
+        decoration: const BoxDecoration(
+          color: AppColors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        ),
+        padding: const EdgeInsets.fromLTRB(16, 24, 16, 24),
+        child: _loading
+            ? Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  Text(
+                    'Smart Checkout',
+                    style: AppTypography.quicksand(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.grey800,
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+                  const Center(child: DottedLoader()),
+                  const SizedBox(height: 32),
+                ],
+              )
+            : _SmartCheckoutSheetBody(
+                booking: widget.booking,
+                vehicle: widget.vehicle,
+                checkout: _checkout!,
+                gstPercent: _gstPercent,
+                isWash: _isWash,
+                isExtra: _isExtra,
+                monthlyBlocked: _monthlyBlocked,
+                oneTimeBlocked: _oneTimeBlocked,
+                blockOneTimeDueToMonthly: _blockOneTimeDueToMonthly,
+                blockMonthlyDueToOneTime: _blockMonthlyDueToOneTime,
+              ),
+      ),
     );
-    return false;
   }
-
-  var monthlyBlocked = false;
-  var oneTimeBlocked = false;
-  if (isWash && customerId.isNotEmpty) {
-    monthlyBlocked = blockReason.blockMonthlyDueToOneTime;
-    oneTimeBlocked = blockReason.blockOneTimeDueToMonthly;
-  }
-
-  if (!context.mounted) return false;
-
-  final added = await showModalBottomSheet<bool>(
-    context: context,
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
-    builder: (sheetContext) {
-      return _SmartCheckoutSheetBody(
-        booking: booking,
-        vehicle: vehicle,
-        checkout: checkout!,
-        gstPercent: gstPercent,
-        isWash: isWash,
-        isExtra: isExtra,
-        monthlyBlocked: monthlyBlocked,
-        oneTimeBlocked: oneTimeBlocked,
-        blockOneTimeDueToMonthly: blockReason.blockOneTimeDueToMonthly,
-        blockMonthlyDueToOneTime: blockReason.blockMonthlyDueToOneTime,
-      );
-    },
-  );
-  return added ?? false;
 }
 
 enum _SmartPurchaseMode { monthlyAutoRenew, oneTimePrepay }
@@ -360,13 +455,13 @@ class _SmartCheckoutSheetBodyState extends State<_SmartCheckoutSheetBody> {
           children: <Widget>[
             Row(
               children: <Widget>[
-                const Expanded(
+                Expanded(
                   child: Text(
                     'Smart Checkout',
-                    style: TextStyle(
+                    style: AppTypography.quicksand(
                       fontSize: 18,
                       fontWeight: FontWeight.w700,
-                      color: AppColors.black,
+                      color: AppColors.grey800,
                     ),
                   ),
                 ),
@@ -378,29 +473,41 @@ class _SmartCheckoutSheetBodyState extends State<_SmartCheckoutSheetBody> {
             ),
             Text(
               widget.vehicle.makeModel,
-              style: const TextStyle(
+              style: AppTypography.quicksand(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
+                color: AppColors.grey800,
               ),
             ),
             Text(
               widget.vehicle.vehicleNo,
-              style: const TextStyle(color: Color(0xFF666666)),
+              style: AppTypography.dmSans(
+                fontSize: 14,
+                color: AppColors.grey600,
+              ),
             ),
-            const SizedBox(height: 12),
+            const DottedDivider(margin: EdgeInsets.symmetric(vertical: 12)),
             _row('Service', widget.booking.header),
             _row('Package', packageLabel),
             if (widget.isWash) ...<Widget>[
               const SizedBox(height: 8),
               if (widget.blockOneTimeDueToMonthly)
-                const Text(
+                Text(
                   'One-time prepay is unavailable while a monthly subscription is active for this vehicle.',
-                  style: TextStyle(fontSize: 12, height: 1.35, color: Color(0xFF5D4037)),
+                  style: AppTypography.dmSans(
+                    fontSize: 12,
+                    height: 1.35,
+                    color: AppColors.grey600,
+                  ),
                 )
               else if (widget.blockMonthlyDueToOneTime)
-                const Text(
+                Text(
                   'Monthly subscription is unavailable while a one-time plan is active for this vehicle.',
-                  style: TextStyle(fontSize: 12, height: 1.35, color: Color(0xFF5D4037)),
+                  style: AppTypography.dmSans(
+                    fontSize: 12,
+                    height: 1.35,
+                    color: AppColors.grey600,
+                  ),
                 )
               else if (!widget.blockMonthlyDueToOneTime && !widget.blockOneTimeDueToMonthly)
                 SegmentedButton<_SmartPurchaseMode>(
@@ -485,19 +592,16 @@ class _SmartCheckoutSheetBodyState extends State<_SmartCheckoutSheetBody> {
                   padding: const EdgeInsets.symmetric(vertical: 14),
                 ),
                 child: _saving
-                    ? const SizedBox(
-                        height: 22,
-                        width: 22,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: AppColors.white,
-                        ),
+                    ? const DottedLoader(
+                        size: DottedLoaderSize.small,
+                        color: AppColors.white,
                       )
-                    : const Text(
+                    : Text(
                         'Add to Cart',
-                        style: TextStyle(
+                        style: AppTypography.quicksand(
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
+                          color: AppColors.white,
                         ),
                       ),
               ),
@@ -509,21 +613,21 @@ class _SmartCheckoutSheetBodyState extends State<_SmartCheckoutSheetBody> {
   }
 
   Widget _row(String label, String value, {bool bold = false, bool strike = false}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: <Widget>[
-          Text(label, style: const TextStyle(color: Color(0xFF666666))),
-          Text(
-            value,
-            style: TextStyle(
-              fontWeight: bold ? FontWeight.w700 : FontWeight.w500,
-              decoration: strike ? TextDecoration.lineThrough : null,
-              color: bold ? AppColors.black : const Color(0xFF333333),
-            ),
-          ),
-        ],
+    return BillLineRow(
+      label: label,
+      amount: value,
+      labelStyle: AppTypography.dmSans(
+        fontSize: 14,
+        color: AppColors.grey600,
+      ),
+      amountStyle: AppTypography.dmSans(
+        fontSize: 14,
+        fontWeight: bold ? FontWeight.w700 : FontWeight.w500,
+        color: bold ? AppColors.primary : AppColors.grey800,
+        fontStyle: strike ? FontStyle.normal : FontStyle.normal,
+      ).copyWith(
+        decoration: strike ? TextDecoration.lineThrough : null,
+        decorationColor: AppColors.grey500,
       ),
     );
   }

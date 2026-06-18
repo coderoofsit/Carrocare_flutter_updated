@@ -19,6 +19,37 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController =
       TextEditingController();
+  bool _otpActionInFlight = false;
+
+  void _releaseOtpActionLock() {
+    if (mounted) {
+      setState(() => _otpActionInFlight = false);
+    } else {
+      _otpActionInFlight = false;
+    }
+  }
+
+  void _sendOtp(ForgotPasswordState state) {
+    if (_otpActionInFlight || state.status == ForgotStatus.loading) return;
+    setState(() => _otpActionInFlight = true);
+    FocusManager.instance.primaryFocus?.unfocus();
+    context.read<ForgotPasswordBloc>().add(
+      ForgotSendOtpPressed(mobile: _mobileController.text),
+    );
+  }
+
+  void _submitForgot(ForgotPasswordState state) {
+    if (_otpActionInFlight || state.status == ForgotStatus.loading) return;
+    FocusManager.instance.primaryFocus?.unfocus();
+    context.read<ForgotPasswordBloc>().add(
+      ForgotSubmitPressed(
+        mobile: _mobileController.text,
+        otp: _otpController.text,
+        password: _passwordController.text,
+        confirmPassword: _confirmPasswordController.text,
+      ),
+    );
+  }
 
   @override
   void dispose() {
@@ -42,11 +73,14 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
         if (state.status == ForgotStatus.otpSent &&
             state.successMessage != null &&
             state.successMessage!.isNotEmpty) {
+          _otpController.clear();
+          _releaseOtpActionLock();
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text(state.successMessage!)),
           );
         }
         if (state.status == ForgotStatus.otpVerified) {
+          _releaseOtpActionLock();
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('OTP verified. Please set your new password.'),
@@ -55,6 +89,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
           return;
         }
         if (state.errorMessage != null && state.errorMessage!.isNotEmpty) {
+          _releaseOtpActionLock();
           ScaffoldMessenger.of(
             context,
           ).showSnackBar(SnackBar(content: Text(state.errorMessage!)));
@@ -126,41 +161,24 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: ElevatedButton(
-                        onPressed: state.status == ForgotStatus.loading
+                        onPressed: state.status == ForgotStatus.loading ||
+                                _otpActionInFlight
                             ? null
-                            : () {
-                                if (state.showOtpField) {
-                                  _otpController.clear();
-                                }
-                                context.read<ForgotPasswordBloc>().add(
-                                  ForgotSendOtpPressed(
-                                    mobile: _mobileController.text,
-                                  ),
-                                );
-                              },
+                            : () => _sendOtp(state),
                         child: Text(state.otpButtonText.toUpperCase()),
                       ),
                     ),
                   ],
                 ),
                 if (state.showOtpField) ...<Widget>[
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 16),
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: state.status == ForgotStatus.loading
+                      onPressed: state.status == ForgotStatus.loading ||
+                              _otpActionInFlight
                           ? null
-                          : () {
-                              context.read<ForgotPasswordBloc>().add(
-                                ForgotSubmitPressed(
-                                  mobile: _mobileController.text,
-                                  otp: _otpController.text,
-                                  password: _passwordController.text,
-                                  confirmPassword:
-                                      _confirmPasswordController.text,
-                                ),
-                              );
-                            },
+                          : () => _submitForgot(state),
                       child: Text(state.submitButtonText.toUpperCase()),
                     ),
                   ),

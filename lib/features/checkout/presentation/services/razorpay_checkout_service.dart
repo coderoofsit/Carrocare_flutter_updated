@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:carrocare_flutter/features/checkout/domain/entities/razorpay_price_summary.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 
@@ -9,6 +11,39 @@ class RazorpayCheckoutService {
   void dispose() {
     _razorpay?.clear();
     _razorpay = null;
+  }
+
+  /// Opens Razorpay and completes when payment succeeds or is cancelled.
+  Future<String> openAndWait({
+    required String keyId,
+    required int amountPaise,
+    required String description,
+    required String email,
+    required String contact,
+    String? orderId,
+    String? customerId,
+    bool enableRecurring = false,
+    RazorpayPriceSummary? priceSummary,
+  }) {
+    final completer = Completer<String>();
+    open(
+      keyId: keyId,
+      amountPaise: amountPaise,
+      description: description,
+      email: email,
+      contact: contact,
+      orderId: orderId,
+      customerId: customerId,
+      enableRecurring: enableRecurring,
+      priceSummary: priceSummary,
+      onSuccess: completer.complete,
+      onError: (message) {
+        if (!completer.isCompleted) {
+          completer.completeError(Exception(message));
+        }
+      },
+    );
+    return completer.future;
   }
 
   void open({
@@ -64,6 +99,33 @@ class RazorpayCheckoutService {
     }
   }
 
+  /// Opens subscription checkout and completes when payment finishes.
+  Future<String> openSubscriptionAndWait({
+    required String keyId,
+    required String subscriptionId,
+    required String description,
+    required String email,
+    required String contact,
+    RazorpayPriceSummary? priceSummary,
+  }) {
+    final completer = Completer<String>();
+    openSubscription(
+      keyId: keyId,
+      subscriptionId: subscriptionId,
+      description: description,
+      email: email,
+      contact: contact,
+      priceSummary: priceSummary,
+      onSuccess: completer.complete,
+      onError: (message) {
+        if (!completer.isCompleted) {
+          completer.completeError(Exception(message));
+        }
+      },
+    );
+    return completer.future;
+  }
+
   /// Razorpay subscription checkout (monthly plans).
   Future<void> openSubscription({
     required String keyId,
@@ -116,10 +178,21 @@ class RazorpayCheckoutService {
   }
 
   void _handleError(PaymentFailureResponse response) {
-    _onError?.call(response.message ?? 'Payment failed');
+    _onError?.call(_paymentErrorMessage(response.message));
   }
 
   void _handleExternalWallet(ExternalWalletResponse response) {
     _onError?.call('External wallet: ${response.walletName}');
+  }
+
+  /// Razorpay SDK sometimes returns the literal string "undefined" on cancel.
+  static String _paymentErrorMessage(String? raw) {
+    final message = (raw ?? '').trim();
+    if (message.isEmpty ||
+        message == 'undefined' ||
+        message.toLowerCase() == 'null') {
+      return 'Payment cancelled';
+    }
+    return message;
   }
 }

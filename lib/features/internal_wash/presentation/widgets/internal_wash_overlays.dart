@@ -4,6 +4,7 @@ import 'package:carrocare_flutter/features/internal_wash/presentation/pages/inte
 import 'package:carrocare_flutter/features/internal_wash/presentation/widgets/internal_wash_field.dart';
 import 'package:carrocare_flutter/features/orders/domain/entities/order_item.dart';
 import 'package:carrocare_flutter/features/orders/domain/repositories/orders_repository.dart';
+import 'package:carrocare_flutter/features/orders/presentation/utils/order_date_time_display.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
@@ -316,7 +317,10 @@ class _InternalOrderPreviewCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: <Widget>[
-                    _previewRow('Date : ', order.dateAndTime),
+                    _previewRow(
+                      'Date : ',
+                      OrderDateTimeDisplay.formatDateTime(order.dateAndTime),
+                    ),
                     _previewRow('Payment ID : ', order.orderId),
                     _previewRow('Service Type : ', order.serviceType),
                     _previewRow('Payment Type : ', order.paymentType),

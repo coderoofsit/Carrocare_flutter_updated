@@ -1,4 +1,9 @@
 import 'package:carrocare_flutter/core/theme/app_colors.dart';
+import 'package:carrocare_flutter/core/theme/app_decorations.dart';
+import 'package:carrocare_flutter/core/theme/app_gradients.dart';
+import 'package:carrocare_flutter/core/theme/app_typography.dart';
+import 'package:carrocare_flutter/core/widgets/carro_care_scaffold.dart';
+import 'package:carrocare_flutter/core/widgets/dotted_loader.dart';
 import 'package:carrocare_flutter/core/di/injection.dart';
 import 'package:carrocare_flutter/features/vehicles/core/vehicle_category_utils.dart';
 import 'package:carrocare_flutter/features/vehicles/data/repositories/vehicles_repository.dart';
@@ -60,9 +65,16 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
     '7:00 PM - 8:00 PM',
     '8:00 PM - 9:00 PM',
   ];
-  static const Color _androidGrayBg = Color(0xFFEDEFF1);
-  static const Color _androidFieldBorder = Color(0xFF8F8F8F);
-  static const Color _androidHint = Color(0xFF8F8F8F);
+
+  static final OutlineInputBorder _fieldBorder = OutlineInputBorder(
+    borderRadius: BorderRadius.circular(AppDecorations.inputRadius),
+    borderSide: const BorderSide(color: AppColors.grey200),
+  );
+
+  static final OutlineInputBorder _focusedFieldBorder = OutlineInputBorder(
+    borderRadius: BorderRadius.circular(AppDecorations.inputRadius),
+    borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+  );
 
   @override
   void initState() {
@@ -142,146 +154,190 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.primary,
-      body: SafeArea(
-        child: Column(
-          children: <Widget>[
-            SizedBox(
-              height: kToolbarHeight,
-              child: Row(
+    return CarroCareScaffold(
+      title: 'Add Vehicle',
+      onBack: () => context.pop(),
+      backgroundDecoration: const BoxDecoration(
+        gradient: AppGradients.washScreenBackground,
+      ),
+      body: _loading
+          ? const CarroCareLoadingOverlay()
+          : SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  GestureDetector(
-                    onTap: () => context.pop(),
-                    child: Container(
-                      width: 35,
-                      height: 35,
-                      margin: const EdgeInsets.all(10),
-                      padding: const EdgeInsets.all(5),
-                      child: Image.asset('assets/images/back.png'),
+                  Text(
+                    'Register your vehicle',
+                    style: AppTypography.quicksand(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.grey800,
                     ),
                   ),
-                  const Expanded(
-                    child: Text(
-                      'ADD VEHICLE',
-                      style: TextStyle(
-                        color: AppColors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                      ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Fill in the details below to add your vehicle for wash services.',
+                    style: AppTypography.dmSans(
+                      fontSize: 13,
+                      color: AppColors.grey600,
+                      height: 1.4,
                     ),
+                  ),
+                  const SizedBox(height: 20),
+                  _FormSection(
+                    title: 'Vehicle details',
+                    children: <Widget>[
+                      _selectField(
+                        label: _vehicleCategory.isEmpty
+                            ? 'Vehicle Category'
+                            : _vehicleCategory,
+                        isPlaceholder: _vehicleCategory.isEmpty,
+                        onTap: () => _pickCategory(),
+                      ),
+                      if (_vehicleCategory.toLowerCase() != 'bike') ...<Widget>[
+                        _selectField(
+                          label: _makeModel.isEmpty
+                              ? 'Make and Model'
+                              : _makeModel,
+                          isPlaceholder: _makeModel.isEmpty,
+                          onTap: _vehicleCategory.isEmpty
+                              ? null
+                              : _pickMakeModel,
+                        ),
+                      ] else ...<Widget>[
+                        _inputField(
+                          controller: _makeController,
+                          hint: 'Make',
+                          onChanged: (v) => _make = v,
+                        ),
+                        _inputField(
+                          controller: _modelController,
+                          hint: 'Model',
+                          onChanged: (v) => _model = v,
+                        ),
+                      ],
+                      _inputField(
+                        controller: _vehicleNo,
+                        hint: 'Vehicle No.',
+                      ),
+                      _inputField(
+                        controller: _color,
+                        hint: 'Vehicle Color',
+                      ),
+                    ],
+                  ),
+                  _FormSection(
+                    title: 'Parking & location',
+                    children: <Widget>[
+                      _selectField(
+                        label: _apartment.isEmpty
+                            ? 'Apartment Name'
+                            : _apartment,
+                        isPlaceholder: _apartment.isEmpty,
+                        onTap: () => _pickList('Apartment Name', _apartments, (
+                          v,
+                        ) {
+                          setState(() => _apartment = v);
+                        }),
+                      ),
+                      _inputField(
+                        controller: _parkingLot,
+                        hint: 'Parking lot no.',
+                      ),
+                      _selectField(
+                        label: _parkingArea.isEmpty
+                            ? 'Parking Area'
+                            : _parkingArea,
+                        isPlaceholder: _parkingArea.isEmpty,
+                        onTap: () => _pickList('Parking Area', _parkingAreas, (
+                          v,
+                        ) {
+                          setState(() => _parkingArea = v);
+                        }),
+                      ),
+                    ],
+                  ),
+                  _FormSection(
+                    title: 'Wash schedule',
+                    children: <Widget>[
+                      _selectField(
+                        label: _preferredSchedule.isEmpty
+                            ? 'Preferred Schedule'
+                            : _preferredSchedule,
+                        isPlaceholder: _preferredSchedule.isEmpty,
+                        onTap: () => _pickList('Preferred Schedule', _schedules, (
+                          v,
+                        ) {
+                          setState(() {
+                            _preferredSchedule = v;
+                            _preferredTime = '';
+                          });
+                        }),
+                      ),
+                      _selectField(
+                        label: _preferredTime.isEmpty
+                            ? 'Preferred Time'
+                            : _preferredTime,
+                        isPlaceholder: _preferredTime.isEmpty,
+                        onTap: () {
+                          if (_preferredSchedule.isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Choose Preferred Schedule'),
+                              ),
+                            );
+                            return;
+                          }
+                          final times = _preferredSchedule == 'Morning'
+                              ? _morning
+                              : _evening;
+                          _pickList('Preferred Time', times, (v) {
+                            setState(() => _preferredTime = v);
+                          });
+                        },
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: _actionBtn(
+                          title: 'Cancel',
+                          onTap: () => context.pop(),
+                          outlined: true,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _actionBtn(
+                          title: 'Submit',
+                          onTap: _submit,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
-            Expanded(
-              child: Container(
-                color: _androidGrayBg,
-                child: _loading
-                    ? const Center(
-                        child: CircularProgressIndicator(color: AppColors.primary),
-                      )
-                    : SingleChildScrollView(
-                        padding: const EdgeInsets.all(7),
-                        child: Column(
-                          children: <Widget>[
-                            _selectField(
-                              label: _vehicleCategory.isEmpty
-                                  ? 'Vehicle Category'
-                                  : _vehicleCategory,
-                              onTap: () => _pickCategory(),
-                            ),
-                            if (_vehicleCategory.toLowerCase() != 'bike') ...<Widget>[
-                              _selectField(
-                                label: _makeModel.isEmpty ? 'Make and Model' : _makeModel,
-                                onTap: _vehicleCategory.isEmpty ? null : _pickMakeModel,
-                              ),
-                            ] else ...<Widget>[
-                              _inputField(
-                                controller: _makeController,
-                                hint: 'Make',
-                                onChanged: (v) => _make = v,
-                              ),
-                              _inputField(
-                                controller: _modelController,
-                                hint: 'Model',
-                                onChanged: (v) => _model = v,
-                              ),
-                            ],
-                            _inputField(controller: _vehicleNo, hint: 'Vehicle No.'),
-                            _inputField(controller: _color, hint: 'Vehicle Color'),
-                            _selectField(
-                              label: _apartment.isEmpty ? 'Apartment Name' : _apartment,
-                              onTap: () => _pickList('Apartment Name', _apartments, (v) {
-                                setState(() => _apartment = v);
-                              }),
-                            ),
-                            _inputField(controller: _parkingLot, hint: 'Parking lot no.'),
-                            _selectField(
-                              label: _parkingArea.isEmpty ? 'Parking Area' : _parkingArea,
-                              onTap: () => _pickList('Parking Area', _parkingAreas, (v) {
-                                setState(() => _parkingArea = v);
-                              }),
-                            ),
-                            _selectField(
-                              label: _preferredSchedule.isEmpty
-                                  ? 'Preferred Schedule'
-                                  : _preferredSchedule,
-                              onTap: () => _pickList('Preferred Schedule', _schedules, (v) {
-                                setState(() {
-                                  _preferredSchedule = v;
-                                  _preferredTime = '';
-                                });
-                              }),
-                            ),
-                            _selectField(
-                              label: _preferredTime.isEmpty
-                                  ? 'Preferred Time'
-                                  : _preferredTime,
-                              onTap: () {
-                                if (_preferredSchedule.isEmpty) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('Choose Preferred Schedule'),
-                                    ),
-                                  );
-                                  return;
-                                }
-                                final times = _preferredSchedule == 'Morning'
-                                    ? _morning
-                                    : _evening;
-                                _pickList('Preferred Time', times, (v) {
-                                  setState(() => _preferredTime = v);
-                                });
-                              },
-                            ),
-                            const SizedBox(height: 8),
-                            Row(
-                              children: <Widget>[
-                                Expanded(
-                                  child: _actionBtn(
-                                    title: 'CANCEL',
-                                    onTap: () => context.pop(),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: _actionBtn(
-                                    title: 'SUBMIT',
-                                    onTap: _submit,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 10),
-                          ],
-                        ),
-                      ),
-              ),
-            ),
-          ],
-        ),
+    );
+  }
+
+  InputDecoration _fieldDecoration(String hint) {
+    return InputDecoration(
+      hintText: hint,
+      hintStyle: AppTypography.dmSans(
+        fontSize: 15,
+        color: AppColors.grey500,
       ),
+      filled: true,
+      fillColor: AppColors.white,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      border: _fieldBorder,
+      enabledBorder: _fieldBorder,
+      focusedBorder: _focusedFieldBorder,
+      disabledBorder: _fieldBorder,
     );
   }
 
@@ -290,90 +346,94 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
     required String hint,
     ValueChanged<String>? onChanged,
   }) {
-    return Container(
-      margin: const EdgeInsets.all(7),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(7),
-        border: Border.all(color: _androidFieldBorder, width: 1),
-      ),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
       child: TextField(
         controller: controller,
         onChanged: onChanged,
-        style: const TextStyle(
-          fontSize: 18,
-          color: AppColors.black,
-          fontWeight: FontWeight.w400,
+        style: AppTypography.dmSans(
+          fontSize: 15,
+          color: AppColors.grey800,
         ),
-        decoration: InputDecoration(
-          hintText: hint,
-          hintStyle: const TextStyle(
-            fontSize: 18,
-            color: _androidHint,
-            fontWeight: FontWeight.w300,
-          ),
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-        ),
+        decoration: _fieldDecoration(hint),
       ),
     );
   }
 
   Widget _selectField({
     required String label,
+    required bool isPlaceholder,
     required VoidCallback? onTap,
   }) {
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        margin: const EdgeInsets.all(7),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-        decoration: BoxDecoration(
-          color: AppColors.white,
-          borderRadius: BorderRadius.circular(7),
-          border: Border.all(color: _androidFieldBorder, width: 1),
-        ),
-        child: Row(
-          children: <Widget>[
-            Expanded(
-              child: Text(
-                label,
-                style: TextStyle(
-                  fontSize: 18,
-                  color: label.startsWith('Vehicle') ||
-                          label.startsWith('Make') ||
-                          label.startsWith('Apartment') ||
-                          label.startsWith('Parking') ||
-                          label.startsWith('Preferred')
-                      ? _androidHint
-                      : AppColors.black,
-                  fontWeight: FontWeight.w400,
-                ),
-              ),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Material(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(AppDecorations.inputRadius),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(AppDecorations.inputRadius),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(AppDecorations.inputRadius),
+              border: Border.all(color: AppColors.grey200),
             ),
-            Image.asset('assets/images/down_arrow.png', width: 20, height: 20),
-          ],
+            child: Row(
+              children: <Widget>[
+                Expanded(
+                  child: Text(
+                    label,
+                    style: AppTypography.dmSans(
+                      fontSize: 15,
+                      color: isPlaceholder
+                          ? AppColors.grey500
+                          : AppColors.grey800,
+                      fontWeight: isPlaceholder
+                          ? FontWeight.w400
+                          : FontWeight.w500,
+                    ),
+                  ),
+                ),
+                const Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  size: 22,
+                  color: AppColors.grey500,
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
   }
 
-  Widget _actionBtn({required String title, required VoidCallback onTap}) {
+  Widget _actionBtn({
+    required String title,
+    required VoidCallback onTap,
+    bool outlined = false,
+  }) {
     return ElevatedButton(
       onPressed: onTap,
       style: ElevatedButton.styleFrom(
-        backgroundColor: AppColors.primary,
-        minimumSize: const Size.fromHeight(52),
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        elevation: 3,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(7)),
+        backgroundColor: outlined ? AppColors.white : AppColors.primary,
+        foregroundColor: outlined ? AppColors.primary : AppColors.white,
+        minimumSize: const Size.fromHeight(50),
+        elevation: outlined ? 0 : 2,
+        side: outlined
+            ? const BorderSide(color: AppColors.primary, width: 1.5)
+            : BorderSide.none,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppDecorations.buttonRadius),
+        ),
       ),
       child: Text(
         title,
-        style: const TextStyle(
-          color: AppColors.white,
-          fontSize: 18,
+        style: AppTypography.quicksand(
+          fontSize: 15,
           fontWeight: FontWeight.w700,
+          color: outlined ? AppColors.primary : AppColors.white,
         ),
       ),
     );
@@ -504,5 +564,38 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+}
+
+class _FormSection extends StatelessWidget {
+  const _FormSection({
+    required this.title,
+    required this.children,
+  });
+
+  final String title;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(
+            title,
+            style: AppTypography.quicksand(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: AppColors.primary,
+            ),
+          ),
+          const SizedBox(height: 10),
+          ...children,
+          const SizedBox(height: 8),
+        ],
+      ),
+    );
   }
 }

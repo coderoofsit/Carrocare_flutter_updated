@@ -1,6 +1,7 @@
 import 'package:carrocare_flutter/core/di/injection.dart';
 import 'package:carrocare_flutter/core/network/api_client.dart';
 import 'package:carrocare_flutter/core/theme/app_colors.dart';
+import 'package:carrocare_flutter/core/widgets/carro_care_scaffold.dart';
 import 'package:carrocare_flutter/core/utils/validators.dart';
 import 'package:carrocare_flutter/features/door_step/data/datasources/door_step_form_remote_data_source.dart';
 import 'package:carrocare_flutter/features/door_step/domain/entities/confirm_form_args.dart';
@@ -39,7 +40,6 @@ class _ConfirmFormPageState extends State<ConfirmFormPage> {
   bool _loadingInfo = false;
   bool _submitting = false;
 
-  static const Color _androidGrayBg = Color(0xFFEDEFF1);
   static const Color _fieldBorder = Color(0xFF8F8F8F);
   static const Color _hintColor = Color(0xFF8F8F8F);
 
@@ -245,62 +245,29 @@ class _ConfirmFormPageState extends State<ConfirmFormPage> {
         if (didPop) return;
         context.go('/home');
       },
-      child: Scaffold(
-        backgroundColor: AppColors.primary,
-        body: SafeArea(
-          child: Column(
-            children: <Widget>[
-              SizedBox(
-                height: kToolbarHeight,
-                child: Row(
-                  children: <Widget>[
-                    GestureDetector(
-                      onTap: () => context.go('/home'),
-                      child: Container(
-                        width: 35,
-                        height: 35,
-                        margin: const EdgeInsets.all(10),
-                        padding: const EdgeInsets.all(5),
-                        child: Image.asset('assets/images/back.png'),
-                      ),
-                    ),
-                    Expanded(
-                      child: Text(
-                        widget.args.headerTitle.toUpperCase(),
-                        style: const TextStyle(
-                          color: AppColors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                    if (showInfo)
-                      GestureDetector(
-                        onTap: _loadingInfo ? null : _showInfo,
-                        child: Container(
-                          width: 35,
-                          height: 35,
-                          margin: const EdgeInsets.all(10),
-                          padding: const EdgeInsets.all(5),
-                          child: Opacity(
-                            opacity: _infoDescription.isEmpty ? 0.45 : 1,
-                            child: Image.asset('assets/images/info.png'),
-                          ),
-                        ),
-                      )
-                    else
-                      const SizedBox(width: 45),
-                  ],
+      child: CarroCareScaffold(
+        title: widget.args.headerTitle,
+        onBack: () => context.go('/home'),
+        actions: <Widget>[
+          if (showInfo)
+            GestureDetector(
+              onTap: _loadingInfo ? null : _showInfo,
+              child: Container(
+                width: 40,
+                height: 40,
+                padding: const EdgeInsets.all(8),
+                child: Opacity(
+                  opacity: _infoDescription.isEmpty ? 0.45 : 1,
+                  child: Image.asset('assets/images/info.png'),
                 ),
               ),
-              Expanded(
-                child: Container(
-                  color: _androidGrayBg,
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: <Widget>[
+            ),
+        ],
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
                         const Text(
                           'Please Enter Details !!',
                           style: TextStyle(
@@ -368,12 +335,7 @@ class _ConfirmFormPageState extends State<ConfirmFormPage> {
                         ),
                       ],
                     ),
-                  ),
-                ),
-              ),
-            ],
           ),
-        ),
       ),
     );
   }

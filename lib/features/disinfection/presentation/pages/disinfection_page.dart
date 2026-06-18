@@ -1,4 +1,6 @@
 import 'package:carrocare_flutter/core/theme/app_colors.dart';
+import 'package:carrocare_flutter/core/widgets/carro_care_scaffold.dart';
+import 'package:carrocare_flutter/core/widgets/dotted_loader.dart';
 import 'package:carrocare_flutter/features/car_details/domain/entities/car_details_args.dart';
 import 'package:carrocare_flutter/features/daily_wash/domain/entities/daily_service.dart';
 import 'package:carrocare_flutter/features/disinfection/presentation/bloc/disinfection_bloc.dart';
@@ -27,98 +29,57 @@ class _DisinfectionPageState extends State<DisinfectionPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.primary,
-      body: SafeArea(
-        child: Column(
-          children: <Widget>[
-            SizedBox(
-              height: kToolbarHeight,
-              child: Row(
-                children: <Widget>[
-                  GestureDetector(
-                    onTap: () => context.pop(),
-                    child: Container(
-                      width: 35,
-                      height: 35,
-                      margin: const EdgeInsets.all(10),
-                      padding: const EdgeInsets.all(5),
-                      child: Image.asset('assets/images/back.png'),
-                    ),
-                  ),
-                  const Expanded(
-                    child: Text(
-                      'CAR DISINFECTION',
-                      style: TextStyle(
-                        color: AppColors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                  BlocBuilder<DisinfectionBloc, DisinfectionState>(
-                    builder: (context, state) {
-                      final description = state is DisinfectionLoaded
-                          ? _stripHtml(state.description)
-                          : '';
-                      return GestureDetector(
-                        onTap: description.isEmpty
-                            ? null
-                            : () => _showInfo(context, description),
-                        child: Container(
-                          width: 35,
-                          height: 35,
-                          margin: const EdgeInsets.all(10),
-                          padding: const EdgeInsets.all(5),
-                          child: Opacity(
-                            opacity: description.isEmpty ? 0.45 : 1,
-                            child: Image.asset('assets/images/info.png'),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
+    return CarroCareScaffold(
+      title: 'Car Disinfection',
+      onBack: () => context.pop(),
+      actions: <Widget>[
+        BlocBuilder<DisinfectionBloc, DisinfectionState>(
+          builder: (context, state) {
+            final description = state is DisinfectionLoaded
+                ? _stripHtml(state.description)
+                : '';
+            return GestureDetector(
+              onTap: description.isEmpty
+                  ? null
+                  : () => _showInfo(context, description),
               child: Container(
-                color: const Color(0xFFEDEFF1),
-                child: BlocBuilder<DisinfectionBloc, DisinfectionState>(
-                  builder: (context, state) {
-                    if (state is DisinfectionLoading ||
-                        state is DisinfectionInitial) {
-                      return const Center(
-                        child: CircularProgressIndicator(
-                          color: AppColors.primary,
-                        ),
-                      );
-                    }
-                    if (state is DisinfectionFailure) {
-                      return Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Text(
-                            state.message,
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                      );
-                    }
-                    final loaded = state as DisinfectionLoaded;
-                    return ListView.builder(
-                      padding: const EdgeInsets.all(10),
-                      itemCount: loaded.services.length,
-                      itemBuilder: (context, index) {
-                        return _ServiceCard(service: loaded.services[index]);
-                      },
-                    );
-                  },
+                width: 40,
+                height: 40,
+                padding: const EdgeInsets.all(8),
+                child: Opacity(
+                  opacity: description.isEmpty ? 0.45 : 1,
+                  child: Image.asset('assets/images/info.png'),
                 ),
               ),
-            ),
-          ],
+            );
+          },
         ),
+      ],
+      body: BlocBuilder<DisinfectionBloc, DisinfectionState>(
+        builder: (context, state) {
+          if (state is DisinfectionLoading || state is DisinfectionInitial) {
+            return const CarroCareLoadingOverlay();
+          }
+          if (state is DisinfectionFailure) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text(
+                  state.message,
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            );
+          }
+          final loaded = state as DisinfectionLoaded;
+          return ListView.builder(
+            padding: const EdgeInsets.all(10),
+            itemCount: loaded.services.length,
+            itemBuilder: (context, index) {
+              return _ServiceCard(service: loaded.services[index]);
+            },
+          );
+        },
       ),
     );
   }

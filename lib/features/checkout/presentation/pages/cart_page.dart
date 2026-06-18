@@ -1,5 +1,8 @@
 import 'package:carrocare_flutter/core/di/injection.dart';
 import 'package:carrocare_flutter/core/theme/app_colors.dart';
+import 'package:carrocare_flutter/core/theme/app_typography.dart';
+import 'package:carrocare_flutter/core/widgets/carro_care_scaffold.dart';
+import 'package:carrocare_flutter/core/widgets/dotted_loader.dart';
 import 'package:carrocare_flutter/features/checkout/core/autopay_checkout_helper.dart';
 import 'package:carrocare_flutter/features/checkout/core/cart_display_helper.dart';
 import 'package:carrocare_flutter/features/checkout/core/checkout_block_reason.dart';
@@ -14,6 +17,7 @@ import 'package:carrocare_flutter/features/checkout/data/local/cart_local_storag
 import 'package:carrocare_flutter/features/checkout/domain/entities/cart_item.dart';
 import 'package:carrocare_flutter/features/checkout/domain/entities/razorpay_price_summary.dart';
 import 'package:carrocare_flutter/features/checkout/domain/repositories/checkout_repository.dart';
+import 'package:carrocare_flutter/features/checkout/presentation/services/checkout_navigation.dart';
 import 'package:carrocare_flutter/features/checkout/presentation/services/razorpay_checkout_service.dart';
 import 'package:carrocare_flutter/features/checkout/presentation/widgets/cart_checkout_footer.dart';
 import 'package:carrocare_flutter/features/checkout/presentation/widgets/cart_item_card.dart';
@@ -213,244 +217,186 @@ class _CartPageState extends State<CartPage> {
       }
     }
 
-    setState(() => _checkingOut = true);
-    try {
-      final keys = await repo.getRazorpayKeys();
-      final total = _cartTotal;
-      final orderId = await repo.createCartRazorpayOrderId(cartTotal: total);
+    final router = GoRouter.of(context);
+    final priceSummary = _cartPriceSummary();
+    final confirmed = await showRazorpayPriceSummarySheet(
+      context: context,
+      summary: priceSummary,
+      onConfirmPay: () async {
+        setState(() => _checkingOut = true);
+        try {
+          final keys = await repo.getRazorpayKeys();
+          final total = _cartTotal;
+          final orderId =
+              await repo.createCartRazorpayOrderId(cartTotal: total);
 
-      await repo.createTempOrdersForCart(
-        items: _items,
-        razorpayOrderId: orderId,
-        customerId: _customerId,
-        token: _token,
-        cartTotal: total.toString(),
-      );
-
-      if (!mounted) return;
-
-      final priceSummary = _cartPriceSummary();
-      if (!await showRazorpayPriceSummarySheet(
-        context: context,
-        summary: priceSummary,
-      )) {
-        return;
-      }
-      if (!mounted) return;
-
-      final useRecurring =
-          _enableAutopay && AutopayCheckoutHelper.cartItemSupportsAutopay(
-            _items.first,
+          await repo.createTempOrdersForCart(
+            items: _items,
+            razorpayOrderId: orderId,
+            customerId: _customerId,
+            token: _token,
+            cartTotal: total.toString(),
           );
 
-      _razorpay.open(
-        keyId: keys.keyId,
-        amountPaise: total * 100,
-        description: orderId,
-        email: _email,
-        contact: _mobile,
-        orderId: orderId,
-        enableRecurring: useRecurring && _items.length == 1,
-        priceSummary: priceSummary,
-        onSuccess: (_) async {
-          await _storage.clear();
           if (!mounted) return;
-          context.go('/payment-success');
-        },
-        onError: (message) async {
-          await _storage.clear();
-          if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(message)),
+
+          final useRecurring =
+              _enableAutopay && AutopayCheckoutHelper.cartItemSupportsAutopay(
+                _items.first,
+              );
+
+          await _razorpay.openAndWait(
+            keyId: keys.keyId,
+            amountPaise: total * 100,
+            description: orderId,
+            email: _email,
+            contact: _mobile,
+            orderId: orderId,
+            enableRecurring: useRecurring && _items.length == 1,
+            priceSummary: priceSummary,
           );
-          context.go('/home');
-        },
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            e.toString().contains('Timeout')
-                ? 'Timeout.Try after sometime'
-                : e.toString(),
-          ),
-        ),
-      );
-    } finally {
-      if (mounted) setState(() => _checkingOut = false);
-    }
+          await _storage.clear();
+        } finally {
+          if (mounted) setState(() => _checkingOut = false);
+        }
+      },
+    );
+    if (!confirmed || !mounted) return;
+    goToPaymentSuccess(router);
   }
 
   Future<void> _checkoutMonthlySubscription(CartItem item) async {
-    setState(() => _checkingOut = true);
-    try {
-      final repo = sl<CheckoutRepository>();
-      final validation = await repo.validateCheckout(
-        customerId: _customerId,
-        vehicleId: item.carId,
-        serviceType: apiServiceTypeForValidation(item.serviceType),
-        subsType: 'Monthly',
-      );
-      if (validation.isNotEmpty) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(validation)),
-        );
-        return;
-      }
-
-      final packType = CheckoutPlanParams.packageType(
-        category: item.carCategory,
-        carName: item.carName,
-      );
-      final vehicleType = CheckoutPlanParams.apiVehicleType(
-        vehicleType: item.carCategory,
-        category: item.carCategory,
-        carName: item.carName,
-      );
-      final serviceType = apiServiceTypeForSubscription(item.serviceType);
-      final gstPercent = int.tryParse(item.gstPercent) ?? 0;
-      final inclusiveTotal = CheckoutPricing.parseAmount(item.totalAmount);
-      final priceSummary = RazorpayPriceSummary.fromInclusive(
-        serviceLabel: apiServiceTypeForSubscription(item.serviceType),
-        inclusiveTotal: inclusiveTotal,
-        gstPercent: gstPercent,
-      );
-      if (!await showRazorpayPriceSummarySheet(
-        context: context,
-        summary: priceSummary,
-      )) {
-        return;
-      }
-      if (!mounted) return;
-
-      await MonthlySubscriptionCheckout.run(
-        razorpay: _razorpay,
-        token: _token,
-        customerId: _customerId,
-        vehicleId: item.carId,
-        packType: packType,
-        vehicleType: vehicleType,
-        serviceType: serviceType,
-        packAmount: item.packAmount,
-        gstPercent: gstPercent,
-        priceSummary: priceSummary,
-        onError: (message) {
-          if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(message)),
-          );
-        },
-        onSuccess: () async {
-          await _storage.clear();
-          if (!mounted) return;
-          context.go('/payment-success');
-        },
-      );
-    } catch (e) {
+    final repo = sl<CheckoutRepository>();
+    final validation = await repo.validateCheckout(
+      customerId: _customerId,
+      vehicleId: item.carId,
+      serviceType: apiServiceTypeForValidation(item.serviceType),
+      subsType: 'Monthly',
+    );
+    if (validation.isNotEmpty) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString())),
+        SnackBar(content: Text(validation)),
       );
-    } finally {
-      if (mounted) setState(() => _checkingOut = false);
+      return;
     }
+
+    final packType = CheckoutPlanParams.packageType(
+      category: item.carCategory,
+      carName: item.carName,
+    );
+    final vehicleType = CheckoutPlanParams.apiVehicleType(
+      vehicleType: item.carCategory,
+      category: item.carCategory,
+      carName: item.carName,
+    );
+    final serviceType = apiServiceTypeForSubscription(item.serviceType);
+    final gstPercent = int.tryParse(item.gstPercent) ?? 0;
+    final inclusivePackAmount = item.totalAmount.isNotEmpty
+        ? item.totalAmount
+        : item.packAmount;
+    final inclusiveTotal = CheckoutPricing.parseAmount(inclusivePackAmount);
+    final priceSummary = RazorpayPriceSummary.fromInclusive(
+      serviceLabel: apiServiceTypeForSubscription(item.serviceType),
+      inclusiveTotal: inclusiveTotal,
+      gstPercent: gstPercent,
+    );
+
+    final router = GoRouter.of(context);
+    final confirmed = await showRazorpayPriceSummarySheet(
+      context: context,
+      summary: priceSummary,
+      onConfirmPay: () async {
+        setState(() => _checkingOut = true);
+        try {
+          await MonthlySubscriptionCheckout.run(
+            razorpay: _razorpay,
+            token: _token,
+            customerId: _customerId,
+            vehicleId: item.carId,
+            packType: packType,
+            vehicleType: vehicleType,
+            serviceType: serviceType,
+            packAmount: inclusivePackAmount,
+            gstPercent: gstPercent,
+            priceSummary: priceSummary,
+            onError: (message) {
+              if (!mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text(message)),
+              );
+            },
+            onSuccess: () async {},
+          );
+          await _storage.clear();
+        } finally {
+          if (mounted) setState(() => _checkingOut = false);
+        }
+      },
+    );
+    if (!confirmed || !mounted) return;
+    goToPaymentSuccess(router);
   }
 
   @override
   Widget build(BuildContext context) {
     final bool hasItems = _items.isNotEmpty;
 
-    return Scaffold(
-      backgroundColor: AppColors.primary,
-      body: SafeArea(
-        child: Column(
-          children: <Widget>[
-            SizedBox(
-              height: kToolbarHeight,
-              child: Row(
-                children: <Widget>[
-                  GestureDetector(
-                    onTap: () => context.pop(),
-                    child: Container(
-                      width: 35,
-                      height: 35,
-                      margin: const EdgeInsets.all(10),
-                      padding: const EdgeInsets.all(5),
-                      child: Image.asset('assets/images/back.png'),
-                    ),
+    return CarroCareScaffold(
+      title: 'Cart',
+      onBack: () => context.pop(),
+      footer: hasItems
+          ? Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                if (_checkingOut)
+                  const LinearProgressIndicator(
+                    minHeight: 3,
+                    color: AppColors.primary,
                   ),
-                  const Expanded(
-                    child: Text(
-                      'CART',
-                      style: TextStyle(
-                        color: AppColors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: Container(
-                color: const Color(0xFFEDEFF1),
-                child: _loading
-                    ? const Center(
-                        child: CircularProgressIndicator(
-                          color: AppColors.primary,
-                        ),
-                      )
-                    : !hasItems
-                        ? _EmptyCart()
-                        : ListView.builder(
-                            padding: const EdgeInsets.only(top: 4, bottom: 8),
-                            itemCount: _items.length,
-                            itemBuilder: (context, index) {
-                              final item = _items[index];
-                              return CartItemCard(
-                                item: item,
-                                onDelete: () => _confirmRemove(item),
-                              );
-                            },
-                          ),
-              ),
-            ),
-            if (hasItems)
-              CartCheckoutFooter(
-                itemCount: _items.length,
-                total: _cartTotal,
-                checkingOut: _checkingOut,
-                onCheckout: _checkout,
-                consentSection: _showAutopayPanel || _showMonthlyTermsPanel
-                    ? AutopayConsentPanel(
-                        enableAutopay: _enableAutopay,
-                        showAutopayToggle: !_showMonthlyTermsPanel,
-                        acceptedTerms: _acceptedTerms,
-                        onAutopayChanged: (value) =>
-                            setState(() => _enableAutopay = value),
-                        onTermsChanged: (value) =>
-                            setState(() => _acceptedTerms = value),
-                        renewalAmount:
-                            CheckoutPricing.rupee(_cartTotal),
-                      )
-                    : null,
-              ),
-            if (_checkingOut)
-              const LinearProgressIndicator(
-                minHeight: 3,
-                color: AppColors.primary,
-              ),
-          ],
-        ),
-      ),
+                CartCheckoutFooter(
+                  itemCount: _items.length,
+                  total: _cartTotal,
+                  checkingOut: _checkingOut,
+                  onCheckout: _checkout,
+                  consentSection: _showAutopayPanel || _showMonthlyTermsPanel
+                      ? AutopayConsentPanel(
+                          enableAutopay: _enableAutopay,
+                          showAutopayToggle: !_showMonthlyTermsPanel,
+                          acceptedTerms: _acceptedTerms,
+                          onAutopayChanged: (value) =>
+                              setState(() => _enableAutopay = value),
+                          onTermsChanged: (value) =>
+                              setState(() => _acceptedTerms = value),
+                          renewalAmount: CheckoutPricing.rupee(_cartTotal),
+                        )
+                      : null,
+                ),
+              ],
+            )
+          : null,
+      body: _loading
+          ? const CarroCareLoadingOverlay()
+          : !hasItems
+              ? const _EmptyCart()
+              : ListView.builder(
+                  padding: const EdgeInsets.only(top: 8, bottom: 8),
+                  itemCount: _items.length,
+                  itemBuilder: (context, index) {
+                    final item = _items[index];
+                    return CartItemCard(
+                      item: item,
+                      onDelete: () => _confirmRemove(item),
+                    );
+                  },
+                ),
     );
   }
 }
 
 class _EmptyCart extends StatelessWidget {
+  const _EmptyCart();
+
   @override
   Widget build(BuildContext context) {
     return Center(
@@ -459,16 +405,25 @@ class _EmptyCart extends StatelessWidget {
         children: <Widget>[
           Image.asset(
             'assets/images/tyre.png',
-            height: 200,
+            height: 180,
             fit: BoxFit.contain,
           ),
           const SizedBox(height: 16),
-          const Text(
+          Text(
             'No vehicles added yet',
             textAlign: TextAlign.center,
-            style: TextStyle(
+            style: AppTypography.quicksand(
               fontSize: 18,
-              color: AppColors.black,
+              fontWeight: FontWeight.w600,
+              color: AppColors.grey700,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Add a service to get started',
+            style: AppTypography.dmSans(
+              fontSize: 14,
+              color: AppColors.grey500,
             ),
           ),
         ],

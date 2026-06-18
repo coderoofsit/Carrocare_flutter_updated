@@ -1,5 +1,7 @@
 import 'package:carrocare_flutter/core/storage/map_location_store.dart';
 import 'package:carrocare_flutter/core/theme/app_colors.dart';
+import 'package:carrocare_flutter/core/widgets/carro_care_scaffold.dart';
+import 'package:carrocare_flutter/core/widgets/dotted_loader.dart';
 import 'package:carrocare_flutter/core/utils/validators.dart';
 import 'package:carrocare_flutter/features/map/domain/entities/map_location_result.dart';
 import 'package:carrocare_flutter/features/profile/presentation/bloc/profile_bloc.dart';
@@ -198,65 +200,27 @@ class _ProfilePageState extends State<ProfilePage> {
         final isUpdating = state is ProfileUpdating;
         final apartments = loadedState?.apartments ?? <String>[];
 
-        return Scaffold(
-          backgroundColor: AppColors.primary,
-          body: SafeArea(
-            child: Column(
-              children: <Widget>[
-                SizedBox(
-                  height: kToolbarHeight,
-                  child: Row(
-                    children: <Widget>[
-                      GestureDetector(
-                        onTap: () => context.go('/home'),
-                        child: Container(
-                          width: 35,
-                          height: 35,
-                          margin: const EdgeInsets.all(10),
-                          padding: const EdgeInsets.all(5),
-                          child: Image.asset('assets/images/back.png'),
+        return CarroCareScaffold(
+          title: 'Profile Details',
+          onBack: () => context.go('/home'),
+          body: isInitialLoading
+              ? const CarroCareLoadingOverlay()
+              : state is ProfileFailure
+                  ? Center(
+                      child: Text(
+                        state.message,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: AppColors.black,
+                          fontSize: 16,
                         ),
                       ),
-                      const Expanded(
-                        child: Text(
-                          'PROFILE DETAILS',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: AppColors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 45),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  child: Container(
-                    color: const Color(0xFFEDEFF1),
-                    child: isInitialLoading
-                        ? const Center(
-                            child: CircularProgressIndicator(
-                              color: AppColors.primary,
-                            ),
-                          )
-                        : state is ProfileFailure
-                            ? Center(
-                                child: Text(
-                                  state.message,
-                                  textAlign: TextAlign.center,
-                                  style: const TextStyle(
-                                    color: AppColors.black,
-                                    fontSize: 16,
-                                  ),
-                                ),
-                              )
-                            : SingleChildScrollView(
-                                padding: const EdgeInsets.all(7),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: <Widget>[
+                    )
+                  : SingleChildScrollView(
+                      padding: const EdgeInsets.all(7),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
                                     const Padding(
                                       padding: EdgeInsets.symmetric(
                                         horizontal: 5,
@@ -356,11 +320,6 @@ class _ProfilePageState extends State<ProfilePage> {
                                   ],
                                 ),
                               ),
-                  ),
-                ),
-              ],
-            ),
-          ),
         );
       },
     );

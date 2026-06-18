@@ -26,6 +26,43 @@ class _SignupPageState extends State<SignupPage> {
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController =
       TextEditingController();
+  bool _otpActionInFlight = false;
+
+  void _releaseOtpActionLock() {
+    if (mounted) {
+      setState(() => _otpActionInFlight = false);
+    } else {
+      _otpActionInFlight = false;
+    }
+  }
+
+  void _sendOtp(SignupState state) {
+    if (_otpActionInFlight || state.status == SignupStatus.loading) return;
+    setState(() => _otpActionInFlight = true);
+    FocusManager.instance.primaryFocus?.unfocus();
+    context.read<SignupBloc>().add(
+      SignupSendOtpPressed(
+        name: _nameController.text,
+        email: _emailController.text,
+        mobile: _mobileController.text,
+      ),
+    );
+  }
+
+  void _submitSignup(SignupState state) {
+    if (_otpActionInFlight || state.status == SignupStatus.loading) return;
+    FocusManager.instance.primaryFocus?.unfocus();
+    context.read<SignupBloc>().add(
+      SignupSubmitPressed(
+        name: _nameController.text,
+        email: _emailController.text,
+        mobile: _mobileController.text,
+        otp: _otpController.text,
+        password: _passwordController.text,
+        confirmPassword: _confirmPasswordController.text,
+      ),
+    );
+  }
 
   @override
   void dispose() {
@@ -52,11 +89,14 @@ class _SignupPageState extends State<SignupPage> {
         if (state.status == SignupStatus.otpSent &&
             state.successMessage != null &&
             state.successMessage!.isNotEmpty) {
+          _otpController.clear();
+          _releaseOtpActionLock();
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text(state.successMessage!)),
           );
         }
         if (state.status == SignupStatus.otpVerified) {
+          _releaseOtpActionLock();
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('OTP verified. Please set your password.'),
@@ -65,6 +105,7 @@ class _SignupPageState extends State<SignupPage> {
           return;
         }
         if (state.errorMessage != null && state.errorMessage!.isNotEmpty) {
+          _releaseOtpActionLock();
           ScaffoldMessenger.of(
             context,
           ).showSnackBar(SnackBar(content: Text(state.errorMessage!)));
@@ -147,45 +188,24 @@ class _SignupPageState extends State<SignupPage> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: ElevatedButton(
-                        onPressed: state.status == SignupStatus.loading
+                        onPressed: state.status == SignupStatus.loading ||
+                                _otpActionInFlight
                             ? null
-                            : () {
-                                if (state.showOtp) {
-                                  _otpController.clear();
-                                }
-                                context.read<SignupBloc>().add(
-                                  SignupSendOtpPressed(
-                                    name: _nameController.text,
-                                    email: _emailController.text,
-                                    mobile: _mobileController.text,
-                                  ),
-                                );
-                              },
+                            : () => _sendOtp(state),
                         child: Text(state.showOtp ? 'RESEND OTP' : 'SEND OTP'),
                       ),
                     ),
                   ],
                 ),
                 if (state.showOtp) ...<Widget>[
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 16),
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: state.status == SignupStatus.loading
+                      onPressed: state.status == SignupStatus.loading ||
+                              _otpActionInFlight
                           ? null
-                          : () {
-                              context.read<SignupBloc>().add(
-                                SignupSubmitPressed(
-                                  name: _nameController.text,
-                                  email: _emailController.text,
-                                  mobile: _mobileController.text,
-                                  otp: _otpController.text,
-                                  password: _passwordController.text,
-                                  confirmPassword:
-                                      _confirmPasswordController.text,
-                                ),
-                              );
-                            },
+                          : () => _submitSignup(state),
                       child: Text(
                         state.showPassword ? 'REGISTER' : 'VERIFY OTP',
                       ),

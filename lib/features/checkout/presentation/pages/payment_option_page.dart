@@ -1,5 +1,13 @@
+import 'package:carrocare_flutter/core/constants/app_urls.dart';
 import 'package:carrocare_flutter/core/di/injection.dart';
 import 'package:carrocare_flutter/core/theme/app_colors.dart';
+import 'package:carrocare_flutter/core/theme/app_decorations.dart';
+import 'package:carrocare_flutter/core/theme/app_typography.dart';
+import 'package:carrocare_flutter/core/widgets/bill_line_row.dart';
+import 'package:carrocare_flutter/core/widgets/carro_care_app_bar.dart';
+import 'package:carrocare_flutter/core/widgets/carro_care_scaffold.dart';
+import 'package:carrocare_flutter/core/widgets/dotted_divider.dart';
+import 'package:carrocare_flutter/core/widgets/dotted_loader.dart';
 import 'package:carrocare_flutter/features/checkout/core/checkout_block_reason.dart';
 import 'package:carrocare_flutter/features/checkout/core/checkout_gst_config.dart';
 import 'package:carrocare_flutter/features/checkout/core/checkout_constants.dart';
@@ -18,13 +26,17 @@ import 'package:carrocare_flutter/features/checkout/domain/repositories/checkout
 import 'package:carrocare_flutter/features/daily_wash/domain/repositories/daily_wash_repository.dart';
 import 'package:carrocare_flutter/features/bike_wash/domain/repositories/bike_wash_repository.dart';
 import 'package:carrocare_flutter/features/checkout/core/monthly_subscription_checkout.dart';
+import 'package:carrocare_flutter/features/checkout/presentation/services/checkout_navigation.dart';
 import 'package:carrocare_flutter/features/checkout/presentation/services/razorpay_checkout_service.dart';
-import 'package:carrocare_flutter/features/checkout/presentation/widgets/autopay_consent_panel.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+enum _PaymentCardAction { monthly, oneTime }
 
 class PaymentOptionPage extends StatefulWidget {
   const PaymentOptionPage({super.key, required this.args});
@@ -46,7 +58,7 @@ class _PaymentOptionPageState extends State<PaymentOptionPage> {
   int _gstPercent = 0;
   int _cartCount = 0;
   bool _loading = true;
-  bool _paying = false;
+  _PaymentCardAction? _payingCard;
 
   OneTimeWashCheckout? _oneTimeCheckout;
   int _selectedMonths = 1;
@@ -61,6 +73,7 @@ class _PaymentOptionPageState extends State<PaymentOptionPage> {
   String _oneTimeBlockedMessage = '';
   bool _blockOneTimeDueToMonthly = false;
   String _resolvedInclusivePackAmount = '';
+  bool _autoRenew = true;
 
   PaymentOptionArgs get _a => widget.args;
 
@@ -85,6 +98,14 @@ class _PaymentOptionPageState extends State<PaymentOptionPage> {
   bool get _showOneTimeCard =>
       (_isWashOrBike || _isAddon || _isExtraInterior) &&
       !_blockOneTimeDueToMonthly;
+
+  bool get _canToggleAutoRenew => _showMonthlyCard && _showOneTimeCard;
+
+  bool get _isSubscriptionMode {
+    if (_showMonthlyCard && !_showOneTimeCard) return true;
+    if (!_showMonthlyCard && _showOneTimeCard) return false;
+    return _autoRenew;
+  }
 
   String get _apiPackType {
     if (_a.serviceType == CheckoutConstants.serviceWash ||
@@ -204,7 +225,10 @@ class _PaymentOptionPageState extends State<PaymentOptionPage> {
     }
 
     if (!mounted) return;
-    setState(() => _loading = false);
+    setState(() {
+      _loading = false;
+      _autoRenew = _showMonthlyCard;
+    });
   }
 
   Future<void> _resolveTierPrice() async {
@@ -325,11 +349,13 @@ class _PaymentOptionPageState extends State<PaymentOptionPage> {
   }
 
   Future<void> _payMonthly() async {
+    if (_payingCard != null) return;
     if (!_acceptedTerms) {
       _toast('Please accept the terms and conditions');
       return;
     }
-    setState(() => _paying = true);
+    FocusManager.instance.primaryFocus?.unfocus();
+    setState(() => _payingCard = _PaymentCardAction.monthly);
     try {
       final validation = await sl<CheckoutRepository>().validateCheckout(
         customerId: _customerId,
@@ -348,31 +374,29 @@ class _PaymentOptionPageState extends State<PaymentOptionPage> {
         inclusiveTotal: _monthlyBase,
         gstPercent: _gstPercent,
       );
-      if (!await showRazorpayPriceSummarySheet(
+      final router = GoRouter.of(context);
+      final confirmed = await showRazorpayPriceSummarySheet(
         context: context,
         summary: priceSummary,
-      )) {
-        return;
-      }
-      if (!mounted) return;
-
-      await MonthlySubscriptionCheckout.run(
-        razorpay: _razorpay,
-        token: _token,
-        customerId: _customerId,
-        vehicleId: _a.vehicle.id,
-        packType: _apiPackType,
-        vehicleType: _apiVehicleType,
-        serviceType: _apiServiceType,
-        packAmount: _monthlyPackAmount,
-        gstPercent: _gstPercent,
-        priceSummary: priceSummary,
-        onError: _toast,
-        onSuccess: () async {
-          if (!mounted) return;
-          context.go('/payment-success');
+        onConfirmPay: () async {
+          await MonthlySubscriptionCheckout.run(
+            razorpay: _razorpay,
+            token: _token,
+            customerId: _customerId,
+            vehicleId: _a.vehicle.id,
+            packType: _apiPackType,
+            vehicleType: _apiVehicleType,
+            serviceType: _apiServiceType,
+            packAmount: _monthlyPackAmount,
+            gstPercent: _gstPercent,
+            priceSummary: priceSummary,
+            onError: _toast,
+            onSuccess: () async {},
+          );
         },
       );
+      if (!confirmed || !mounted) return;
+      goToPaymentSuccess(router);
     } catch (e) {
       _toast(
         e.toString().contains('Timeout')
@@ -380,11 +404,12 @@ class _PaymentOptionPageState extends State<PaymentOptionPage> {
             : e.toString(),
       );
     } finally {
-      if (mounted) setState(() => _paying = false);
+      if (mounted) setState(() => _payingCard = null);
     }
   }
 
   Future<void> _payOneTime({required bool monthlyCard}) async {
+    if (_payingCard != null) return;
     if (_blockOneTimeDueToMonthly) {
       _toast(_oneTimeBlockedMessage.isNotEmpty
           ? _oneTimeBlockedMessage
@@ -396,7 +421,12 @@ class _PaymentOptionPageState extends State<PaymentOptionPage> {
       return;
     }
 
-    setState(() => _paying = true);
+    FocusManager.instance.primaryFocus?.unfocus();
+    setState(
+      () => _payingCard = monthlyCard
+          ? _PaymentCardAction.monthly
+          : _PaymentCardAction.oneTime,
+    );
     try {
       final validation = await sl<CheckoutRepository>().validateCheckout(
         customerId: _customerId,
@@ -410,7 +440,6 @@ class _PaymentOptionPageState extends State<PaymentOptionPage> {
       }
       if (!mounted) return;
 
-      final keys = await sl<CheckoutRepository>().getRazorpayKeys();
       final base = monthlyCard ? _monthlyBase : _oneTimeBase;
       final amountPaise = _finalAmount(base) * 100;
       final priceSummary = RazorpayPriceSummary.fromInclusive(
@@ -418,38 +447,41 @@ class _PaymentOptionPageState extends State<PaymentOptionPage> {
         inclusiveTotal: base,
         gstPercent: _gstPercent,
       );
-      if (!await showRazorpayPriceSummarySheet(
-        context: context,
-        summary: priceSummary,
-      )) {
-        return;
-      }
-      if (!mounted) return;
-
       final action = CheckoutConstants.resolveAction(
         serviceType: _a.serviceType,
         isMonthlyPay: monthlyCard,
         isExtraInteriorName: _isExtraInterior,
       );
+      final router = GoRouter.of(context);
+      final confirmed = await showRazorpayPriceSummarySheet(
+        context: context,
+        summary: priceSummary,
+        onConfirmPay: () async {
+          final keys = await sl<CheckoutRepository>().getRazorpayKeys();
+          if (!mounted) return;
 
-      _razorpay.open(
-        keyId: keys.keyId,
-        amountPaise: amountPaise,
-        description: _displayServiceType(),
-        email: _email,
-        contact: _mobile,
-        priceSummary: priceSummary,
-        onSuccess: (paymentId) => _placeOrder(
-          paymentId: paymentId,
-          action: action,
-          monthlyCard: monthlyCard,
-        ),
-        onError: (message) => _toast(message),
+          final paymentId = await _razorpay.openAndWait(
+            keyId: keys.keyId,
+            amountPaise: amountPaise,
+            description: _displayServiceType(),
+            email: _email,
+            contact: _mobile,
+            priceSummary: priceSummary,
+          );
+          await _placeOrder(
+            paymentId: paymentId,
+            action: action,
+            monthlyCard: monthlyCard,
+            navigateOnSuccess: false,
+          );
+        },
       );
+      if (!confirmed || !mounted) return;
+      goToPaymentSuccess(router);
     } catch (_) {
       _toast('Timeout.Try after sometime');
     } finally {
-      if (mounted) setState(() => _paying = false);
+      if (mounted) setState(() => _payingCard = null);
     }
   }
 
@@ -457,8 +489,15 @@ class _PaymentOptionPageState extends State<PaymentOptionPage> {
     required String paymentId,
     required String action,
     required bool monthlyCard,
+    bool navigateOnSuccess = true,
   }) async {
-    setState(() => _paying = true);
+    if (_payingCard == null) {
+      setState(
+        () => _payingCard = monthlyCard
+            ? _PaymentCardAction.monthly
+            : _PaymentCardAction.oneTime,
+      );
+    }
     try {
       final base = monthlyCard ? _monthlyBase : _oneTimeBase;
       final breakdown = CheckoutPricing.breakdownFromInclusive(base, _gstPercent);
@@ -513,11 +552,13 @@ class _PaymentOptionPageState extends State<PaymentOptionPage> {
 
       _toast(message);
       if (!mounted) return;
-      context.go('/payment-success');
+      if (navigateOnSuccess) {
+        goToPaymentSuccess(GoRouter.of(context));
+      }
     } catch (e) {
       _toast(e.toString());
     } finally {
-      if (mounted) setState(() => _paying = false);
+      if (mounted) setState(() => _payingCard = null);
     }
   }
 
@@ -610,164 +651,49 @@ class _PaymentOptionPageState extends State<PaymentOptionPage> {
   Widget build(BuildContext context) {
     final vehicle = _a.vehicle;
 
-    return Scaffold(
-      backgroundColor: AppColors.primary,
-      body: SafeArea(
-        child: Column(
-          children: <Widget>[
-            SizedBox(
-              height: kToolbarHeight,
-              child: Row(
+    return CarroCareScaffold(
+      title: 'Payment Option',
+      onBack: () => context.pop(),
+      actions: <Widget>[
+        CarroCareCartAction(
+          count: _cartCount,
+          onTap: () => context.push('/cart').then((_) => _bootstrap()),
+        ),
+      ],
+      footer: _payingCard != null
+          ? const LinearProgressIndicator(
+              minHeight: 3,
+              color: AppColors.primary,
+            )
+          : null,
+      body: _loading
+          ? const CarroCareLoadingOverlay()
+          : SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+              child: Column(
                 children: <Widget>[
-                  GestureDetector(
-                    onTap: () => context.pop(),
-                    child: Container(
-                      width: 35,
-                      height: 35,
-                      margin: const EdgeInsets.all(10),
-                      padding: const EdgeInsets.all(5),
-                      child: Image.asset('assets/images/back.png'),
-                    ),
-                  ),
-                  const Expanded(
-                    child: Text(
-                      'PAYMENT OPTION',
-                      style: TextStyle(
-                        color: AppColors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: () => context.push('/cart').then((_) => _bootstrap()),
-                    child: SizedBox(
-                      width: 35,
-                      height: 35,
-                      child: Stack(
-                        clipBehavior: Clip.none,
-                        children: <Widget>[
-                          Center(
-                            child: SvgPicture.asset(
-                              'assets/vectors/ic_cart.svg',
-                              width: 25,
-                              height: 25,
-                              colorFilter: const ColorFilter.mode(
-                                AppColors.white,
-                                BlendMode.srcIn,
-                              ),
-                            ),
-                          ),
-                          if (_cartCount > 0)
-                            Positioned(
-                              right: 0,
-                              top: 0,
-                              child: Container(
-                                padding: const EdgeInsets.all(3),
-                                decoration: const BoxDecoration(
-                                  color: AppColors.black,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: Text(
-                                  '$_cartCount',
-                                  style: const TextStyle(
-                                    color: AppColors.white,
-                                    fontSize: 8,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
+                  if (_showExtraDate) ...<Widget>[
+                    _dateCard(),
+                    const SizedBox(height: 10),
+                  ],
+                  _vehicleCard(vehicle),
+                  if (_monthlyBlockedMessage.isNotEmpty &&
+                      _isWashOrBike) ...<Widget>[
+                    const SizedBox(height: 10),
+                    _checkoutBlockedBanner(_monthlyBlockedMessage),
+                  ],
+                  if (_blockOneTimeDueToMonthly &&
+                      (_isWashOrBike || _showExtraDate)) ...<Widget>[
+                    const SizedBox(height: 10),
+                    _checkoutBlockedBanner(_oneTimeBlockedMessage),
+                  ],
+                  if (_showMonthlyCard || _showOneTimeCard) ...<Widget>[
+                    const SizedBox(height: 10),
+                    _paymentOptionCard(),
+                  ],
                 ],
               ),
             ),
-            Expanded(
-              child: Container(
-                color: const Color(0xFFEDEFF1),
-                child: _loading
-                    ? const Center(
-                        child: CircularProgressIndicator(
-                          color: AppColors.primary,
-                        ),
-                      )
-                    : SingleChildScrollView(
-                        padding: const EdgeInsets.fromLTRB(12, 8, 12, 100),
-                        child: Column(
-                          children: <Widget>[
-                            if (_showExtraDate) ...<Widget>[
-                              _dateCard(),
-                              const SizedBox(height: 8),
-                            ],
-                            _vehicleCard(vehicle),
-                            if (_monthlyBlockedMessage.isNotEmpty &&
-                                _isWashOrBike) ...<Widget>[
-                              const SizedBox(height: 8),
-                              _checkoutBlockedBanner(_monthlyBlockedMessage),
-                            ],
-                            if (_blockOneTimeDueToMonthly &&
-                                (_isWashOrBike || _showExtraDate)) ...<Widget>[
-                              const SizedBox(height: 8),
-                              _checkoutBlockedBanner(_oneTimeBlockedMessage),
-                            ],
-                            if (_showMonthlyCard) ...<Widget>[
-                              const SizedBox(height: 8),
-                              AutopayConsentPanel(
-                                enableAutopay: true,
-                                showAutopayToggle: false,
-                                acceptedTerms: _acceptedTerms,
-                                onAutopayChanged: (_) {},
-                                onTermsChanged: (value) =>
-                                    setState(() => _acceptedTerms = value),
-                                renewalAmount: CheckoutPricing.rupee(
-                                  _finalAmount(_monthlyBase),
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              _subscriptionCard(
-                                title: 'Monthly Subscription',
-                                subtitle:
-                                    'Auto-renews each month (Razorpay subscription)',
-                                base: _monthlyBase,
-                                onPay: _payMonthly,
-                                onCart: () => _addToCart(monthlyCard: true),
-                                payLabel: 'Pay Now',
-                                payEnabled: _acceptedTerms,
-                              ),
-                            ],
-                            if (_showOneTimeCard) ...<Widget>[
-                              const SizedBox(height: 8),
-                              _subscriptionCard(
-                                title: _isAddon
-                                    ? 'One Time Subscription'
-                                    : 'One Time Prepay',
-                                subtitle: _isAddon
-                                    ? 'One-time payment'
-                                    : '$_selectedMonths month(s) prepaid — not auto-renew',
-                                base: _oneTimeBase,
-                                onPay: () => _payOneTime(monthlyCard: false),
-                                onCart: () => _addToCart(monthlyCard: false),
-                                payLabel: 'Pay Now',
-                                showMonths: _isWashOrBike,
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-              ),
-            ),
-            if (_paying)
-              const LinearProgressIndicator(
-                minHeight: 3,
-                color: AppColors.primary,
-              ),
-          ],
-        ),
-      ),
     );
   }
 
@@ -808,28 +734,29 @@ class _PaymentOptionPageState extends State<PaymentOptionPage> {
   }
 
   Widget _checkoutBlockedBanner(String message) {
-    return Card(
-      color: const Color(0xFFFFF3E0),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            const Icon(Icons.info_outline, color: Color(0xFFE65100)),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                message,
-                style: const TextStyle(
-                  color: Color(0xFF5D4037),
-                  fontSize: 13,
-                  height: 1.35,
-                ),
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.primaryTint,
+        borderRadius: BorderRadius.circular(AppDecorations.inputRadius),
+        border: Border.all(color: AppColors.primaryTintStrong),
+      ),
+      padding: const EdgeInsets.all(12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          const Icon(Icons.info_outline, color: AppColors.primaryDark),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              message,
+              style: AppTypography.dmSans(
+                fontSize: 13,
+                color: AppColors.grey700,
+                height: 1.35,
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -887,21 +814,18 @@ class _PaymentOptionPageState extends State<PaymentOptionPage> {
     );
   }
 
-  Widget _subscriptionCard({
-    required String title,
-    required String subtitle,
-    required int base,
-    required VoidCallback onPay,
-    required VoidCallback onCart,
-    required String payLabel,
-    bool showMonths = false,
-    bool payEnabled = true,
-  }) {
+  Widget _paymentOptionCard() {
+    final isSubscription = _isSubscriptionMode;
+    final base = isSubscription ? _monthlyBase : _oneTimeBase;
     final finalAmt = _finalAmount(base);
     final mrp = CheckoutPricing.mrpWithOffer(
       finalAmt,
-      months: showMonths ? _selectedMonths : 1,
+      months: !isSubscription && _isWashOrBike ? _selectedMonths : 1,
     );
+    final cardAction =
+        isSubscription ? _PaymentCardAction.monthly : _PaymentCardAction.oneTime;
+    final cardBusy = _payingCard == cardAction;
+    final renewalHint = CheckoutPricing.rupee(_finalAmount(_monthlyBase));
 
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
@@ -910,20 +834,63 @@ class _PaymentOptionPageState extends State<PaymentOptionPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            Text(
-              title,
+            const Text(
+              'Payment',
               style: const TextStyle(
                 fontWeight: FontWeight.w700,
                 fontSize: 16,
                 color: AppColors.primary,
               ),
             ),
+            const SizedBox(height: 8),
+            if (_canToggleAutoRenew)
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                value: _autoRenew,
+                onChanged: cardBusy
+                    ? null
+                    : (value) => setState(() => _autoRenew = value),
+                title: const Text(
+                  'Auto-renew',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 15,
+                  ),
+                ),
+                subtitle: Text(
+                  isSubscription
+                      ? 'Monthly subscription — renews automatically each billing cycle. We will charge $renewalHint on your renewal date.'
+                      : _isAddon
+                          ? 'One-time payment — no automatic renewal.'
+                          : 'One-time payment — not auto-renew.',
+                  style: const TextStyle(fontSize: 12, height: 1.35),
+                ),
+                thumbColor: WidgetStateProperty.resolveWith<Color>(
+                  (states) => states.contains(WidgetState.selected)
+                      ? AppColors.primary
+                      : AppColors.white,
+                ),
+                trackColor: WidgetStateProperty.resolveWith<Color>(
+                  (states) => states.contains(WidgetState.selected)
+                      ? AppColors.primary.withValues(alpha: 0.5)
+                      : Colors.grey.shade300,
+                ),
+              )
+            else
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Text(
+                  isSubscription
+                      ? 'Monthly subscription — auto-renews each billing cycle.'
+                      : _isAddon
+                          ? 'One-time payment'
+                          : 'One-time payment — not auto-renew',
+                  style: const TextStyle(fontSize: 14, color: AppColors.black),
+                ),
+              ),
             const SizedBox(height: 4),
-            Text(
-              subtitle,
-              style: const TextStyle(fontSize: 14, color: AppColors.black),
-            ),
-            if (showMonths) ...<Widget>[
+            _termsCheckbox(),
+            if (!isSubscription && _isWashOrBike) ...<Widget>[
               const SizedBox(height: 8),
               DropdownButtonFormField<int>(
                 value: _selectedMonths,
@@ -962,22 +929,77 @@ class _PaymentOptionPageState extends State<PaymentOptionPage> {
               children: <Widget>[
                 Expanded(
                   child: OutlinedButton(
-                    onPressed: _paying ? null : onCart,
+                    onPressed: cardBusy
+                        ? null
+                        : () => _addToCart(monthlyCard: isSubscription),
                     child: const Text('Add To Cart'),
                   ),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: _paying || !payEnabled ? null : onPay,
+                    onPressed: cardBusy || !_acceptedTerms
+                        ? null
+                        : () {
+                            if (isSubscription) {
+                              _payMonthly();
+                            } else {
+                              _payOneTime(monthlyCard: false);
+                            }
+                          },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
                       foregroundColor: AppColors.white,
+                      disabledBackgroundColor: AppColors.primary.withValues(
+                        alpha: 0.45,
+                      ),
+                      disabledForegroundColor: AppColors.white,
                     ),
-                    child: Text(payLabel),
+                    child: cardBusy
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: AppColors.white,
+                            ),
+                          )
+                        : const Text('Pay Now'),
                   ),
                 ),
               ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _termsCheckbox() {
+    return CheckboxListTile(
+      value: _acceptedTerms,
+      onChanged: _payingCard != null
+          ? null
+          : (value) => setState(() => _acceptedTerms = value ?? false),
+      contentPadding: EdgeInsets.zero,
+      controlAffinity: ListTileControlAffinity.leading,
+      title: RichText(
+        text: TextSpan(
+          style: const TextStyle(fontSize: 13, color: AppColors.black),
+          children: <TextSpan>[
+            const TextSpan(text: 'I accept the '),
+            TextSpan(
+              text: 'terms and conditions',
+              style: const TextStyle(
+                color: AppColors.primary,
+                decoration: TextDecoration.underline,
+                fontWeight: FontWeight.w600,
+              ),
+              recognizer: TapGestureRecognizer()
+                ..onTap = () => launchUrl(
+                      Uri.parse(AppUrls.termsAndConditions),
+                      mode: LaunchMode.externalApplication,
+                    ),
             ),
           ],
         ),

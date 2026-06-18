@@ -1,6 +1,8 @@
 import 'package:carrocare_flutter/core/di/injection.dart';
 import 'package:carrocare_flutter/features/internal_wash/presentation/constants/preferred_time_slots.dart';
 import 'package:carrocare_flutter/core/theme/app_colors.dart';
+import 'package:carrocare_flutter/core/widgets/carro_care_scaffold.dart';
+import 'package:carrocare_flutter/core/widgets/dotted_loader.dart';
 import 'package:carrocare_flutter/features/orders/domain/entities/wash_calendar_models.dart';
 import 'package:carrocare_flutter/features/orders/domain/repositories/orders_repository.dart';
 import 'package:flutter/material.dart';
@@ -107,94 +109,73 @@ class _WashCalendarPageState extends State<WashCalendarPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.primary,
-      body: SafeArea(
-        child: Column(
-          children: <Widget>[
-            SizedBox(
-              height: kToolbarHeight,
-              child: Row(
-                children: <Widget>[
-                  GestureDetector(
-                    onTap: () => context.pop(),
-                    child: Container(
-                      width: 35,
-                      height: 35,
-                      margin: const EdgeInsets.all(10),
-                      padding: const EdgeInsets.all(5),
-                      child: Image.asset('assets/images/back.png'),
-                    ),
+    return CarroCareScaffold(
+      title: 'Wash Calendar',
+      onBack: () => context.pop(),
+      actions: <Widget>[
+        if (_showAddInternal && widget.args.type != 'extra')
+          Padding(
+            padding: const EdgeInsets.only(right: 4),
+            child: Material(
+              color: AppColors.primary,
+              elevation: 5,
+              borderRadius: BorderRadius.circular(7),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(7),
+                onTap: () => setState(() => _scheduleSheetOpen = true),
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
                   ),
-                  const Spacer(),
-                  if (_showAddInternal && widget.args.type != 'extra')
-                    Padding(
-                      padding: const EdgeInsets.only(right: 12),
-                      child: Material(
-                        color: AppColors.primary,
-                        elevation: 5,
-                        borderRadius: BorderRadius.circular(7),
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(7),
-                          onTap: () => setState(() => _scheduleSheetOpen = true),
-                          child: const Padding(
-                            padding: EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 6,
-                            ),
-                            child: Row(
-                              children: <Widget>[
-                                Text(
-                                  '+ ',
-                                  style: TextStyle(
-                                    color: AppColors.white,
-                                    fontSize: 18,
-                                  ),
-                                ),
-                                Icon(
-                                  Icons.add_circle_outline,
-                                  color: AppColors.white,
-                                  size: 28,
-                                ),
-                              ],
-                            ),
-                          ),
+                  child: Row(
+                    children: <Widget>[
+                      Text(
+                        '+ ',
+                        style: TextStyle(
+                          color: AppColors.white,
+                          fontSize: 18,
                         ),
                       ),
-                    ),
-                ],
+                      Icon(
+                        Icons.add_circle_outline,
+                        color: AppColors.white,
+                        size: 28,
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
-            Expanded(
-              child: Container(
-                color: const Color(0xFFEDEFF1),
-                child: _loading
-                    ? const Center(child: CircularProgressIndicator())
-                    : _error != null
-                        ? Center(
-                            child: Padding(
-                              padding: const EdgeInsets.all(24),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: <Widget>[
-                                  Text(
-                                    _error!,
-                                    textAlign: TextAlign.center,
-                                  ),
-                                  const SizedBox(height: 12),
-                                  ElevatedButton(
-                                    onPressed: _load,
-                                    child: const Text('Retry'),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          )
-                        : Stack(
-                            children: <Widget>[
-                              Padding(
-                                padding: const EdgeInsets.all(8),
-                                child: Card(
+          ),
+      ],
+      body: _loading
+          ? const CarroCareLoadingOverlay()
+          : _error != null
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        Text(
+                          _error!,
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 12),
+                        ElevatedButton(
+                          onPressed: _load,
+                          child: const Text('Retry'),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              : Stack(
+                  children: <Widget>[
+                    Padding(
+                      padding: const EdgeInsets.all(8),
+                      child: Card(
                                   elevation: 4,
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(8),
@@ -283,7 +264,7 @@ class _WashCalendarPageState extends State<WashCalendarPage> {
                                                   right: 2,
                                                 ),
                                                 decoration: const BoxDecoration(
-                                                  color: Color(0xFF54A46B),
+                                                  color: AppColors.primary,
                                                   shape: BoxShape.circle,
                                                 ),
                                               ),
@@ -296,7 +277,7 @@ class _WashCalendarPageState extends State<WashCalendarPage> {
                                                   left: 2,
                                                 ),
                                                 decoration: const BoxDecoration(
-                                                  color: Color(0xFF2196F3),
+                                                  color: AppColors.grey500,
                                                   shape: BoxShape.circle,
                                                 ),
                                               ),
@@ -325,13 +306,8 @@ class _WashCalendarPageState extends State<WashCalendarPage> {
                                     await _load();
                                   },
                                 ),
-                            ],
-                          ),
-              ),
-            ),
-          ],
-        ),
-      ),
+                  ],
+                ),
     );
   }
 
@@ -377,7 +353,7 @@ class _WashCalendarPageState extends State<WashCalendarPage> {
                     child: Text(
                       'Washed Status: Cleaned',
                       style: TextStyle(
-                        color: Colors.green.shade700,
+                        color: AppColors.grey600,
                         fontWeight: FontWeight.w600,
                       ),
                     ),

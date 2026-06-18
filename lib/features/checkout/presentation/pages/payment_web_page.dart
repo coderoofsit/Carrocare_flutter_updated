@@ -1,5 +1,6 @@
 import 'package:carrocare_flutter/core/constants/app_urls.dart';
-import 'package:carrocare_flutter/core/theme/app_colors.dart';
+import 'package:carrocare_flutter/core/widgets/carro_care_scaffold.dart';
+import 'package:carrocare_flutter/core/widgets/dotted_loader.dart';
 import 'package:carrocare_flutter/features/checkout/core/autopay_checkout_helper.dart';
 import 'package:carrocare_flutter/features/checkout/core/checkout_constants.dart';
 import 'package:flutter/material.dart';
@@ -103,23 +104,13 @@ class _PaymentWebPageState extends State<PaymentWebPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.primary,
-      appBar: AppBar(
-        backgroundColor: AppColors.primary,
-        foregroundColor: AppColors.white,
-        title: const Text(
-          'PAYMENT',
-          style: TextStyle(fontWeight: FontWeight.w700),
-        ),
-      ),
+    return CarroCareScaffold(
+      title: 'Payment',
+      onBack: () => context.pop(),
       body: Stack(
         children: <Widget>[
           WebViewWidget(controller: _controller),
-          if (_loading)
-            const Center(
-              child: CircularProgressIndicator(color: AppColors.primary),
-            ),
+          if (_loading) const CarroCareLoadingOverlay(),
         ],
       ),
     );

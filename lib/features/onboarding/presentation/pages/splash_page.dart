@@ -1,4 +1,5 @@
 import 'package:carrocare_flutter/core/theme/app_colors.dart';
+import 'package:carrocare_flutter/core/theme/app_typography.dart';
 import 'package:carrocare_flutter/features/onboarding/presentation/bloc/onboarding_bloc.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -74,7 +75,7 @@ class _SplashPageState extends State<SplashPage> {
                         shape: BoxShape.circle,
                         color: i == state.pageIndex
                             ? AppColors.primary
-                            : const Color(0xFFCCCCCC),
+                            : AppColors.grey400,
                       ),
                     ),
                   ),
@@ -143,7 +144,7 @@ class _CtaButton extends StatelessWidget {
       icon: Icon(icon, size: 18, color: AppColors.primary),
       label: Text(
         text,
-        style: const TextStyle(
+        style: AppTypography.quicksand(
           color: AppColors.primary,
           fontWeight: FontWeight.w700,
           fontSize: 15,

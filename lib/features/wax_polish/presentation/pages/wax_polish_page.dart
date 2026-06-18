@@ -1,4 +1,6 @@
 import 'package:carrocare_flutter/core/theme/app_colors.dart';
+import 'package:carrocare_flutter/core/widgets/carro_care_scaffold.dart';
+import 'package:carrocare_flutter/core/widgets/dotted_loader.dart';
 import 'package:carrocare_flutter/features/car_details/domain/entities/car_details_args.dart';
 import 'package:carrocare_flutter/features/vehicles/core/vehicle_category_utils.dart';
 import 'package:carrocare_flutter/features/wax_polish/domain/entities/wax_polish_service.dart';
@@ -24,115 +26,74 @@ class _WaxPolishPageState extends State<WaxPolishPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.primary,
-      body: SafeArea(
-        child: Column(
-          children: <Widget>[
-            SizedBox(
-              height: kToolbarHeight,
-              child: Row(
-                children: <Widget>[
-                  GestureDetector(
-                    onTap: () => context.pop(),
-                    child: Container(
-                      width: 35,
-                      height: 35,
-                      margin: const EdgeInsets.all(10),
-                      padding: const EdgeInsets.all(5),
-                      child: Image.asset('assets/images/back.png'),
-                    ),
-                  ),
-                  const Expanded(
-                    child: Text(
-                      'WAX POLISH',
-                      style: TextStyle(
-                        color: AppColors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                  BlocBuilder<WaxPolishBloc, WaxPolishState>(
-                    builder: (context, state) {
-                      final description = state is WaxPolishLoaded
-                          ? _stripHtml(state.description)
-                          : '';
-                      return GestureDetector(
-                        onTap: description.isEmpty
-                            ? null
-                            : () => _showInfo(context, description),
-                        child: Container(
-                          width: 35,
-                          height: 35,
-                          margin: const EdgeInsets.all(10),
-                          padding: const EdgeInsets.all(5),
-                          child: Opacity(
-                            opacity: description.isEmpty ? 0.45 : 1,
-                            child: Image.asset('assets/images/info.png'),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
+    return CarroCareScaffold(
+      title: 'Wax Polish',
+      onBack: () => context.pop(),
+      actions: <Widget>[
+        BlocBuilder<WaxPolishBloc, WaxPolishState>(
+          builder: (context, state) {
+            final description = state is WaxPolishLoaded
+                ? _stripHtml(state.description)
+                : '';
+            return GestureDetector(
+              onTap: description.isEmpty
+                  ? null
+                  : () => _showInfo(context, description),
               child: Container(
-                color: const Color(0xFFEDEFF1),
-                child: BlocBuilder<WaxPolishBloc, WaxPolishState>(
-                  builder: (context, state) {
-                    if (state is WaxPolishLoading ||
-                        state is WaxPolishInitial) {
-                      return const Center(
-                        child: CircularProgressIndicator(
-                          color: AppColors.primary,
-                        ),
-                      );
-                    }
-                    if (state is WaxPolishFailure) {
-                      return Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Text(
-                            state.message,
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              color: AppColors.black,
-                            ),
-                          ),
-                        ),
-                      );
-                    }
-
-                    final loaded = state as WaxPolishLoaded;
-                    if (loaded.services.isEmpty) {
-                      return const Center(
-                        child: Text(
-                          'No wax polish plans available.',
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: AppColors.black,
-                          ),
-                        ),
-                      );
-                    }
-
-                    return ListView.builder(
-                      padding: const EdgeInsets.all(10),
-                      itemCount: loaded.services.length,
-                      itemBuilder: (context, index) {
-                        return _ServiceCard(service: loaded.services[index]);
-                      },
-                    );
-                  },
+                width: 40,
+                height: 40,
+                padding: const EdgeInsets.all(8),
+                child: Opacity(
+                  opacity: description.isEmpty ? 0.45 : 1,
+                  child: Image.asset('assets/images/info.png'),
                 ),
               ),
-            ),
-          ],
+            );
+          },
         ),
+      ],
+      body: BlocBuilder<WaxPolishBloc, WaxPolishState>(
+        builder: (context, state) {
+          if (state is WaxPolishLoading || state is WaxPolishInitial) {
+            return const CarroCareLoadingOverlay();
+          }
+          if (state is WaxPolishFailure) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text(
+                  state.message,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    color: AppColors.black,
+                  ),
+                ),
+              ),
+            );
+          }
+
+          final loaded = state as WaxPolishLoaded;
+          if (loaded.services.isEmpty) {
+            return const Center(
+              child: Text(
+                'No wax polish plans available.',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: AppColors.black,
+                ),
+              ),
+            );
+          }
+
+          return ListView.builder(
+            padding: const EdgeInsets.all(10),
+            itemCount: loaded.services.length,
+            itemBuilder: (context, index) {
+              return _ServiceCard(service: loaded.services[index]);
+            },
+          );
+        },
       ),
     );
   }

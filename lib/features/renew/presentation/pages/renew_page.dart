@@ -1,11 +1,14 @@
 import 'package:carrocare_flutter/core/theme/app_colors.dart';
+import 'package:carrocare_flutter/core/widgets/carro_care_app_bar.dart';
+import 'package:carrocare_flutter/core/widgets/carro_care_scaffold.dart';
+import 'package:carrocare_flutter/core/widgets/dotted_loader.dart';
 import 'package:carrocare_flutter/features/checkout/data/local/cart_local_storage.dart';
 import 'package:carrocare_flutter/features/checkout/presentation/widgets/smart_checkout_sheet.dart';
 import 'package:carrocare_flutter/features/orders/domain/entities/order_item.dart';
 import 'package:carrocare_flutter/features/orders/presentation/bloc/my_orders_bloc.dart';
+import 'package:carrocare_flutter/features/orders/presentation/utils/order_date_time_display.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -95,173 +98,86 @@ class _RenewPageState extends State<RenewPage> {
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop) _onBack();
       },
-      child: Scaffold(
-        backgroundColor: AppColors.primary,
-        body: SafeArea(
-          child: Column(
-            children: <Widget>[
-              SizedBox(
-                height: kToolbarHeight,
-                child: Row(
-                  children: <Widget>[
-                    GestureDetector(
-                      onTap: _onBack,
-                      child: Container(
-                        width: 35,
-                        height: 35,
-                        margin: const EdgeInsets.all(10),
-                        padding: const EdgeInsets.all(5),
-                        child: Image.asset('assets/images/back.png'),
-                      ),
-                    ),
-                    const Expanded(
-                      child: Text(
-                        'RENEW ORDER',
-                        style: TextStyle(
-                          color: AppColors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                    GestureDetector(
-                      onTap: () async {
-                        await context.push('/cart');
-                        await _refreshCartState();
-                      },
-                      child: SizedBox(
-                        width: 35,
-                        height: 35,
-                        child: Stack(
-                          clipBehavior: Clip.none,
-                          children: <Widget>[
-                            Center(
-                              child: SvgPicture.asset(
-                                'assets/vectors/ic_cart.svg',
-                                width: 25,
-                                height: 25,
-                              ),
-                            ),
-                            if (_cartCount > 0)
-                              Positioned(
-                                top: 0,
-                                right: 0,
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 4,
-                                    vertical: 1,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.primary,
-                                    borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(color: AppColors.white),
-                                  ),
-                                  child: Text(
-                                    '$_cartCount',
-                                    style: const TextStyle(
-                                      color: AppColors.white,
-                                      fontSize: 8,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                  ],
+      child: CarroCareScaffold(
+        title: 'Renew Order',
+        onBack: _onBack,
+        actions: <Widget>[
+          CarroCareCartAction(
+            count: _cartCount,
+            onTap: () async {
+              await context.push('/cart');
+              await _refreshCartState();
+            },
+          ),
+        ],
+        body: BlocBuilder<MyOrdersBloc, MyOrdersState>(
+          builder: (context, state) {
+            if (state is MyOrdersLoading || state is MyOrdersInitial) {
+              return const CarroCareLoadingOverlay();
+            }
+            if (state is MyOrdersFailure) {
+              return Center(
+                child: Text(
+                  state.message,
+                  textAlign: TextAlign.center,
                 ),
-              ),
-              Expanded(
-                child: Container(
-                  color: const Color(0xFFEDEFF1),
-                  child: BlocBuilder<MyOrdersBloc, MyOrdersState>(
-                    builder: (context, state) {
-                      if (state is MyOrdersLoading ||
-                          state is MyOrdersInitial) {
-                        return const Center(
-                          child: CircularProgressIndicator(
-                            color: AppColors.primary,
-                          ),
-                        );
-                      }
-                      if (state is MyOrdersFailure) {
-                        return Center(
-                          child: Text(
-                            state.message,
-                            textAlign: TextAlign.center,
-                          ),
-                        );
-                      }
+              );
+            }
 
-                      final orders = (state as MyOrdersLoaded).orders;
-                      if (orders.isEmpty) {
-                        return Center(
-                          child: Image.asset(
-                            'assets/images/placeholders.png',
-                            fit: BoxFit.contain,
-                          ),
-                        );
-                      }
+            final orders = (state as MyOrdersLoaded).orders;
+            if (orders.isEmpty) {
+              return Center(
+                child: Image.asset(
+                  'assets/images/placeholders.png',
+                  fit: BoxFit.contain,
+                ),
+              );
+            }
 
-                      return Column(
-                        children: <Widget>[
-                          Expanded(
-                            child: ListView.builder(
-                              padding: const EdgeInsets.symmetric(vertical: 8),
-                              itemCount: orders.length,
-                              itemBuilder: (context, index) {
-                                final order = orders[index];
-                                return _RenewCard(
-                                  order: order,
-                                  inCart: _cartVehicleIds.contains(
-                                    order.vehicleId,
-                                  ),
-                                  showSmartCheckout: _showSmartCheckout(order),
-                                  validLabel: _validLabel(order),
-                                  onSmartCheckout: (checked) =>
-                                      _onSmartCheckout(order, checked),
-                                );
-                              },
-                            ),
-                          ),
-                          Container(
-                            width: double.infinity,
-                            color: const Color(0xFFEDEFF1),
-                            padding: const EdgeInsets.symmetric(vertical: 10),
-                            child: Center(
-                              child: ElevatedButton(
-                                onPressed: () => context.push('/cart'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.primary,
-                                  foregroundColor: AppColors.white,
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 50,
-                                    vertical: 12,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(7),
-                                  ),
-                                ),
-                                child: const Text(
-                                  'Make Payment',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      );
-                    },
+            return ListView.builder(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              itemCount: orders.length,
+              itemBuilder: (context, index) {
+                final order = orders[index];
+                return _RenewCard(
+                  order: order,
+                  inCart: _cartVehicleIds.contains(
+                    order.vehicleId,
                   ),
+                  showSmartCheckout: _showSmartCheckout(order),
+                  validLabel: _validLabel(order),
+                  onSmartCheckout: (checked) =>
+                      _onSmartCheckout(order, checked),
+                );
+              },
+            );
+          },
+        ),
+        footer: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          child: Center(
+            child: ElevatedButton(
+              onPressed: () => context.push('/cart'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: AppColors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 50,
+                  vertical: 12,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(7),
                 ),
               ),
-            ],
+              child: const Text(
+                'Make Payment',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
           ),
         ),
       ),
@@ -386,7 +302,7 @@ class _RenewCard extends StatelessWidget {
                 Expanded(
                   child: _col(
                     'Date :',
-                    order.dateAndTime,
+                    OrderDateTimeDisplay.formatDateTime(order.dateAndTime),
                     labelStyle,
                     valueStyle,
                   ),

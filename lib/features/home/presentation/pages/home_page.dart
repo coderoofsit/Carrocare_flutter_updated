@@ -1,12 +1,17 @@
 import 'dart:async';
 
 import 'package:carrocare_flutter/core/theme/app_colors.dart';
-import 'package:carrocare_flutter/core/utils/session_debug.dart';
+import 'package:carrocare_flutter/core/theme/app_decorations.dart';
+import 'package:carrocare_flutter/core/theme/app_typography.dart';
 import 'package:carrocare_flutter/core/utils/profile_gate.dart';
+import 'package:carrocare_flutter/core/utils/session_debug.dart';
+import 'package:carrocare_flutter/core/widgets/app_bottom_nav.dart';
+import 'package:carrocare_flutter/core/widgets/carro_care_app_bar.dart';
+import 'package:carrocare_flutter/core/widgets/home_shell.dart';
+import 'package:carrocare_flutter/core/widgets/service_card.dart';
 import 'package:carrocare_flutter/features/checkout/data/local/cart_local_storage.dart';
 import 'package:carrocare_flutter/features/internal_wash/presentation/widgets/internal_wash_overlays.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -48,7 +53,9 @@ class _HomePageState extends State<HomePage> {
 
   void _startAutoBannerScroll() {
     _bannerTimer = Timer.periodic(const Duration(seconds: 3), (_) {
-      if (!mounted || !_sliderController.hasClients || _banners.isEmpty) return;
+      if (!mounted || !_sliderController.hasClients || _banners.isEmpty) {
+        return;
+      }
       final int nextPage = (_currentBannerIndex + 1) % _banners.length;
       _sliderController.animateToPage(
         nextPage,
@@ -71,283 +78,452 @@ class _HomePageState extends State<HomePage> {
     super.dispose();
   }
 
+  Future<void> _onServiceTap(String id) async {
+    if (id == 'apartment_service') {
+      await ProfileGate.prefsSetLoadFromMain();
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('user_wants', 'apartment');
+      if (!mounted) return;
+      context.push('/apartment-service');
+    } else if (id == 'doorstep_service') {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('user_wants', 'doorstep');
+      if (!mounted) return;
+      context.push('/door-step-service');
+    } else if (id == 'daily_car_wash') {
+      if (!await ProfileGate.ensureApartmentProfile(context)) return;
+      if (!mounted) return;
+      context.push('/daily-car-wash');
+    } else if (id == 'bike_wash') {
+      if (!await ProfileGate.ensureApartmentProfile(context)) return;
+      if (!mounted) return;
+      context.push('/bike-wash');
+    } else if (id == 'car_disinfection') {
+      if (!await ProfileGate.ensureApartmentProfile(context)) return;
+      if (!mounted) return;
+      context.push('/disinfection');
+    } else if (id == 'extra_interior') {
+      if (!await ProfileGate.ensureApartmentProfile(context)) return;
+      if (!mounted) return;
+      context.push('/extra-interior');
+    } else if (id == 'wax_polish') {
+      if (!await ProfileGate.ensureApartmentProfile(context)) return;
+      if (!mounted) return;
+      context.push('/wax-polish');
+    } else if (id == 'my_vehicles') {
+      context.push('/my-vehicles');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.white,
-      body: Stack(
-        children: <Widget>[
-          SafeArea(
+    final greeting = _username.isEmpty ? 'Welcome' : 'Hi $_username';
+
+    return HomeShell(
+      appBar: CarroCareAppBar(
+        title: greeting,
+        subtitle: 'Your car care companion',
+        leading: CarroCareAppBarLeading.menu,
+        onLeadingTap: () => context.go('/main-profile'),
+        transparent: true,
+        showBorder: false,
+        actions: <Widget>[
+          CarroCareCartAction(
+            count: _cartCount,
+            onTap: () async {
+              await context.push('/cart');
+              await _loadCartCount();
+            },
+          ),
+        ],
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.only(bottom: 16),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            _Header(
-              username: _username,
-              cartCount: _cartCount,
-              onMenuTap: () => context.go('/main-profile'),
-              onCartTap: () async {
-                await context.push('/cart');
-                await _loadCartCount();
-              },
+            _PromoBanner(
+              banners: _banners,
+              controller: _sliderController,
+              currentIndex: _currentBannerIndex,
+              onPageChanged: (i) => setState(() => _currentBannerIndex = i),
             ),
-            Expanded(
-              child: SingleChildScrollView(
-                child: Container(
-                  color: const Color(0xFFEDEFF1),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      SizedBox(
-                        height: 200,
-                        child: Stack(
-                          children: <Widget>[
-                            PageView.builder(
-                              controller: _sliderController,
-                              itemCount: _banners.length,
-                              onPageChanged: (i) =>
-                                  setState(() => _currentBannerIndex = i),
-                              itemBuilder: (_, i) => Image.asset(
-                                _banners[i],
-                                fit: BoxFit.cover,
-                                width: double.infinity,
-                              ),
-                            ),
-                            Positioned(
-                              left: 0,
-                              right: 0,
-                              bottom: 8,
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: List<Widget>.generate(
-                                  _banners.length,
-                                  (index) => Container(
-                                    width: 7,
-                                    height: 7,
-                                    margin: const EdgeInsets.symmetric(
-                                      horizontal: 3,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: _currentBannerIndex == index
-                                          ? AppColors.white
-                                          : AppColors.white.withValues(
-                                              alpha: 0.5,
-                                            ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      _SectionTitle(title: 'Subscription  Services'),
-                      const SizedBox(height: 6),
-                      _TwoColCards(
-                        cards: <_ServiceCardData>[
-                          _ServiceCardData(
-                            id: 'apartment_service',
-                            title: 'Apartment Service',
-                            imageAsset: 'assets/images/apartment_services.png',
-                          ),
-                          _ServiceCardData(
-                            id: 'doorstep_service',
-                            title: 'Door Step Service',
-                            imageAsset: 'assets/images/doorstep_service.png',
-                          ),
-                        ],
-                      ),
-                      _TwoColCards(
-                        cards: <_ServiceCardData>[
-                          _ServiceCardData(
-                            id: 'daily_car_wash',
-                            title: 'Daily Car Wash',
-                            imageAsset: 'assets/images/iosdailycardwash.png',
-                          ),
-                          _ServiceCardData(
-                            id: 'bike_wash',
-                            title: 'Bike Wash',
-                            imageAsset: 'assets/images/iosbikewash.png',
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      _SectionTitle(title: 'Quick  Services'),
-                      const SizedBox(height: 6),
-                      // Android home: layoutRow2 = Extra Interior + Wax Polish;
-                      // layoutRow3 = My Vehicles (Car Disinfection is visibility=gone).
-                      _TwoColCards(
-                        cards: <_ServiceCardData>[
-                          _ServiceCardData(
-                            id: 'extra_interior',
-                            title: 'Extra Interior',
-                            imageAsset: 'assets/images/iosextrainerior.png',
-                          ),
-                          _ServiceCardData(
-                            id: 'wax_polish',
-                            title: 'Wax Polish',
-                            imageAsset: 'assets/images/ioswaxpolish.png',
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      _TwoColCards(
-                        cards: <_ServiceCardData>[
-                          _ServiceCardData(
-                            id: 'my_vehicles',
-                            title: 'My Vehicles',
-                            imageAsset: 'assets/images/iosvechile.png',
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                    ],
-                  ),
+            const SizedBox(height: 16),
+            _QuickAccessRow(
+              onOrdersTap: () => context.push('/my-orders'),
+              onVehiclesTap: () => context.push('/my-vehicles'),
+            ),
+            const SizedBox(height: 20),
+            const _SectionTitle(title: 'Subscription Services'),
+            const SizedBox(height: 10),
+            _TwoColCards(
+              cards: <_ServiceCardData>[
+                _ServiceCardData(
+                  id: 'daily_car_wash',
+                  title: 'Daily Car Wash',
+                  imageAsset: 'assets/images/car_wash.jpg',
                 ),
-              ),
+                _ServiceCardData(
+                  id: 'bike_wash',
+                  title: 'Bike Wash',
+                  imageAsset: 'assets/images/bike_wash.jpg',
+                ),
+              ],
+              onTap: _onServiceTap,
+            ),
+            const SizedBox(height: 16),
+            const _SectionTitle(title: 'On Demand Services'),
+            const SizedBox(height: 10),
+            _TwoColCards(
+              cards: <_ServiceCardData>[
+                _ServiceCardData(
+                  id: 'doorstep_service',
+                  title: 'Door Step Service',
+                  imageAsset: 'assets/images/doorstep_service.png',
+                ),
+              ],
+              onTap: _onServiceTap,
+            ),
+            const SizedBox(height: 16),
+            const _SectionTitle(title: 'Quick Services'),
+            const SizedBox(height: 10),
+            _TwoColCards(
+              cards: <_ServiceCardData>[
+                _ServiceCardData(
+                  id: 'extra_interior',
+                  title: 'Extra Interior',
+                  imageAsset: 'assets/images/extra_interior.png',
+                ),
+                _ServiceCardData(
+                  id: 'wax_polish',
+                  title: 'Wax Polish',
+                  imageAsset: 'assets/images/wax_polish.jpg',
+                ),
+              ],
+              onTap: _onServiceTap,
+            ),
+            const SizedBox(height: 10),
+            _TwoColCards(
+              cards: <_ServiceCardData>[
+                _ServiceCardData(
+                  id: 'my_vehicles',
+                  title: 'My Vehicles',
+                  imageAsset: 'assets/images/my_vehicles.jpg',
+                ),
+              ],
+              onTap: _onServiceTap,
             ),
           ],
         ),
       ),
-          if (_showInternalWashOverlay)
-            InternalWashEntryOverlay(
+      overlay: _showInternalWashOverlay
+          ? InternalWashEntryOverlay(
               onClose: () => setState(() => _showInternalWashOverlay = false),
-            ),
+            )
+          : null,
+      bottomNavigationBar: AppBottomNav(
+        currentIndex: _bottomIndex,
+        onTap: (index) {
+          if (index == 0) {
+            context.push('/my-orders');
+            return;
+          }
+          if (index == 1) {
+            setState(() {
+              _bottomIndex = 1;
+              _showInternalWashOverlay = true;
+            });
+            return;
+          }
+          if (index == 2) {
+            context.push('/profile');
+            return;
+          }
+          setState(() => _bottomIndex = index);
+        },
+        items: const <AppBottomNavItem>[
+          AppBottomNavItem(
+            iconAsset: 'assets/images/orders.png',
+            label: 'Orders',
+          ),
+          AppBottomNavItem(
+            iconAsset: 'assets/images/internal.png',
+            label: 'Internal Car Wash',
+          ),
+          AppBottomNavItem(
+            iconAsset: 'assets/images/profile.png',
+            label: 'Profile',
+          ),
         ],
       ),
-      bottomNavigationBar: SizedBox(
-        height: 60,
-        child: BottomNavigationBar(
-          currentIndex: _bottomIndex,
-          type: BottomNavigationBarType.fixed,
-          onTap: (index) {
-            if (index == 0) {
-              context.push('/my-orders');
-              return;
-            }
-            if (index == 1) {
-              setState(() {
-                _bottomIndex = 1;
-                _showInternalWashOverlay = true;
-              });
-              return;
-            }
-            if (index == 2) {
-              // Android bottom nav Profile → ProfileActivity (details form).
-              context.push('/profile');
-              return;
-            }
-            setState(() => _bottomIndex = index);
-          },
-          backgroundColor: AppColors.primary,
-          selectedItemColor: AppColors.white,
-          unselectedItemColor: AppColors.white.withValues(alpha: 0.8),
-          selectedFontSize: 12,
-          unselectedFontSize: 12,
-          items: <BottomNavigationBarItem>[
-            BottomNavigationBarItem(
-              icon: _BottomNavIcon('assets/images/orders.png'),
-              label: 'Orders',
-            ),
-            BottomNavigationBarItem(
-              icon: _BottomNavIcon('assets/images/internal.png'),
-              label: 'Internal Car Wash',
-            ),
-            BottomNavigationBarItem(
-              icon: _BottomNavIcon('assets/images/profile.png'),
-              label: 'Profile',
+    );
+  }
+}
+
+class _PromoBanner extends StatelessWidget {
+  const _PromoBanner({
+    required this.banners,
+    required this.controller,
+    required this.currentIndex,
+    required this.onPageChanged,
+  });
+
+  final List<String> banners;
+  final PageController controller;
+  final int currentIndex;
+  final ValueChanged<int> onPageChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      child: Container(
+        height: 180,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(AppDecorations.bannerRadius),
+          boxShadow: const <BoxShadow>[
+            BoxShadow(
+              color: AppColors.shadowLight,
+              blurRadius: 16,
+              offset: Offset(0, 6),
             ),
           ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(AppDecorations.bannerRadius),
+          child: Stack(
+            fit: StackFit.expand,
+            children: <Widget>[
+              PageView.builder(
+                controller: controller,
+                itemCount: banners.length,
+                onPageChanged: onPageChanged,
+                itemBuilder: (_, i) => Image.asset(
+                  banners[i],
+                  fit: BoxFit.cover,
+                  width: double.infinity,
+                ),
+              ),
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 12,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List<Widget>.generate(
+                    banners.length,
+                    (index) => AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      width: currentIndex == index ? 18 : 7,
+                      height: 7,
+                      margin: const EdgeInsets.symmetric(horizontal: 3),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(4),
+                        color: currentIndex == index
+                            ? AppColors.primary
+                            : AppColors.grey300,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-class _Header extends StatelessWidget {
-  const _Header({
-    required this.username,
-    required this.cartCount,
-    required this.onMenuTap,
-    required this.onCartTap,
+class _QuickAccessRow extends StatelessWidget {
+  const _QuickAccessRow({
+    required this.onOrdersTap,
+    required this.onVehiclesTap,
   });
 
-  final String username;
-  final int cartCount;
-  final VoidCallback onMenuTap;
-  final VoidCallback onCartTap;
+  final VoidCallback onOrdersTap;
+  final VoidCallback onVehiclesTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: kToolbarHeight,
-      color: AppColors.primary,
-      padding: const EdgeInsets.symmetric(horizontal: 10),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Expanded(
+            child: _MyOrdersQuickPill(onTap: onOrdersTap),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: _MyVehiclesQuickPill(onTap: onVehiclesTap),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MyOrdersQuickPill extends StatelessWidget {
+  const _MyOrdersQuickPill({required this.onTap});
+
+  static const double _pillHeight = 48;
+  static const double _iconSlotSize = 34;
+  static const double _iconRenderSize = 62;
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return _QuickAccessCard(
+      height: _pillHeight,
+      onTap: onTap,
       child: Row(
         children: <Widget>[
-          GestureDetector(
-            onTap: onMenuTap,
-            child: Image.asset('assets/images/menu.png', width: 22, height: 22),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              'Hi ${username.isEmpty ? '' : username} !',
-              style: const TextStyle(
-                color: AppColors.white,
-                fontSize: 21,
-                fontWeight: FontWeight.w500,
+          SizedBox(
+            width: _iconSlotSize,
+            height: _iconSlotSize,
+            child: ClipRect(
+              child: OverflowBox(
+                maxWidth: _iconRenderSize,
+                maxHeight: _iconRenderSize,
+                alignment: Alignment.center,
+                child: ColorFiltered(
+                  colorFilter: const ColorFilter.mode(
+                    AppColors.primary,
+                    BlendMode.srcIn,
+                  ),
+                  child: Image.asset(
+                    'assets/images/orders.png',
+                    width: _iconRenderSize,
+                    height: _iconRenderSize,
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) => const Icon(
+                      Icons.delivery_dining_outlined,
+                      color: AppColors.primary,
+                      size: _iconRenderSize,
+                    ),
+                  ),
+                ),
               ),
             ),
           ),
-          GestureDetector(
-            onTap: onCartTap,
-            child: SizedBox(
-              width: 30,
-              height: 30,
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: <Widget>[
-                  Center(
-                    child: SvgPicture.asset(
-                      'assets/vectors/ic_cart.svg',
-                      width: 25,
-                      height: 25,
-                      colorFilter: const ColorFilter.mode(
-                        AppColors.white,
-                        BlendMode.srcIn,
-                      ),
-                    ),
-                  ),
-                  if (cartCount > 0)
-                    Positioned(
-                      top: 0,
-                      right: 0,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 4,
-                          vertical: 1,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppColors.primary,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: AppColors.white),
-                        ),
-                        child: Text(
-                          '$cartCount',
-                          style: const TextStyle(
-                            color: AppColors.white,
-                            fontSize: 8,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'My Orders',
+              style: AppTypography.quicksand(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: AppColors.grey800,
               ),
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _MyVehiclesQuickPill extends StatelessWidget {
+  const _MyVehiclesQuickPill({required this.onTap});
+
+  static const double _pillHeight = 48;
+  static const double _iconSlotSize = 30;
+  static const double _iconRenderSize = 40;
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return _QuickAccessCard(
+      height: _pillHeight,
+      onTap: onTap,
+      child: Row(
+        children: <Widget>[
+          SizedBox(
+            width: _iconSlotSize,
+            height: _iconSlotSize,
+            child: ClipRect(
+              child: OverflowBox(
+                maxWidth: _iconRenderSize,
+                maxHeight: _iconRenderSize,
+                alignment: Alignment.center,
+                child: ColorFiltered(
+                  colorFilter: const ColorFilter.mode(
+                    AppColors.primary,
+                    BlendMode.srcIn,
+                  ),
+                  child: Image.asset(
+                    'assets/images/iosvechile.png',
+                    width: _iconRenderSize,
+                    height: _iconRenderSize,
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) => const Icon(
+                      Icons.directions_car_outlined,
+                      color: AppColors.primary,
+                      size: _iconRenderSize,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'My Vehicles',
+              style: AppTypography.quicksand(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: AppColors.grey800,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _QuickAccessCard extends StatelessWidget {
+  const _QuickAccessCard({
+    required this.height,
+    required this.onTap,
+    required this.child,
+  });
+
+  final double height;
+  final VoidCallback onTap;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.white,
+      borderRadius: BorderRadius.circular(14),
+      elevation: 0,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Ink(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: AppColors.grey200),
+            boxShadow: const <BoxShadow>[
+              BoxShadow(
+                color: AppColors.shadowLight,
+                blurRadius: 8,
+                offset: Offset(0, 2),
+              ),
+            ],
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: SizedBox(
+            height: height,
+            child: child,
+          ),
+        ),
       ),
     );
   }
@@ -360,13 +536,13 @@ class _SectionTitle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 15),
+      padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Text(
         title,
-        style: const TextStyle(
-          color: AppColors.black,
-          fontSize: 18,
-          fontWeight: FontWeight.w600,
+        style: AppTypography.quicksand(
+          fontSize: 16,
+          fontWeight: FontWeight.w700,
+          color: AppColors.grey800,
         ),
       ),
     );
@@ -374,138 +550,41 @@ class _SectionTitle extends StatelessWidget {
 }
 
 class _TwoColCards extends StatelessWidget {
-  const _TwoColCards({required this.cards});
+  const _TwoColCards({
+    required this.cards,
+    required this.onTap,
+  });
+
   final List<_ServiceCardData> cards;
+  final Future<void> Function(String id) onTap;
 
   @override
   Widget build(BuildContext context) {
     final List<Widget> children = cards
-        .map((card) => Expanded(child: _ServiceCard(card: card)))
+        .map(
+          (card) => Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: SizedBox(
+                height: 150,
+                child: ServiceCard(
+                  title: card.title,
+                  imageAsset: card.imageAsset,
+                  onTap: () => onTap(card.id),
+                ),
+              ),
+            ),
+          ),
+        )
         .toList();
     if (children.length == 1) {
       children.add(const Expanded(child: SizedBox.shrink()));
     }
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 8),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: children,
-      ),
-    );
-  }
-}
-
-class _ServiceCard extends StatelessWidget {
-  const _ServiceCard({required this.card});
-  final _ServiceCardData card;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(8),
-      child: InkWell(
-        onTap: () async {
-          if (card.id == 'apartment_service') {
-            await ProfileGate.prefsSetLoadFromMain();
-            final prefs = await SharedPreferences.getInstance();
-            await prefs.setString('user_wants', 'apartment');
-            if (!context.mounted) return;
-            context.push('/apartment-service');
-          } else if (card.id == 'doorstep_service') {
-            final prefs = await SharedPreferences.getInstance();
-            await prefs.setString('user_wants', 'doorstep');
-            if (!context.mounted) return;
-            context.push('/door-step-service');
-          } else if (card.id == 'daily_car_wash') {
-            if (!await ProfileGate.ensureApartmentProfile(context)) return;
-            if (!context.mounted) return;
-            context.push('/daily-car-wash');
-          } else if (card.id == 'bike_wash') {
-            if (!await ProfileGate.ensureApartmentProfile(context)) return;
-            if (!context.mounted) return;
-            context.push('/bike-wash');
-          } else if (card.id == 'car_disinfection') {
-            if (!await ProfileGate.ensureApartmentProfile(context)) return;
-            if (!context.mounted) return;
-            context.push('/disinfection');
-          } else if (card.id == 'extra_interior') {
-            if (!await ProfileGate.ensureApartmentProfile(context)) return;
-            if (!context.mounted) return;
-            context.push('/extra-interior');
-          } else if (card.id == 'wax_polish') {
-            if (!await ProfileGate.ensureApartmentProfile(context)) return;
-            if (!context.mounted) return;
-            context.push('/wax-polish');
-          } else if (card.id == 'my_vehicles') {
-            context.push('/my-vehicles');
-          }
-        },
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            Card(
-              elevation: 4,
-              color: AppColors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: SizedBox(
-                height: 120,
-                width: double.infinity,
-                child: Padding(
-                  padding: const EdgeInsets.all(19),
-                  child: Image.asset(
-                    card.imageAsset,
-                    fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) => Image.asset(
-                      'assets/images/placeholder.png',
-                      fit: BoxFit.contain,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            Text(
-              card.title,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: AppColors.black,
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// PNGs are large canvases with small centered artwork; scale up visually
-/// inside a fixed slot so the bar height stays at 60dp (Android parity).
-class _BottomNavIcon extends StatelessWidget {
-  const _BottomNavIcon(this.asset);
-
-  final String asset;
-
-  static const double _slotSize = 26;
-  static const double _renderSize = 64;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: _slotSize,
-      height: _slotSize,
-      child: OverflowBox(
-        alignment: Alignment.center,
-        maxWidth: _renderSize,
-        maxHeight: _renderSize,
-        child: Image.asset(
-          asset,
-          width: _renderSize,
-          height: _renderSize,
-          fit: BoxFit.contain,
-        ),
       ),
     );
   }

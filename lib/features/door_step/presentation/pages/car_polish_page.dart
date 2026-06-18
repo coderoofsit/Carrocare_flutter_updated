@@ -1,6 +1,8 @@
 import 'package:carrocare_flutter/core/di/injection.dart';
 import 'package:carrocare_flutter/core/network/api_client.dart';
 import 'package:carrocare_flutter/core/theme/app_colors.dart';
+import 'package:carrocare_flutter/core/widgets/carro_care_scaffold.dart';
+import 'package:carrocare_flutter/core/widgets/dotted_loader.dart';
 import 'package:carrocare_flutter/features/car_details/domain/entities/car_details_args.dart';
 import 'package:carrocare_flutter/features/daily_wash/data/models/service_price_model.dart';
 import 'package:carrocare_flutter/features/door_step/data/datasources/door_step_form_remote_data_source.dart';
@@ -81,106 +83,66 @@ class _CarPolishPageState extends State<CarPolishPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.primary,
-      body: SafeArea(
-        child: Column(
-          children: <Widget>[
-            SizedBox(
-              height: kToolbarHeight,
-              child: Row(
-                children: <Widget>[
-                  GestureDetector(
-                    onTap: () => context.pop(),
-                    child: Container(
-                      width: 35,
-                      height: 35,
-                      margin: const EdgeInsets.all(10),
-                      padding: const EdgeInsets.all(5),
-                      child: Image.asset('assets/images/back.png'),
-                    ),
-                  ),
-                  const Expanded(
-                    child: Text(
-                      'DOORSTEP CAR MACHINE POLISH',
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: AppColors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: _description.isEmpty ? null : _showInfo,
-                    child: Container(
-                      width: 35,
-                      height: 35,
-                      margin: const EdgeInsets.all(10),
-                      padding: const EdgeInsets.all(5),
-                      child: Opacity(
-                        opacity: _description.isEmpty ? 0.45 : 1,
-                        child: Image.asset('assets/images/info.png'),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+    return CarroCareScaffold(
+      title: 'Doorstep Car Machine Polish',
+      onBack: () => context.pop(),
+      actions: <Widget>[
+        GestureDetector(
+          onTap: _description.isEmpty ? null : _showInfo,
+          child: Container(
+            width: 40,
+            height: 40,
+            padding: const EdgeInsets.all(8),
+            child: Opacity(
+              opacity: _description.isEmpty ? 0.45 : 1,
+              child: Image.asset('assets/images/info.png'),
             ),
-            Expanded(
-              child: Container(
-                color: const Color(0xFFEDEFF1),
-                child: _loading
-                    ? const Center(
-                        child: CircularProgressIndicator(color: AppColors.primary),
-                      )
-                    : _error != null
-                        ? Center(child: Text(_error!))
-                        : Column(
-                            children: <Widget>[
-                              Expanded(
-                                child: ListView.builder(
-                                  padding: const EdgeInsets.all(10),
-                                  itemCount: _services.length,
-                                  itemBuilder: (context, index) {
-                                    final service = _services[index];
-                                    return _ServiceCard(
-                                      service: service,
-                                      gstPercent: _gstPercent,
-                                    );
-                                  },
-                                ),
-                              ),
-                              Padding(
-                                padding: const EdgeInsets.all(12),
-                                child: SizedBox(
-                                  width: double.infinity,
-                                  child: ElevatedButton(
-                                    onPressed: () => context.push(
-                                      '/confirm-form',
-                                      extra: const ConfirmFormArgs(
-                                        mode: ConfirmFormMode.machinePolish,
-                                      ),
-                                    ),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: AppColors.primary,
-                                      foregroundColor: AppColors.white,
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 14,
-                                      ),
-                                    ),
-                                    child: const Text('PROCEED'),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-              ),
-            ),
-          ],
+          ),
         ),
-      ),
+      ],
+      body: _loading
+          ? const CarroCareLoadingOverlay()
+          : _error != null
+              ? Center(child: Text(_error!))
+              : Column(
+                  children: <Widget>[
+                    Expanded(
+                      child: ListView.builder(
+                        padding: const EdgeInsets.all(10),
+                        itemCount: _services.length,
+                        itemBuilder: (context, index) {
+                          final service = _services[index];
+                          return _ServiceCard(
+                            service: service,
+                            gstPercent: _gstPercent,
+                          );
+                        },
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: () => context.push(
+                            '/confirm-form',
+                            extra: const ConfirmFormArgs(
+                              mode: ConfirmFormMode.machinePolish,
+                            ),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: AppColors.white,
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 14,
+                            ),
+                          ),
+                          child: const Text('PROCEED'),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
     );
   }
 }

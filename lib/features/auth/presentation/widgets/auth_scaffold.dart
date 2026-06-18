@@ -1,4 +1,8 @@
 import 'package:carrocare_flutter/core/theme/app_colors.dart';
+import 'package:carrocare_flutter/core/theme/app_decorations.dart';
+import 'package:carrocare_flutter/core/theme/app_gradients.dart';
+import 'package:carrocare_flutter/core/theme/app_typography.dart';
+import 'package:carrocare_flutter/core/widgets/carro_care_app_bar.dart';
 import 'package:flutter/material.dart';
 
 class AuthScaffold extends StatelessWidget {
@@ -8,7 +12,7 @@ class AuthScaffold extends StatelessWidget {
     required this.subtitle,
     required this.child,
     required this.onBack,
-    this.bodyBackgroundColor = AppColors.loginBody,
+    this.bodyBackgroundColor = AppColors.grey200,
   });
 
   final String title;
@@ -23,82 +27,63 @@ class AuthScaffold extends StatelessWidget {
     final bool compact = size.width < 380;
 
     return Scaffold(
-      backgroundColor: AppColors.primary,
-      body: SafeArea(
-        child: Column(
-          children: <Widget>[
-            SizedBox(
-              height: 90,
-              child: Row(
-                children: <Widget>[
-                  GestureDetector(
-                    onTap: onBack,
-                    child: Container(
-                      width: 35,
-                      height: 35,
-                      margin: const EdgeInsets.all(5),
-                      padding: const EdgeInsets.all(7),
-                      child: Image.asset('assets/images/back.png'),
-                    ),
-                  ),
-                  const Spacer(),
-                  Container(
-                    margin: EdgeInsets.only(right: compact ? 12 : 16),
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary,
-                      borderRadius: BorderRadius.circular(7),
-                    ),
-                    child: Image.asset(
-                      'assets/images/logo50.png',
-                      width: 50,
-                      height: 50,
-                      fit: BoxFit.contain,
-                    ),
-                  ),
-                ],
+      backgroundColor: Colors.transparent,
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: AppGradients.screenBackground,
+        ),
+        child: SafeArea(
+          child: Column(
+            children: <Widget>[
+              CarroCareAppBar(
+                title: title,
+                leading: CarroCareAppBarLeading.back,
+                onLeadingTap: onBack,
+                showBorder: true,
               ),
-            ),
-            Expanded(
-              child: Container(
-                width: double.infinity,
-                padding: EdgeInsets.symmetric(horizontal: compact ? 10 : 14),
-                decoration: BoxDecoration(
-                  color: bodyBackgroundColor,
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(10),
-                    topRight: Radius.circular(10),
-                  ),
-                ),
-                child: SingleChildScrollView(
+              Expanded(
+                child: Container(
+                  width: double.infinity,
+                  margin: EdgeInsets.symmetric(horizontal: compact ? 10 : 14),
                   padding: EdgeInsets.only(top: compact ? 18 : 24, bottom: 20),
-                  child: Column(
-                    children: <Widget>[
-                      Text(
-                        title,
-                        style: TextStyle(
-                          color: AppColors.black,
-                          fontWeight: FontWeight.w700,
-                          fontSize: compact ? 22 : 25,
+                  decoration: BoxDecoration(
+                    color: AppColors.white,
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(AppDecorations.bannerRadius),
+                      topRight: Radius.circular(AppDecorations.bannerRadius),
+                    ),
+                    border: Border.all(color: AppColors.grey200),
+                  ),
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    child: Column(
+                      children: <Widget>[
+                        Text(
+                          title,
+                          style: AppTypography.quicksand(
+                            fontSize: compact ? 22 : 25,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.grey900,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        subtitle,
-                        style: TextStyle(
-                          color: AppColors.black,
-                          fontSize: compact ? 16 : 18,
+                        const SizedBox(height: 6),
+                        Text(
+                          subtitle,
+                          style: AppTypography.dmSans(
+                            fontSize: compact ? 15 : 17,
+                            color: AppColors.grey600,
+                          ),
+                          textAlign: TextAlign.center,
                         ),
-                        textAlign: TextAlign.center,
-                      ),
-                      SizedBox(height: compact ? 20 : 30),
-                      child,
-                    ],
+                        SizedBox(height: compact ? 20 : 28),
+                        child,
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

@@ -1,5 +1,10 @@
 import 'package:carrocare_flutter/core/theme/app_colors.dart';
+import 'package:carrocare_flutter/core/theme/app_decorations.dart';
+import 'package:carrocare_flutter/core/theme/app_typography.dart';
 import 'package:carrocare_flutter/core/utils/invoice_download_helper.dart';
+import 'package:carrocare_flutter/core/widgets/carro_care_scaffold.dart';
+import 'package:carrocare_flutter/core/widgets/dotted_divider.dart';
+import 'package:carrocare_flutter/core/widgets/dotted_loader.dart';
 import 'package:carrocare_flutter/features/billing/domain/entities/billing_item.dart';
 import 'package:carrocare_flutter/features/billing/presentation/bloc/my_billing_bloc.dart';
 import 'package:flutter/material.dart';
@@ -64,134 +69,80 @@ class _MyBillingPageState extends State<MyBillingPage> {
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop) _onBack();
       },
-      child: Scaffold(
-        backgroundColor: AppColors.primary,
-        body: SafeArea(
-          child: Column(
-            children: <Widget>[
-              SizedBox(
-                height: kToolbarHeight,
-                child: Row(
+      child: CarroCareScaffold(
+        title: 'My Billings',
+        onBack: _onBack,
+        body: RefreshIndicator(
+          color: AppColors.primary,
+          onRefresh: _loadBillings,
+          child: BlocConsumer<MyBillingBloc, MyBillingState>(
+            listener: (context, state) {
+              if (state is MyBillingFailure &&
+                  state.message.contains('Session expired')) {
+                context.go('/login');
+              }
+            },
+            builder: (context, state) {
+              if (state is MyBillingLoading || state is MyBillingInitial) {
+                return const Center(child: CarroCareLoadingOverlay());
+              }
+              if (state is MyBillingFailure) {
+                return ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
                   children: <Widget>[
-                    GestureDetector(
-                      onTap: _onBack,
-                      child: Container(
-                        width: 35,
-                        height: 35,
-                        margin: const EdgeInsets.all(10),
-                        padding: const EdgeInsets.all(5),
-                        child: Image.asset('assets/images/back.png'),
-                      ),
-                    ),
-                    const Expanded(
-                      child: Text(
-                        'MY BILLINGS',
-                        style: TextStyle(
-                          color: AppColors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 45),
-                  ],
-                ),
-              ),
-              Expanded(
-                child: Container(
-                  color: const Color(0xFFEDEFF1),
-                  child: RefreshIndicator(
-                    color: AppColors.primary,
-                    onRefresh: _loadBillings,
-                    child: BlocConsumer<MyBillingBloc, MyBillingState>(
-                      listener: (context, state) {
-                        if (state is MyBillingFailure &&
-                            state.message.contains('Session expired')) {
-                          context.go('/login');
-                        }
-                      },
-                      builder: (context, state) {
-                        if (state is MyBillingLoading ||
-                            state is MyBillingInitial) {
-                          return const Center(
-                            child: CircularProgressIndicator(
-                              color: AppColors.primary,
+                    SizedBox(height: MediaQuery.sizeOf(context).height * 0.25),
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        children: <Widget>[
+                          Text(
+                            state.message,
+                            textAlign: TextAlign.center,
+                            style: AppTypography.dmSans(
+                              fontSize: 16,
+                              color: AppColors.grey700,
                             ),
-                          );
-                        }
-                        if (state is MyBillingFailure) {
-                          return ListView(
-                            physics: const AlwaysScrollableScrollPhysics(),
-                            children: <Widget>[
-                              SizedBox(
-                                height:
-                                    MediaQuery.sizeOf(context).height * 0.25,
-                              ),
-                              Padding(
-                                padding: const EdgeInsets.all(16),
-                                child: Column(
-                                  children: <Widget>[
-                                    Text(
-                                      state.message,
-                                      textAlign: TextAlign.center,
-                                      style: const TextStyle(
-                                        color: AppColors.black,
-                                        fontSize: 16,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 16),
-                                    ElevatedButton(
-                                      onPressed: _loadBillings,
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: AppColors.primary,
-                                        foregroundColor: AppColors.white,
-                                      ),
-                                      child: const Text('Retry'),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          );
-                        }
-
-                        final billings = (state as MyBillingLoaded).billings;
-                        if (billings.isEmpty) {
-                          return ListView(
-                            physics: const AlwaysScrollableScrollPhysics(),
-                            children: <Widget>[
-                              SizedBox(
-                                height:
-                                    MediaQuery.sizeOf(context).height * 0.2,
-                              ),
-                              Center(
-                                child: Image.asset(
-                                  'assets/images/placeholders.png',
-                                  fit: BoxFit.contain,
-                                ),
-                              ),
-                            ],
-                          );
-                        }
-
-                        return ListView.builder(
-                          physics: const AlwaysScrollableScrollPhysics(),
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          itemCount: billings.length,
-                          itemBuilder: (context, index) {
-                            return _BillingCard(
-                              item: billings[index],
-                              onDownload: () =>
-                                  _downloadInvoice(billings[index]),
-                            );
-                          },
-                        );
-                      },
+                          ),
+                          const SizedBox(height: 16),
+                          ElevatedButton(
+                            onPressed: _loadBillings,
+                            child: const Text('Retry'),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                ),
-              ),
-            ],
+                  ],
+                );
+              }
+
+              final billings = (state as MyBillingLoaded).billings;
+              if (billings.isEmpty) {
+                return ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  children: <Widget>[
+                    SizedBox(height: MediaQuery.sizeOf(context).height * 0.2),
+                    Center(
+                      child: Image.asset(
+                        'assets/images/placeholders.png',
+                        fit: BoxFit.contain,
+                      ),
+                    ),
+                  ],
+                );
+              }
+
+              return ListView.builder(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                itemCount: billings.length,
+                itemBuilder: (context, index) {
+                  return _BillingCard(
+                    item: billings[index],
+                    onDownload: () => _downloadInvoice(billings[index]),
+                  );
+                },
+              );
+            },
           ),
         ),
       ),
@@ -210,23 +161,11 @@ class _BillingCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const labelStyle = TextStyle(
-      color: Color(0xFF313030),
-      fontSize: 16,
-      fontWeight: FontWeight.w400,
-    );
-    const valueStyle = TextStyle(
-      color: AppColors.black,
-      fontSize: 18,
-      fontWeight: FontWeight.w700,
-    );
-
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 5, vertical: 5),
-      elevation: 5,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      decoration: AppDecorations.card(),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        padding: const EdgeInsets.all(16),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: <Widget>[
@@ -234,19 +173,37 @@ class _BillingCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  _row('Invoice No : ', item.invoice, labelStyle, valueStyle),
-                  _row('Date : ', item.date, labelStyle, valueStyle),
+                  Text(
+                    'Invoice',
+                    style: AppTypography.quicksand(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.grey800,
+                    ),
+                  ),
+                  const DottedDivider(margin: EdgeInsets.symmetric(vertical: 8)),
+                  _row('Invoice No', item.invoice),
+                  const SizedBox(height: 6),
+                  _row('Date', item.date),
                 ],
               ),
             ),
             GestureDetector(
               onTap: onDownload,
-              child: Padding(
-                padding: const EdgeInsets.all(8),
+              child: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryTint,
+                  borderRadius: BorderRadius.circular(12),
+                ),
                 child: SvgPicture.asset(
                   'assets/vectors/ic_download.svg',
-                  width: 50,
-                  height: 50,
+                  width: 32,
+                  height: 32,
+                  colorFilter: const ColorFilter.mode(
+                    AppColors.primary,
+                    BlendMode.srcIn,
+                  ),
                 ),
               ),
             ),
@@ -256,21 +213,31 @@ class _BillingCard extends StatelessWidget {
     );
   }
 
-  Widget _row(
-    String label,
-    String value,
-    TextStyle labelStyle,
-    TextStyle valueStyle,
-  ) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Text(label, style: labelStyle),
-          Expanded(child: Text(value, style: valueStyle)),
-        ],
-      ),
+  Widget _row(String label, String value) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        SizedBox(
+          width: 90,
+          child: Text(
+            label,
+            style: AppTypography.dmSans(
+              fontSize: 13,
+              color: AppColors.grey500,
+            ),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: AppTypography.dmSans(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: AppColors.grey800,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

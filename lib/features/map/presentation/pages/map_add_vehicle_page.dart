@@ -1,6 +1,8 @@
 import 'package:carrocare_flutter/core/di/injection.dart';
 import 'package:carrocare_flutter/core/storage/map_location_store.dart';
 import 'package:carrocare_flutter/core/theme/app_colors.dart';
+import 'package:carrocare_flutter/core/widgets/carro_care_scaffold.dart';
+import 'package:carrocare_flutter/core/widgets/dotted_loader.dart';
 import 'package:carrocare_flutter/features/map/domain/entities/map_location_result.dart';
 import 'package:carrocare_flutter/features/vehicles/data/repositories/vehicles_repository.dart';
 import 'package:flutter/material.dart';
@@ -30,7 +32,6 @@ class _MapAddVehiclePageState extends State<MapAddVehiclePage> {
   bool _submitting = false;
 
   static const List<String> _categories = <String>['hatchback', 'sedan', 'suv'];
-  static const Color _androidGrayBg = Color(0xFFEDEFF1);
   static const Color _fieldBorder = Color(0xFF8F8F8F);
   static const Color _hintColor = Color(0xFF8F8F8F);
 
@@ -164,49 +165,15 @@ class _MapAddVehiclePageState extends State<MapAddVehiclePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.primary,
-      body: SafeArea(
-        child: Column(
-          children: <Widget>[
-            SizedBox(
-              height: kToolbarHeight,
-              child: Row(
+    return CarroCareScaffold(
+      title: 'Add Vehicle',
+      onBack: () => context.pop(),
+      body: _loading
+          ? const CarroCareLoadingOverlay()
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(8),
+              child: Column(
                 children: <Widget>[
-                  GestureDetector(
-                    onTap: () => context.pop(),
-                    child: Container(
-                      width: 35,
-                      height: 35,
-                      margin: const EdgeInsets.all(10),
-                      padding: const EdgeInsets.all(5),
-                      child: Image.asset('assets/images/back.png'),
-                    ),
-                  ),
-                  const Expanded(
-                    child: Text(
-                      'ADD VEHICLE',
-                      style: TextStyle(
-                        color: AppColors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: Container(
-                color: _androidGrayBg,
-                child: _loading
-                    ? const Center(
-                        child: CircularProgressIndicator(color: AppColors.primary),
-                      )
-                    : SingleChildScrollView(
-                        padding: const EdgeInsets.all(8),
-                        child: Column(
-                          children: <Widget>[
                             _selectField(
                               label: _category.isEmpty
                                   ? 'Vehicle Category'
@@ -268,11 +235,6 @@ class _MapAddVehiclePageState extends State<MapAddVehiclePage> {
                           ],
                         ),
                       ),
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 

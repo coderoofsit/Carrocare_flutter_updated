@@ -49,42 +49,42 @@ class MonthlySubscriptionCheckout {
       gstPercent,
     );
 
-    await razorpay.openSubscription(
-      keyId: session.keyId,
-      subscriptionId: session.subscriptionId,
-      description: serviceType,
-      email: session.customerEmail,
-      contact: session.customerMobile,
-      priceSummary: priceSummary,
-      onSuccess: (_) async {
-        try {
-          final orderId = await repo.createSubscriptionOrderId(
-            customerId: customerId,
-            token: token,
-          );
-          await repo.saveMonthlySubscriptionOrder(
-            orderId: orderId,
-            planId: planId,
-            subscriptionId: session.subscriptionId,
-            customerId: customerId,
-            vehicleId: vehicleId,
-            token: token,
-            serviceType: serviceType,
-            totalAmount: breakdown.total.toString(),
-            subTotal: breakdown.subTotal.toString(),
-            gst: gstPercent.toString(),
-            gstAmount: breakdown.gstAmount.toString(),
-          );
-          await sl<OrdersRepository>().getOrders(
-            token: token,
-            customerId: customerId,
-          );
-          await onSuccess();
-        } catch (e) {
-          onError(e.toString());
-        }
-      },
-      onError: onError,
-    );
+    try {
+      await razorpay.openSubscriptionAndWait(
+        keyId: session.keyId,
+        subscriptionId: session.subscriptionId,
+        description: serviceType,
+        email: session.customerEmail,
+        contact: session.customerMobile,
+        priceSummary: priceSummary,
+      );
+
+      final orderId = await repo.createSubscriptionOrderId(
+        customerId: customerId,
+        token: token,
+      );
+      await repo.saveMonthlySubscriptionOrder(
+        orderId: orderId,
+        planId: planId,
+        subscriptionId: session.subscriptionId,
+        customerId: customerId,
+        vehicleId: vehicleId,
+        token: token,
+        serviceType: serviceType,
+        totalAmount: breakdown.total.toString(),
+        subTotal: breakdown.subTotal.toString(),
+        gst: gstPercent.toString(),
+        gstAmount: breakdown.gstAmount.toString(),
+      );
+      await sl<OrdersRepository>().getOrders(
+        token: token,
+        customerId: customerId,
+      );
+      await onSuccess();
+    } catch (e) {
+      final message = e.toString().replaceFirst('Exception: ', '');
+      onError(message.isNotEmpty ? message : 'Payment failed');
+      rethrow;
+    }
   }
 }

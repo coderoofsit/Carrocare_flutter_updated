@@ -8,7 +8,10 @@ class BikeWashRemoteDataSource {
   Future<Map<String, dynamic>> getBikeWashRawResponse() async {
     final response = await _apiClient.dio.post<Map<String, dynamic>>(
       'services_price.php',
-      data: <String, dynamic>{'service': 'daily_car_wash'},
+      data: <String, dynamic>{
+        'service': 'daily_car_wash',
+        'type': 'bike',
+      },
     );
 
     final data = response.data;

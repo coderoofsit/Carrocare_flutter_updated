@@ -1,6 +1,7 @@
 import 'package:carrocare_flutter/core/constants/app_urls.dart';
 import 'package:carrocare_flutter/core/di/injection.dart';
-import 'package:carrocare_flutter/core/theme/app_colors.dart';
+import 'package:carrocare_flutter/core/widgets/carro_care_scaffold.dart';
+import 'package:carrocare_flutter/core/widgets/dotted_loader.dart';
 import 'package:carrocare_flutter/features/checkout/core/autopay_checkout_helper.dart';
 import 'package:carrocare_flutter/features/checkout/core/checkout_gst_config.dart';
 import 'package:carrocare_flutter/features/checkout/domain/entities/razorpay_price_summary.dart';
@@ -42,7 +43,6 @@ class _CheckoutFinalizePageState extends State<CheckoutFinalizePage> {
 
   Future<void> _startMonthlyRazorpay() async {
     try {
-      final keys = await sl<CheckoutRepository>().getRazorpayKeys();
       final prefs = await SharedPreferences.getInstance();
       final email = prefs.getString('email') ?? '';
       final mobile =
@@ -55,32 +55,35 @@ class _CheckoutFinalizePageState extends State<CheckoutFinalizePage> {
         gstPercent: gstPercent,
       );
       if (!mounted) return;
-      if (!await showRazorpayPriceSummarySheet(
+      final confirmed = await showRazorpayPriceSummarySheet(
         context: context,
         summary: priceSummary,
-      )) {
-        if (!mounted) return;
-        context.pop();
-        return;
-      }
-      if (!mounted) return;
-
-      _razorpay.open(
-        keyId: keys.keyId,
-        amountPaise: amountInr * 100,
-        description: widget.args.serviceType,
-        email: email,
-        contact: mobile,
-        orderId: widget.args.razorpayOrderId,
-        customerId: widget.args.razorpayCustomerId,
-        enableRecurring: widget.args.enableAutopay,
-        priceSummary: priceSummary,
-        onSuccess: _loadFinalizeWeb,
-        onError: (message) {
+        onConfirmPay: () async {
+          final keys = await sl<CheckoutRepository>().getRazorpayKeys();
           if (!mounted) return;
-          setState(() => _error = message);
+
+          _razorpay.open(
+            keyId: keys.keyId,
+            amountPaise: amountInr * 100,
+            description: widget.args.serviceType,
+            email: email,
+            contact: mobile,
+            orderId: widget.args.razorpayOrderId,
+            customerId: widget.args.razorpayCustomerId,
+            enableRecurring: widget.args.enableAutopay,
+            priceSummary: priceSummary,
+            onSuccess: _loadFinalizeWeb,
+            onError: (message) {
+              if (!mounted) return;
+              setState(() => _error = message);
+            },
+          );
         },
       );
+      if (!confirmed) {
+        if (!mounted) return;
+        context.pop();
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() => _error = e.toString());
@@ -124,13 +127,9 @@ class _CheckoutFinalizePageState extends State<CheckoutFinalizePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.primary,
-      appBar: AppBar(
-        backgroundColor: AppColors.primary,
-        foregroundColor: AppColors.white,
-        title: const Text('CHECKOUT'),
-      ),
+    return CarroCareScaffold(
+      title: 'Checkout',
+      onBack: () => context.pop(),
       body: _error != null
           ? Center(
               child: Padding(
@@ -140,9 +139,7 @@ class _CheckoutFinalizePageState extends State<CheckoutFinalizePage> {
             )
           : _showWeb && _webController != null
               ? WebViewWidget(controller: _webController!)
-              : const Center(
-                  child: CircularProgressIndicator(color: AppColors.primary),
-                ),
+              : const CarroCareLoadingOverlay(),
     );
   }
 }

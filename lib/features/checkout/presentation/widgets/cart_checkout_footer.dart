@@ -1,4 +1,8 @@
 import 'package:carrocare_flutter/core/theme/app_colors.dart';
+import 'package:carrocare_flutter/core/theme/app_decorations.dart';
+import 'package:carrocare_flutter/core/theme/app_typography.dart';
+import 'package:carrocare_flutter/core/widgets/bill_line_row.dart';
+import 'package:carrocare_flutter/core/widgets/bill_summary_card.dart';
 import 'package:carrocare_flutter/features/checkout/core/cart_display_helper.dart';
 import 'package:flutter/material.dart';
 
@@ -23,109 +27,95 @@ class CartCheckoutFooter extends StatelessWidget {
   Widget build(BuildContext context) {
     final totalText = CartDisplayHelper.formatRupee(total);
     return Material(
-      elevation: 8,
+      elevation: 0,
       color: AppColors.white,
       child: SafeArea(
         top: false,
         child: Padding(
-          padding: const EdgeInsets.all(10),
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
-              Row(
-                children: <Widget>[
-                  const Expanded(
-                    child: Text(
-                      'Subtotal',
-                      style: TextStyle(fontSize: 12, color: AppColors.black),
-                    ),
-                  ),
-                  Text(
-                    totalText,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.black,
-                    ),
+              BillSummaryCard(
+                title: 'Order Summary',
+                lines: <BillLine>[
+                  BillLine(label: 'Items ($itemCount)', amount: totalText),
+                  BillLine(
+                    label: 'Subtotal',
+                    amount: totalText,
+                    muted: true,
                   ),
                 ],
-              ),
-              const SizedBox(height: 4),
-              Row(
-                children: <Widget>[
-                  const Expanded(
-                    child: Text(
-                      'Total',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.black,
-                      ),
-                    ),
-                  ),
-                  Text(
-                    totalText,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.black,
-                    ),
-                  ),
-                ],
+                totalLabel: 'Total',
+                totalAmount: totalText,
+                padding: const EdgeInsets.all(14),
               ),
               if (consentSection != null) ...<Widget>[
-                const SizedBox(height: 8),
+                const SizedBox(height: 10),
                 consentSection!,
               ],
-              const SizedBox(height: 8),
-              Material(
-                color: AppColors.primary,
-                borderRadius: BorderRadius.circular(5),
-                child: InkWell(
-                  onTap: checkingOut ? null : onCheckout,
-                  borderRadius: BorderRadius.circular(5),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 5,
-                      vertical: 10,
-                    ),
-                    child: Row(
-                      children: <Widget>[
-                        Expanded(
-                          child: Text(
-                            '$itemCount Items  $totalText',
-                            style: const TextStyle(
-                              color: AppColors.white,
-                              fontSize: 16,
-                              fontStyle: FontStyle.italic,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                        const Text(
-                          'Checkout',
-                          style: TextStyle(
-                            color: AppColors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        Image.asset(
-                          'assets/images/checkout.png',
-                          width: 24,
-                          height: 24,
-                          color: AppColors.white,
-                          colorBlendMode: BlendMode.srcIn,
-                          errorBuilder: (_, __, ___) => const Icon(
-                            Icons.logout,
-                            color: AppColors.white,
-                            size: 22,
-                          ),
-                        ),
-                      ],
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: checkingOut ? null : onCheckout,
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius:
+                          BorderRadius.circular(AppDecorations.buttonRadius),
                     ),
                   ),
+                  child: checkingOut
+                      ? const SizedBox(
+                          height: 22,
+                          width: 80,
+                          child: Center(
+                            child: SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: AppColors.white,
+                              ),
+                            ),
+                          ),
+                        )
+                      : Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: <Widget>[
+                            Text(
+                              '$itemCount Items  $totalText',
+                              style: AppTypography.dmSans(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                                color: AppColors.white,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Text(
+                              'Checkout',
+                              style: AppTypography.quicksand(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.white,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Image.asset(
+                              'assets/images/checkout.png',
+                              width: 22,
+                              height: 22,
+                              color: AppColors.white,
+                              colorBlendMode: BlendMode.srcIn,
+                              errorBuilder: (_, __, ___) => const Icon(
+                                Icons.arrow_forward,
+                                color: AppColors.white,
+                                size: 20,
+                              ),
+                            ),
+                          ],
+                        ),
                 ),
               ),
             ],

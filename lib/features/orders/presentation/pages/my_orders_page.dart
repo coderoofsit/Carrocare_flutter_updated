@@ -1,8 +1,12 @@
 import 'package:carrocare_flutter/core/theme/app_colors.dart';
+import 'package:carrocare_flutter/core/widgets/animated_gradient_badge.dart';
+import 'package:carrocare_flutter/core/widgets/carro_care_scaffold.dart';
+import 'package:carrocare_flutter/core/widgets/dotted_loader.dart';
 import 'package:carrocare_flutter/features/orders/domain/entities/order_item.dart';
 import 'package:carrocare_flutter/features/orders/domain/entities/order_item_filters.dart';
 import 'package:carrocare_flutter/features/orders/presentation/bloc/my_orders_bloc.dart';
 import 'package:carrocare_flutter/features/orders/presentation/pages/order_detail_page.dart';
+import 'package:carrocare_flutter/features/orders/presentation/utils/order_date_time_display.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -76,89 +80,55 @@ class _MyOrdersPageState extends State<MyOrdersPage>
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop) _onBack();
       },
-      child: Scaffold(
-        backgroundColor: AppColors.primary,
-        body: SafeArea(
-          child: Column(
-            children: <Widget>[
-              SizedBox(
-                height: kToolbarHeight,
-                child: Row(
-                  children: <Widget>[
-                    GestureDetector(
-                      onTap: _onBack,
-                      child: Container(
-                        width: 35,
-                        height: 35,
-                        margin: const EdgeInsets.all(10),
-                        padding: const EdgeInsets.all(5),
-                        child: Image.asset('assets/images/back.png'),
-                      ),
+      child: CarroCareScaffold(
+        title: 'My Orders',
+        onBack: _onBack,
+        body: Column(
+          children: <Widget>[
+            BlocBuilder<MyOrdersBloc, MyOrdersState>(
+              builder: (context, state) {
+                if (state is! MyOrdersLoaded) {
+                  return const SizedBox.shrink();
+                }
+                final subs = subscriptionOrders(state.orders);
+                final oneTime = oneTimeOrders(state.orders);
+                return Material(
+                  color: AppColors.primary,
+                  child: TabBar(
+                    controller: _tabController,
+                    indicatorColor: AppColors.white,
+                    indicatorWeight: 3,
+                    labelColor: AppColors.white,
+                    unselectedLabelColor:
+                        AppColors.white.withValues(alpha: 0.65),
+                    labelStyle: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
                     ),
-                    const Expanded(
-                      child: Text(
-                        'MY ORDERS',
-                        style: TextStyle(
-                          color: AppColors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 45),
-                  ],
-                ),
-              ),
-              BlocBuilder<MyOrdersBloc, MyOrdersState>(
-                builder: (context, state) {
-                  if (state is! MyOrdersLoaded) {
-                    return const SizedBox.shrink();
-                  }
-                  final subs = subscriptionOrders(state.orders);
-                  final oneTime = oneTimeOrders(state.orders);
-                  return Material(
-                    color: AppColors.primary,
-                    child: TabBar(
-                      controller: _tabController,
-                      indicatorColor: AppColors.white,
-                      indicatorWeight: 3,
-                      labelColor: AppColors.white,
-                      unselectedLabelColor:
-                          AppColors.white.withValues(alpha: 0.65),
-                      labelStyle: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                      ),
-                      tabs: <Widget>[
-                        Tab(text: 'Subscriptions (${subs.length})'),
-                        Tab(text: 'One-time (${oneTime.length})'),
-                      ],
-                    ),
-                  );
-                },
-              ),
-              Expanded(
-                child: Container(
-                  color: const Color(0xFFEDEFF1),
-                  child: RefreshIndicator(
-                    color: AppColors.primary,
-                    onRefresh: _loadOrders,
-                    child: BlocConsumer<MyOrdersBloc, MyOrdersState>(
-                      listener: (context, state) {
-                        if (state is MyOrdersFailure &&
-                            state.message.contains('Session expired')) {
-                          context.go('/login');
-                        }
-                      },
-                      builder: (context, state) {
-                        if (state is MyOrdersLoading ||
-                            state is MyOrdersInitial) {
-                          return const Center(
-                            child: CircularProgressIndicator(
-                              color: AppColors.primary,
-                            ),
-                          );
-                        }
+                    tabs: <Widget>[
+                      Tab(text: 'Subscriptions (${subs.length})'),
+                      Tab(text: 'One-time (${oneTime.length})'),
+                    ],
+                  ),
+                );
+              },
+            ),
+            Expanded(
+              child: RefreshIndicator(
+                color: AppColors.primary,
+                onRefresh: _loadOrders,
+                child: BlocConsumer<MyOrdersBloc, MyOrdersState>(
+                  listener: (context, state) {
+                    if (state is MyOrdersFailure &&
+                        state.message.contains('Session expired')) {
+                      context.go('/login');
+                    }
+                  },
+                  builder: (context, state) {
+                    if (state is MyOrdersLoading ||
+                        state is MyOrdersInitial) {
+                      return const Center(child: CarroCareLoadingOverlay());
+                    }
                         if (state is MyOrdersFailure) {
                           return ListView(
                             physics: const AlwaysScrollableScrollPhysics(),
@@ -255,10 +225,8 @@ class _MyOrdersPageState extends State<MyOrdersPage>
                       },
                     ),
                   ),
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -396,9 +364,6 @@ class _OrderCard extends StatelessWidget {
         order.status == 'Cancel Requested';
   }
 
-  String get _highlightLabel =>
-      variant == _OrderCardVariant.subscription ? 'Next due : ' : 'Valid until : ';
-
   String get _highlightValue {
     if (variant == _OrderCardVariant.subscription) {
       final due = order.nextDue.trim();
@@ -411,14 +376,20 @@ class _OrderCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const labelStyle = TextStyle(
-      color: Color(0xFF313030),
-      fontSize: 16,
-      fontWeight: FontWeight.w400,
+      color: AppColors.grey600,
+      fontSize: 13,
+      fontWeight: FontWeight.w500,
     );
     const valueStyle = TextStyle(
-      color: AppColors.black,
-      fontSize: 18,
+      color: AppColors.grey800,
+      fontSize: 15,
       fontWeight: FontWeight.w700,
+    );
+    const orderIdValueStyle = TextStyle(
+      color: AppColors.grey800,
+      fontSize: 14,
+      fontWeight: FontWeight.w700,
+      height: 1.3,
     );
 
     final chipLabel = variant == _OrderCardVariant.subscription
@@ -427,117 +398,135 @@ class _OrderCard extends StatelessWidget {
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 5, vertical: 5),
-      elevation: 5,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: const BorderSide(color: AppColors.grey200),
+      ),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.all(10),
+          padding: const EdgeInsets.all(14),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
               Row(
                 children: <Widget>[
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      chipLabel,
-                      style: const TextStyle(
-                        color: AppColors.primary,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
+                  AnimatedGradientBadge(
+                    label: chipLabel,
+                    vibrant: variant == _OrderCardVariant.subscription,
                   ),
                   const Spacer(),
                   Text(
                     order.status.toUpperCase(),
                     style: valueStyle.copyWith(
-                      fontSize: 14,
+                      fontSize: 13,
+                      letterSpacing: 0.4,
                       color: order.status == 'Cancel Requested'
                           ? AppColors.primary
-                          : AppColors.black,
+                          : AppColors.grey800,
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
-              _orderIdRow(order.orderId, labelStyle, valueStyle),
-              _row(_highlightLabel, _highlightValue, labelStyle, valueStyle),
-              _row(
-                'Payment method : ',
-                _displayValue(order.paymentMode),
-                labelStyle,
-                valueStyle,
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                child: Divider(height: 1, color: AppColors.grey200),
               ),
-              const SizedBox(height: 8),
+              _infoBlock(
+                label: 'Order Id',
+                value: order.orderId,
+                labelStyle: labelStyle,
+                valueStyle: orderIdValueStyle,
+                maxLines: 2,
+              ),
+              const SizedBox(height: 12),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        const Text('Date : ', style: labelStyle),
-                        Text(order.dateAndTime, style: valueStyle),
-                      ],
+                    child: _infoBlock(
+                      label: variant == _OrderCardVariant.subscription
+                          ? 'Next due'
+                          : 'Valid until',
+                      value: _highlightValue,
+                      labelStyle: labelStyle,
+                      valueStyle: valueStyle,
                     ),
                   ),
+                  const SizedBox(width: 12),
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: <Widget>[
-                        const Text('Service type : ', style: labelStyle),
-                        Text(
-                          order.serviceType,
-                          textAlign: TextAlign.right,
-                          style: valueStyle,
-                        ),
-                      ],
+                    child: _infoBlock(
+                      label: 'Payment method',
+                      value: _displayValue(order.paymentMode),
+                      labelStyle: labelStyle,
+                      valueStyle: valueStyle,
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        const Text('Plate Number : ', style: labelStyle),
-                        Text(order.vehicleNo, style: valueStyle),
-                      ],
+                    child: _infoBlock(
+                      label: 'Date',
+                      value: OrderDateTimeDisplay.formatDate(order.dateAndTime),
+                      labelStyle: labelStyle,
+                      valueStyle: valueStyle,
                     ),
                   ),
+                  const SizedBox(width: 12),
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: <Widget>[
-                        const Text('Plan : ', style: labelStyle),
-                        Text(
-                          order.plan,
-                          textAlign: TextAlign.right,
-                          style: valueStyle,
-                        ),
-                      ],
+                    child: _infoBlock(
+                      label: 'Time',
+                      value: OrderDateTimeDisplay.formatTime(order.dateAndTime),
+                      labelStyle: labelStyle,
+                      valueStyle: valueStyle,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              _infoBlock(
+                label: 'Service type',
+                value: order.serviceType,
+                labelStyle: labelStyle,
+                valueStyle: valueStyle,
+              ),
+              const SizedBox(height: 12),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Expanded(
+                    child: _infoBlock(
+                      label: 'Plate Number',
+                      value: _displayValue(order.vehicleNo),
+                      labelStyle: labelStyle,
+                      valueStyle: valueStyle,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _infoBlock(
+                      label: 'Plan',
+                      value: _displayValue(order.plan),
+                      labelStyle: labelStyle,
+                      valueStyle: valueStyle,
                     ),
                   ),
                 ],
               ),
               if (_showReason) ...<Widget>[
-                const SizedBox(height: 8),
-                const Text('Reason for Cancel : ', style: labelStyle),
-                Text(order.reason, style: valueStyle),
+                const SizedBox(height: 12),
+                _infoBlock(
+                  label: 'Reason for Cancel',
+                  value: order.reason,
+                  labelStyle: labelStyle,
+                  valueStyle: valueStyle,
+                ),
               ],
             ],
           ),
@@ -551,48 +540,25 @@ class _OrderCard extends StatelessWidget {
     return trimmed.isEmpty ? '—' : trimmed;
   }
 
-  Widget _orderIdRow(
-    String orderId,
-    TextStyle labelStyle,
-    TextStyle valueStyle,
-  ) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: <Widget>[
-          Text('Order Id : ', style: labelStyle),
-          Expanded(
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              alignment: Alignment.centerLeft,
-              child: Text(
-                orderId,
-                maxLines: 1,
-                style: valueStyle.copyWith(fontSize: 14),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _row(
-    String label,
-    String value,
-    TextStyle labelStyle,
-    TextStyle valueStyle,
-  ) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Text(label, style: labelStyle),
-          Expanded(child: Text(value, style: valueStyle)),
-        ],
-      ),
+  static Widget _infoBlock({
+    required String label,
+    required String value,
+    required TextStyle labelStyle,
+    required TextStyle valueStyle,
+    int maxLines = 1,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Text(label, style: labelStyle),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: valueStyle,
+          maxLines: maxLines,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ],
     );
   }
 }
