@@ -3,10 +3,8 @@ import 'package:carrocare_flutter/core/di/injection.dart';
 import 'package:carrocare_flutter/core/theme/app_colors.dart';
 import 'package:carrocare_flutter/core/theme/app_decorations.dart';
 import 'package:carrocare_flutter/core/theme/app_typography.dart';
-import 'package:carrocare_flutter/core/widgets/bill_line_row.dart';
 import 'package:carrocare_flutter/core/widgets/carro_care_app_bar.dart';
 import 'package:carrocare_flutter/core/widgets/carro_care_scaffold.dart';
-import 'package:carrocare_flutter/core/widgets/dotted_divider.dart';
 import 'package:carrocare_flutter/core/widgets/dotted_loader.dart';
 import 'package:carrocare_flutter/features/checkout/core/checkout_block_reason.dart';
 import 'package:carrocare_flutter/features/checkout/core/checkout_gst_config.dart';
@@ -30,7 +28,6 @@ import 'package:carrocare_flutter/features/checkout/presentation/services/checko
 import 'package:carrocare_flutter/features/checkout/presentation/services/razorpay_checkout_service.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';

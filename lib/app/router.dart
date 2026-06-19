@@ -55,6 +55,7 @@ import 'package:carrocare_flutter/features/notifications/presentation/pages/noti
 import 'package:carrocare_flutter/features/reminders/presentation/pages/my_reminder_page.dart';
 import 'package:carrocare_flutter/features/map/presentation/pages/locate_on_map_page.dart';
 import 'package:carrocare_flutter/features/map/presentation/pages/map_add_vehicle_page.dart';
+import 'package:carrocare_flutter/features/connectivity/presentation/pages/offline_page.dart';
 import 'package:carrocare_flutter/features/door_step/domain/entities/confirm_form_args.dart';
 import 'package:carrocare_flutter/features/door_step/presentation/pages/confirm_form_page.dart';
 import 'package:carrocare_flutter/features/door_step/presentation/pages/car_polish_page.dart';
@@ -346,6 +347,10 @@ final GoRouter appRouter = GoRouter(
               : const ConfirmFormArgs(),
         );
       },
+    ),
+    GoRoute(
+      path: '/offline',
+      builder: (context, state) => const OfflinePage(),
     ),
     GoRoute(
       path: '/car-polish',

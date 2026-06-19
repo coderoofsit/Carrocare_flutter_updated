@@ -1,6 +1,5 @@
 import 'package:carrocare_flutter/core/theme/app_colors.dart';
 import 'package:carrocare_flutter/core/theme/app_gradients.dart';
-import 'package:carrocare_flutter/core/widgets/carro_care_app_bar.dart';
 import 'package:flutter/material.dart';
 
 class HomeShell extends StatelessWidget {

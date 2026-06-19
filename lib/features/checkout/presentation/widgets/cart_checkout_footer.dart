@@ -1,7 +1,6 @@
 import 'package:carrocare_flutter/core/theme/app_colors.dart';
 import 'package:carrocare_flutter/core/theme/app_decorations.dart';
 import 'package:carrocare_flutter/core/theme/app_typography.dart';
-import 'package:carrocare_flutter/core/widgets/bill_line_row.dart';
 import 'package:carrocare_flutter/core/widgets/bill_summary_card.dart';
 import 'package:carrocare_flutter/features/checkout/core/cart_display_helper.dart';
 import 'package:flutter/material.dart';

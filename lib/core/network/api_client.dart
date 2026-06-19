@@ -12,8 +12,9 @@ class ApiClient {
         BaseOptions(
           baseUrl: AppUrls.apiBaseUrl,
           contentType: Headers.formUrlEncodedContentType,
-          connectTimeout: const Duration(minutes: 5),
-          receiveTimeout: const Duration(minutes: 5),
+          connectTimeout: const Duration(seconds: 30),
+          receiveTimeout: const Duration(seconds: 45),
+          sendTimeout: const Duration(seconds: 45),
           responseType: ResponseType.plain,
           headers: const <String, dynamic>{
             'Accept': 'application/json',
@@ -49,7 +50,9 @@ class ApiClient {
         },
       ),
     );
-    dio.interceptors.add(LogInterceptor(requestBody: true, responseBody: true));
+    if (kDebugMode) {
+      dio.interceptors.add(LogInterceptor(requestBody: true, responseBody: true));
+    }
   }
 
   final Dio dio;

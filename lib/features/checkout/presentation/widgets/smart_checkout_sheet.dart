@@ -1,6 +1,5 @@
 import 'package:carrocare_flutter/core/di/injection.dart';
 import 'package:carrocare_flutter/core/theme/app_colors.dart';
-import 'package:carrocare_flutter/core/theme/app_decorations.dart';
 import 'package:carrocare_flutter/core/theme/app_typography.dart';
 import 'package:carrocare_flutter/core/widgets/bill_line_row.dart';
 import 'package:carrocare_flutter/core/widgets/dotted_divider.dart';

@@ -1,6 +1,8 @@
 import 'package:carrocare_flutter/core/auth/session_expired_handler.dart';
 import 'package:carrocare_flutter/core/network/api_client.dart';
 import 'package:carrocare_flutter/core/network/auth_token_service.dart';
+import 'package:carrocare_flutter/core/network/connectivity_service.dart';
+import 'package:carrocare_flutter/core/network/offline_navigation_handler.dart';
 import 'package:carrocare_flutter/features/auth/data/datasources/auth_remote_data_source.dart';
 import 'package:carrocare_flutter/features/auth/data/repositories/auth_repository_impl.dart';
 import 'package:carrocare_flutter/features/auth/domain/repositories/auth_repository.dart';
@@ -53,6 +55,7 @@ import 'package:carrocare_flutter/features/checkout/data/datasources/checkout_re
 import 'package:carrocare_flutter/features/checkout/data/repositories/checkout_repository_impl.dart';
 import 'package:carrocare_flutter/features/checkout/domain/repositories/checkout_repository.dart';
 import 'package:carrocare_flutter/features/orders/presentation/bloc/my_orders_bloc.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:get_it/get_it.dart';
 
 final GetIt sl = GetIt.instance;
@@ -198,5 +201,11 @@ Future<void> configureDependencies() async {
   );
   sl.registerFactory<DisinfectionBloc>(
     () => DisinfectionBloc(sl<GetDisinfectionServicesUseCase>()),
+  );
+  sl.registerLazySingleton<ConnectivityService>(
+    () => ConnectivityService(Connectivity()),
+  );
+  sl.registerLazySingleton<OfflineNavigationHandler>(
+    () => OfflineNavigationHandler(sl<ConnectivityService>()),
   );
 }

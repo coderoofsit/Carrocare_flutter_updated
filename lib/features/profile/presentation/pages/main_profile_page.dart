@@ -27,7 +27,7 @@ class MainProfilePage extends StatefulWidget {
 class _MainProfilePageState extends State<MainProfilePage> {
   String _name = '';
   String _mobile = '';
-  String _versionLabel = 'Version 1.0.0\n© Muviereck Technologies Pvt Ltd.';
+  String _versionLabel = 'Version 1.0.0\n© Carro Auto Pvt Ltd.';
 
   @override
   void initState() {

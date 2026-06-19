@@ -28,6 +28,6 @@ class ProfileActions {
 
   static Future<String> versionLabel() async {
     final info = await PackageInfo.fromPlatform();
-    return 'Version ${info.version}\n© Muviereck Technologies Pvt Ltd.';
+    return 'Version ${info.version}\n© Carro Auto Pvt Ltd.';
   }
 }

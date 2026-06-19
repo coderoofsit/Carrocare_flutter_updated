@@ -9,17 +9,19 @@ class AppDecorations {
   static const double buttonRadius = 12;
   static const double bannerRadius = 20;
 
-  static BoxDecoration card({Color? color}) => BoxDecoration(
+  static BoxDecoration card({Color? color, bool showShadow = true}) => BoxDecoration(
         color: color ?? AppColors.white,
         borderRadius: BorderRadius.circular(cardRadius),
         border: Border.all(color: AppColors.grey200),
-        boxShadow: const <BoxShadow>[
-          BoxShadow(
-            color: AppColors.shadowLight,
-            blurRadius: 12,
-            offset: Offset(0, 4),
-          ),
-        ],
+        boxShadow: showShadow
+            ? const <BoxShadow>[
+                BoxShadow(
+                  color: AppColors.shadowLight,
+                  blurRadius: 12,
+                  offset: Offset(0, 4),
+                ),
+              ]
+            : null,
       );
 
   static BoxDecoration inputField() => BoxDecoration(

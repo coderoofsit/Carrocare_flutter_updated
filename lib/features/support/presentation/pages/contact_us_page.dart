@@ -145,7 +145,7 @@ class ContactUsPage extends StatelessWidget {
                     ),
                     SizedBox(height: 4),
                     Text(
-                      'Muviereck Technologies Pvt. Ltd',
+                      'Carro Auto Pvt Ltd',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 16,

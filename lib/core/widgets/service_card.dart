@@ -23,7 +23,7 @@ class ServiceCard extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(AppDecorations.cardRadius),
         child: Ink(
-          decoration: AppDecorations.card(),
+          decoration: AppDecorations.card(showShadow: false),
           child: Column(
             children: <Widget>[
               Expanded(
