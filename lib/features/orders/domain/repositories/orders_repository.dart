@@ -1,5 +1,6 @@
 import 'package:carrocare_flutter/features/internal_wash/domain/entities/internal_wash_form.dart';
 import 'package:carrocare_flutter/features/orders/domain/entities/order_item.dart';
+import 'package:carrocare_flutter/features/orders/domain/entities/pause_subscription_result.dart';
 import 'package:carrocare_flutter/features/orders/domain/entities/wash_calendar_models.dart';
 
 abstract class OrdersRepository {
@@ -37,6 +38,13 @@ abstract class OrdersRepository {
     required String token,
     required String vehicleId,
     required String orderId,
+  });
+
+  Future<PauseSubscriptionResult> pauseSubscription({
+    required String token,
+    required String customerId,
+    required String orderId,
+    required int pauseDays,
   });
 
   Future<String> cancelCodOrder({

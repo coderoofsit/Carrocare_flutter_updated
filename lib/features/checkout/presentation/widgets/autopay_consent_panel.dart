@@ -23,7 +23,7 @@ class AutopayConsentPanel extends StatelessWidget {
   final String? renewalAmount;
   final bool showAutopayToggle;
 
-  static const String termsUrl = AppUrls.termsAndConditions;
+  static String get termsUrl => AppUrls.termsAndConditions;
 
   @override
   Widget build(BuildContext context) {

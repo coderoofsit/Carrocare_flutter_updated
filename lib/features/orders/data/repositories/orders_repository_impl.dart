@@ -1,6 +1,7 @@
 import 'package:carrocare_flutter/features/internal_wash/domain/entities/internal_wash_form.dart';
 import 'package:carrocare_flutter/features/orders/data/datasources/orders_remote_data_source.dart';
 import 'package:carrocare_flutter/features/orders/domain/entities/order_item.dart';
+import 'package:carrocare_flutter/features/orders/domain/entities/pause_subscription_result.dart';
 import 'package:carrocare_flutter/features/orders/domain/entities/wash_calendar_models.dart';
 import 'package:carrocare_flutter/features/orders/domain/repositories/orders_repository.dart';
 import 'package:intl/intl.dart';
@@ -309,6 +310,35 @@ class OrdersRepositoryImpl implements OrdersRepository {
           .toString();
     }
     throw Exception((data['message'] ?? 'Cancel failed').toString());
+  }
+
+  @override
+  Future<PauseSubscriptionResult> pauseSubscription({
+    required String token,
+    required String customerId,
+    required String orderId,
+    required int pauseDays,
+  }) async {
+    final data = await _remoteDataSource.pauseSubscription(
+      token: token,
+      customerId: customerId,
+      orderId: orderId,
+      pauseDays: pauseDays,
+    );
+    _throwOnSession(data);
+    final code = (data['code'] ?? '').toString();
+    if (code == '200') {
+      final warning = data['warning'];
+      return PauseSubscriptionResult(
+        message: (data['message'] ?? 'Service paused.').toString(),
+        resumeAt: data['resume_at']?.toString(),
+        nextDue: data['next_due']?.toString(),
+        warning: warning != null && warning.toString().isNotEmpty
+            ? warning.toString()
+            : null,
+      );
+    }
+    throw Exception((data['message'] ?? 'Pause failed').toString());
   }
 
   @override

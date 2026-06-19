@@ -55,6 +55,8 @@ import 'package:carrocare_flutter/features/notifications/presentation/pages/noti
 import 'package:carrocare_flutter/features/reminders/presentation/pages/my_reminder_page.dart';
 import 'package:carrocare_flutter/features/map/presentation/pages/locate_on_map_page.dart';
 import 'package:carrocare_flutter/features/map/presentation/pages/map_add_vehicle_page.dart';
+import 'package:carrocare_flutter/features/door_step/domain/entities/doorstep_book_args.dart';
+import 'package:carrocare_flutter/features/door_step/presentation/pages/doorstep_book_page.dart';
 import 'package:carrocare_flutter/features/door_step/domain/entities/confirm_form_args.dart';
 import 'package:carrocare_flutter/features/door_step/presentation/pages/confirm_form_page.dart';
 import 'package:carrocare_flutter/features/door_step/presentation/pages/car_polish_page.dart';
@@ -119,6 +121,18 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/door-step-service',
       builder: (context, state) => const DoorStepServicePage(),
+    ),
+    GoRoute(
+      path: '/doorstep-book',
+      builder: (context, state) {
+        final args = state.extra;
+        if (args is! DoorstepBookArgs) {
+          return const Scaffold(
+            body: Center(child: Text('Invalid booking details')),
+          );
+        }
+        return DoorstepBookPage(args: args);
+      },
     ),
     GoRoute(
       path: '/help-support',

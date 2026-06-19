@@ -1,5 +1,8 @@
+import 'package:carrocare_flutter/core/di/injection.dart';
 import 'package:carrocare_flutter/core/theme/app_colors.dart';
 import 'package:carrocare_flutter/core/theme/app_typography.dart';
+import 'package:carrocare_flutter/core/widgets/remote_image_with_fallback.dart';
+import 'package:carrocare_flutter/features/mobile_assets/data/repositories/mobile_assets_repository.dart';
 import 'package:carrocare_flutter/features/onboarding/presentation/bloc/onboarding_bloc.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -13,15 +16,26 @@ class SplashPage extends StatefulWidget {
 }
 
 class _SplashPageState extends State<SplashPage> {
-  static const int maxStep = 4;
   final PageController _controller = PageController();
+  final MobileAssetsRepository _mobileAssets = sl<MobileAssetsRepository>();
 
-  final List<String> _images = <String>[
+  static const List<String> _fallbackAssets = <String>[
     'assets/images/intro_image1.jpg',
     'assets/images/intro_image2.jpg',
     'assets/images/intro_image3.jpg',
     'assets/images/intro_image4.jpg',
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadMobileAssets();
+  }
+
+  Future<void> _loadMobileAssets() async {
+    await _mobileAssets.ensureLoaded();
+    if (mounted) setState(() {});
+  }
 
   @override
   void dispose() {
@@ -32,24 +46,35 @@ class _SplashPageState extends State<SplashPage> {
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.sizeOf(context);
+    final slides = _mobileAssets.onboardingSlides(_fallbackAssets);
+    final int slideCount = slides.isEmpty ? _fallbackAssets.length : slides.length;
     return Scaffold(
       backgroundColor: AppColors.primary,
       body: BlocBuilder<OnboardingBloc, OnboardingState>(
         builder: (context, state) {
-          final bool isLast = state.pageIndex == _images.length - 1;
+          final bool isLast = state.pageIndex >= slideCount - 1;
           return Stack(
             children: <Widget>[
               PageView.builder(
                 controller: _controller,
-                itemCount: _images.length,
+                itemCount: slideCount,
                 onPageChanged: (index) {
                   context.read<OnboardingBloc>().add(
                     OnboardingPageChanged(index),
                   );
                 },
                 itemBuilder: (_, index) {
-                  return Image.asset(
-                    _images[index],
+                  final RemoteSlide slide = index < slides.length
+                      ? slides[index]
+                      : RemoteSlide(
+                          fallbackAsset: _fallbackAssets[
+                              index < _fallbackAssets.length
+                                  ? index
+                                  : _fallbackAssets.length - 1],
+                        );
+                  return RemoteImageWithFallback(
+                    imageUrl: slide.imageUrl,
+                    fallbackAsset: slide.fallbackAsset,
                     fit: BoxFit.cover,
                     width: double.infinity,
                     height: double.infinity,
@@ -63,7 +88,7 @@ class _SplashPageState extends State<SplashPage> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: List<Widget>.generate(
-                    maxStep,
+                    slideCount,
                     (i) => Container(
                       width: 15,
                       height: 15,
@@ -106,7 +131,7 @@ class _SplashPageState extends State<SplashPage> {
                             icon: Icons.arrow_forward,
                             onPressed: () {
                               final next = state.pageIndex + 1;
-                              if (next < maxStep) {
+                              if (next < slideCount) {
                                 _controller.animateToPage(
                                   next,
                                   duration: const Duration(milliseconds: 220),

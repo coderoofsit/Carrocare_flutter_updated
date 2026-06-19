@@ -5,6 +5,7 @@ import 'package:carrocare_flutter/core/network/auth_token_service.dart';
 import 'package:carrocare_flutter/core/theme/app_gradients.dart';
 import 'package:carrocare_flutter/core/utils/profile_prefs_sync.dart';
 import 'package:carrocare_flutter/core/widgets/dotted_loader.dart';
+import 'package:carrocare_flutter/features/mobile_assets/data/repositories/mobile_assets_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -24,6 +25,7 @@ class _IntroductionPageState extends State<IntroductionPage> {
   }
 
   Future<void> _handleRedirection() async {
+    unawaited(sl<MobileAssetsRepository>().refresh());
     var targetRoute = '/splash';
     try {
       await Future<void>.delayed(const Duration(seconds: 2));

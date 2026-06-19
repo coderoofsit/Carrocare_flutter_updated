@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:carrocare_flutter/core/di/injection.dart';
 import 'package:carrocare_flutter/core/theme/app_colors.dart';
 import 'package:carrocare_flutter/core/theme/app_decorations.dart';
 import 'package:carrocare_flutter/core/theme/app_typography.dart';
@@ -8,8 +9,10 @@ import 'package:carrocare_flutter/core/utils/session_debug.dart';
 import 'package:carrocare_flutter/core/widgets/app_bottom_nav.dart';
 import 'package:carrocare_flutter/core/widgets/carro_care_app_bar.dart';
 import 'package:carrocare_flutter/core/widgets/home_shell.dart';
+import 'package:carrocare_flutter/core/widgets/remote_image_with_fallback.dart';
 import 'package:carrocare_flutter/core/widgets/service_card.dart';
 import 'package:carrocare_flutter/features/checkout/data/local/cart_local_storage.dart';
+import 'package:carrocare_flutter/features/mobile_assets/data/repositories/mobile_assets_repository.dart';
 import 'package:carrocare_flutter/features/internal_wash/presentation/widgets/internal_wash_overlays.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -31,8 +34,9 @@ class _HomePageState extends State<HomePage> {
   int _cartCount = 0;
   bool _showInternalWashOverlay = false;
   final CartLocalStorage _cartStorage = CartLocalStorage();
+  final MobileAssetsRepository _mobileAssets = sl<MobileAssetsRepository>();
 
-  final List<String> _banners = <String>[
+  final List<String> _bannerFallbackAssets = <String>[
     'assets/images/slide_1.jpg',
     'assets/images/slide_2.jpg',
     'assets/images/slide_3.jpg',
@@ -43,7 +47,13 @@ class _HomePageState extends State<HomePage> {
     super.initState();
     _loadUserName();
     _loadCartCount();
+    _loadMobileAssets();
     _startAutoBannerScroll();
+  }
+
+  Future<void> _loadMobileAssets() async {
+    await _mobileAssets.ensureLoaded();
+    if (mounted) setState(() {});
   }
 
   Future<void> _loadCartCount() async {
@@ -53,10 +63,12 @@ class _HomePageState extends State<HomePage> {
 
   void _startAutoBannerScroll() {
     _bannerTimer = Timer.periodic(const Duration(seconds: 3), (_) {
-      if (!mounted || !_sliderController.hasClients || _banners.isEmpty) {
+      final int slideCount =
+          _mobileAssets.homeBannerSlides(_bannerFallbackAssets).length;
+      if (!mounted || !_sliderController.hasClients || slideCount == 0) {
         return;
       }
-      final int nextPage = (_currentBannerIndex + 1) % _banners.length;
+      final int nextPage = (_currentBannerIndex + 1) % slideCount;
       _sliderController.animateToPage(
         nextPage,
         duration: const Duration(milliseconds: 350),
@@ -118,6 +130,7 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     final greeting = _username.isEmpty ? 'Welcome' : 'Hi $_username';
+    final bannerSlides = _mobileAssets.homeBannerSlides(_bannerFallbackAssets);
 
     return HomeShell(
       appBar: CarroCareAppBar(
@@ -143,7 +156,7 @@ class _HomePageState extends State<HomePage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
             _PromoBanner(
-              banners: _banners,
+              slides: bannerSlides,
               controller: _sliderController,
               currentIndex: _currentBannerIndex,
               onPageChanged: (i) => setState(() => _currentBannerIndex = i),
@@ -162,14 +175,17 @@ class _HomePageState extends State<HomePage> {
                   id: 'daily_car_wash',
                   title: 'Daily Car Wash',
                   imageAsset: 'assets/images/car_wash.jpg',
+                  serviceCardKey: 'daily_car_wash',
                 ),
                 _ServiceCardData(
                   id: 'bike_wash',
                   title: 'Bike Wash',
                   imageAsset: 'assets/images/bike_wash.jpg',
+                  serviceCardKey: 'bike_wash',
                 ),
               ],
               onTap: _onServiceTap,
+              mobileAssets: _mobileAssets,
             ),
             const SizedBox(height: 16),
             const _SectionTitle(title: 'On Demand Services'),
@@ -180,9 +196,11 @@ class _HomePageState extends State<HomePage> {
                   id: 'doorstep_service',
                   title: 'Door Step Service',
                   imageAsset: 'assets/images/doorstep_service.png',
+                  serviceCardKey: 'doorstep_service',
                 ),
               ],
               onTap: _onServiceTap,
+              mobileAssets: _mobileAssets,
             ),
             const SizedBox(height: 16),
             const _SectionTitle(title: 'Quick Services'),
@@ -193,14 +211,17 @@ class _HomePageState extends State<HomePage> {
                   id: 'extra_interior',
                   title: 'Extra Interior',
                   imageAsset: 'assets/images/extra_interior.png',
+                  serviceCardKey: 'extra_interior',
                 ),
                 _ServiceCardData(
                   id: 'wax_polish',
                   title: 'Wax Polish',
                   imageAsset: 'assets/images/wax_polish.jpg',
+                  serviceCardKey: 'wax_polish',
                 ),
               ],
               onTap: _onServiceTap,
+              mobileAssets: _mobileAssets,
             ),
             const SizedBox(height: 10),
             _TwoColCards(
@@ -209,9 +230,11 @@ class _HomePageState extends State<HomePage> {
                   id: 'my_vehicles',
                   title: 'My Vehicles',
                   imageAsset: 'assets/images/my_vehicles.jpg',
+                  serviceCardKey: 'my_vehicles',
                 ),
               ],
               onTap: _onServiceTap,
+              mobileAssets: _mobileAssets,
             ),
           ],
         ),
@@ -262,13 +285,13 @@ class _HomePageState extends State<HomePage> {
 
 class _PromoBanner extends StatelessWidget {
   const _PromoBanner({
-    required this.banners,
+    required this.slides,
     required this.controller,
     required this.currentIndex,
     required this.onPageChanged,
   });
 
-  final List<String> banners;
+  final List<RemoteSlide> slides;
   final PageController controller;
   final int currentIndex;
   final ValueChanged<int> onPageChanged;
@@ -296,10 +319,11 @@ class _PromoBanner extends StatelessWidget {
             children: <Widget>[
               PageView.builder(
                 controller: controller,
-                itemCount: banners.length,
+                itemCount: slides.length,
                 onPageChanged: onPageChanged,
-                itemBuilder: (_, i) => Image.asset(
-                  banners[i],
+                itemBuilder: (_, i) => RemoteImageWithFallback(
+                  imageUrl: slides[i].imageUrl,
+                  fallbackAsset: slides[i].fallbackAsset,
                   fit: BoxFit.cover,
                   width: double.infinity,
                 ),
@@ -311,7 +335,7 @@ class _PromoBanner extends StatelessWidget {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: List<Widget>.generate(
-                    banners.length,
+                    slides.length,
                     (index) => AnimatedContainer(
                       duration: const Duration(milliseconds: 200),
                       width: currentIndex == index ? 18 : 7,
@@ -553,10 +577,12 @@ class _TwoColCards extends StatelessWidget {
   const _TwoColCards({
     required this.cards,
     required this.onTap,
+    required this.mobileAssets,
   });
 
   final List<_ServiceCardData> cards;
   final Future<void> Function(String id) onTap;
+  final MobileAssetsRepository mobileAssets;
 
   @override
   Widget build(BuildContext context) {
@@ -570,6 +596,7 @@ class _TwoColCards extends StatelessWidget {
                 child: ServiceCard(
                   title: card.title,
                   imageAsset: card.imageAsset,
+                  imageUrl: mobileAssets.serviceCardUrl(card.serviceCardKey),
                   onTap: () => onTap(card.id),
                 ),
               ),
@@ -595,9 +622,11 @@ class _ServiceCardData {
     required this.id,
     required this.title,
     required this.imageAsset,
+    required this.serviceCardKey,
   });
 
   final String id;
   final String title;
   final String imageAsset;
+  final String serviceCardKey;
 }

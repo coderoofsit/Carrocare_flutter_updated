@@ -1,6 +1,7 @@
 import 'package:carrocare_flutter/core/theme/app_colors.dart';
 import 'package:carrocare_flutter/core/theme/app_decorations.dart';
 import 'package:carrocare_flutter/core/theme/app_typography.dart';
+import 'package:carrocare_flutter/core/widgets/remote_image_with_fallback.dart';
 import 'package:flutter/material.dart';
 
 class ServiceCard extends StatelessWidget {
@@ -8,11 +9,13 @@ class ServiceCard extends StatelessWidget {
     super.key,
     required this.title,
     required this.imageAsset,
+    this.imageUrl,
     required this.onTap,
   });
 
   final String title;
   final String imageAsset;
+  final String? imageUrl;
   final VoidCallback onTap;
 
   @override
@@ -34,16 +37,10 @@ class ServiceCard extends StatelessWidget {
                   ),
                   child: SizedBox(
                     width: double.infinity,
-                    child: Image.asset(
-                      imageAsset,
+                    child: RemoteImageWithFallback(
+                      imageUrl: imageUrl,
+                      fallbackAsset: imageAsset,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Center(
-                        child: Icon(
-                          Icons.local_car_wash_outlined,
-                          size: 48,
-                          color: AppColors.primary.withValues(alpha: 0.6),
-                        ),
-                      ),
                     ),
                   ),
                 ),

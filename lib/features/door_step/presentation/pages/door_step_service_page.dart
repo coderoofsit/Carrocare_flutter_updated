@@ -1,7 +1,10 @@
 import 'package:carrocare_flutter/core/di/injection.dart';
 import 'package:carrocare_flutter/core/network/api_client.dart';
 import 'package:carrocare_flutter/core/theme/app_colors.dart';
+import 'package:carrocare_flutter/core/widgets/remote_image_with_fallback.dart';
 import 'package:carrocare_flutter/features/door_step/data/datasources/door_step_remote_data_source.dart';
+import 'package:carrocare_flutter/features/door_step/presentation/services/doorstep_checkout_helper.dart';
+import 'package:carrocare_flutter/features/mobile_assets/data/repositories/mobile_assets_repository.dart';
 import 'package:carrocare_flutter/features/door_step/domain/entities/confirm_form_args.dart';
 import 'package:carrocare_flutter/features/door_step/domain/entities/door_step_service_item.dart';
 import 'package:carrocare_flutter/features/internal_wash/presentation/constants/preferred_time_slots.dart';
@@ -19,11 +22,13 @@ class _PagerItem {
   const _PagerItem({
     required this.title,
     required this.imageAsset,
+    required this.serviceCardKey,
     required this.action,
   });
 
   final String title;
   final String imageAsset;
+  final String serviceCardKey;
   final String action;
 }
 
@@ -39,33 +44,46 @@ class _DoorStepServicePageState extends State<DoorStepServicePage> {
     _PagerItem(
       title: 'Door step car wash',
       imageAsset: 'assets/images/ds_carwash.png',
+      serviceCardKey: 'doorstep_carwash',
       action: 'carwash',
     ),
     _PagerItem(
       title: 'Detailing',
       imageAsset: 'assets/images/ds_detailing.png',
+      serviceCardKey: 'doorstep_detailing',
       action: 'detailing',
     ),
     _PagerItem(
       title: 'Painting & Denting',
       imageAsset: 'assets/images/ds_paint.png',
+      serviceCardKey: 'doorstep_painting',
       action: 'painting',
     ),
     _PagerItem(
       title: 'Door step insurance',
       imageAsset: 'assets/images/ds_insurance.png',
+      serviceCardKey: 'doorstep_insurance',
       action: 'insurance',
     ),
     _PagerItem(
       title: 'Battery change',
       imageAsset: 'assets/images/ds_batterychange.png',
+      serviceCardKey: 'doorstep_battery',
       action: 'battery',
+    ),
+    _PagerItem(
+      title: 'Machine polish',
+      imageAsset: 'assets/images/ds_detailing.png',
+      serviceCardKey: 'doorstep_detailing',
+      action: 'machinePolish',
     ),
   ];
 
   final DoorStepRemoteDataSource _remote =
       DoorStepRemoteDataSource(sl<ApiClient>());
+  final DoorstepCheckoutHelper _checkoutHelper = DoorstepCheckoutHelper();
   final VehiclesRepository _vehiclesRepository = sl<VehiclesRepository>();
+  final MobileAssetsRepository _mobileAssets = sl<MobileAssetsRepository>();
 
   GoogleMapController? _mapController;
   LatLng _center = const LatLng(13.085274, 80.170185);
@@ -80,6 +98,12 @@ class _DoorStepServicePageState extends State<DoorStepServicePage> {
     super.initState();
     _initLocation();
     _loadVehicles();
+    _loadMobileAssets();
+  }
+
+  Future<void> _loadMobileAssets() async {
+    await _mobileAssets.ensureLoaded();
+    if (mounted) setState(() {});
   }
 
   @override
@@ -130,6 +154,11 @@ class _DoorStepServicePageState extends State<DoorStepServicePage> {
         '/confirm-form',
         extra: const ConfirmFormArgs(mode: ConfirmFormMode.insurance),
       );
+      return;
+    }
+    if (action == 'machinePolish') {
+      if (!mounted) return;
+      context.push('/car-polish');
       return;
     }
     if (_selectedVehicle == null) {
@@ -207,42 +236,22 @@ class _DoorStepServicePageState extends State<DoorStepServicePage> {
     final prefs = await SharedPreferences.getInstance();
     final gstPercent =
         int.tryParse(prefs.getString('gst_percentage') ?? '0') ?? 0;
-    final price = int.tryParse(service.prices) ?? 0;
-    final gstAmount = (price * gstPercent) ~/ 100;
-    final total = price + gstAmount;
+    if (!mounted) return;
 
-    try {
-      final data = await _remote.saveDoorstepCodOrder(
-        customerId: prefs.getString('customer_id') ?? '',
-        token: prefs.getString('token') ?? '',
-        packType: service.service,
-        packAmount: service.prices,
-        vehicleId: _selectedVehicle!.id,
-        serviceType: 'Door step Wash',
-        subTotal: '$price',
-        gst: '$gstPercent',
-        gstAmount: '$gstAmount',
-        totalAmount: '$total',
-        scheduleDate: DateFormat('yyyy-MM-dd').format(date),
-        scheduleTime: time,
-        address: _address,
-        latitude: '${_center.latitude}',
-        longitude: '${_center.longitude}',
-      );
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            (data['message'] ?? 'Order placed').toString(),
-          ),
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
-      );
-    }
+    await _checkoutHelper.completeBooking(
+      context: context,
+      action: action,
+      packType: service.service,
+      packAmount: service.prices,
+      serviceLabel: service.service,
+      vehicle: _selectedVehicle!,
+      address: _address,
+      latitude: '${_center.latitude}',
+      longitude: '${_center.longitude}',
+      scheduleDate: DateFormat('yyyy-MM-dd').format(date),
+      scheduleTime: time,
+      gstPercent: gstPercent,
+    );
   }
 
   @override
@@ -394,8 +403,11 @@ class _DoorStepServicePageState extends State<DoorStepServicePage> {
                                 Expanded(
                                   child: Padding(
                                     padding: const EdgeInsets.all(12),
-                                    child: Image.asset(
-                                      item.imageAsset,
+                                    child: RemoteImageWithFallback(
+                                      imageUrl: _mobileAssets.serviceCardUrl(
+                                        item.serviceCardKey,
+                                      ),
+                                      fallbackAsset: item.imageAsset,
                                       fit: BoxFit.contain,
                                     ),
                                   ),

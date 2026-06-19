@@ -41,6 +41,8 @@ import 'package:carrocare_flutter/features/profile/data/datasources/profile_remo
 import 'package:carrocare_flutter/features/profile/data/repositories/profile_repository_impl.dart';
 import 'package:carrocare_flutter/features/profile/domain/repositories/profile_repository.dart';
 import 'package:carrocare_flutter/features/profile/presentation/bloc/profile_bloc.dart';
+import 'package:carrocare_flutter/features/mobile_assets/data/datasources/mobile_assets_remote_data_source.dart';
+import 'package:carrocare_flutter/features/mobile_assets/data/repositories/mobile_assets_repository.dart';
 import 'package:carrocare_flutter/features/onboarding/presentation/bloc/onboarding_bloc.dart';
 import 'package:carrocare_flutter/features/billing/data/datasources/billing_remote_data_source.dart';
 import 'package:carrocare_flutter/features/billing/data/repositories/billing_repository_impl.dart';
@@ -64,6 +66,12 @@ Future<void> configureDependencies() async {
   );
   sl.registerLazySingleton<ApiClient>(
     () => ApiClient(sl<AuthTokenService>(), sl<SessionExpiredHandler>()),
+  );
+  sl.registerLazySingleton<MobileAssetsRemoteDataSource>(
+    () => MobileAssetsRemoteDataSource(sl<ApiClient>()),
+  );
+  sl.registerLazySingleton<MobileAssetsRepository>(
+    () => MobileAssetsRepository(sl<MobileAssetsRemoteDataSource>()),
   );
   sl.registerLazySingleton<AuthRemoteDataSource>(
     () => AuthRemoteDataSource(sl<ApiClient>()),

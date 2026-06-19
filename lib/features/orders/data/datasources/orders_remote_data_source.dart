@@ -85,6 +85,24 @@ class OrdersRemoteDataSource {
     return _asMap(response.data);
   }
 
+  Future<Map<String, dynamic>> pauseSubscription({
+    required String token,
+    required String customerId,
+    required String orderId,
+    required int pauseDays,
+  }) async {
+    final response = await _apiClient.dio.post<dynamic>(
+      'pause_subscription.php',
+      data: <String, dynamic>{
+        'token': token,
+        'customer_id': customerId,
+        'order_id': orderId,
+        'pause_days': pauseDays,
+      },
+    );
+    return _asMap(response.data);
+  }
+
   Future<Map<String, dynamic>> cancelCodOrder({
     required String orderId,
     required String customerId,

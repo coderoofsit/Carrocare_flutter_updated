@@ -26,6 +26,11 @@ class OrderItem {
     required this.washDetails,
     required this.extraInterior,
     required this.cancelSubscription,
+    required this.pauseActive,
+    required this.pauseResumeAt,
+    required this.pauseDays,
+    required this.pauseSubscription,
+    required this.isUpiAutopay,
     required this.paymentHistory,
     required this.scheduleDate,
     required this.scheduleTime,
@@ -61,6 +66,11 @@ class OrderItem {
   final String washDetails;
   final String extraInterior;
   final String cancelSubscription;
+  final String pauseActive;
+  final String pauseResumeAt;
+  final String pauseDays;
+  final String pauseSubscription;
+  final String isUpiAutopay;
   final String paymentHistory;
   final String scheduleDate;
   final String scheduleTime;
@@ -97,6 +107,11 @@ class OrderItem {
       washDetails: (json['wash_details'] ?? '').toString(),
       extraInterior: (json['extra_interior'] ?? '').toString(),
       cancelSubscription: (json['cancel_subscription'] ?? '').toString(),
+      pauseActive: (json['pause_active'] ?? '0').toString(),
+      pauseResumeAt: (json['pause_resume_at'] ?? '').toString(),
+      pauseDays: (json['pause_days'] ?? '').toString(),
+      pauseSubscription: (json['pause_subscription'] ?? '0').toString(),
+      isUpiAutopay: (json['is_upi_autopay'] ?? '0').toString(),
       paymentHistory: (json['payment_history'] ?? '').toString(),
       scheduleDate: (json['schedule_date'] ?? '').toString(),
       scheduleTime: (json['schedule_time'] ?? '').toString(),

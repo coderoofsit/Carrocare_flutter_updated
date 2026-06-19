@@ -6,13 +6,13 @@ import 'package:carrocare_flutter/core/widgets/dotted_loader.dart';
 import 'package:carrocare_flutter/features/car_details/domain/entities/car_details_args.dart';
 import 'package:carrocare_flutter/features/daily_wash/data/models/service_price_model.dart';
 import 'package:carrocare_flutter/features/door_step/data/datasources/door_step_form_remote_data_source.dart';
-import 'package:carrocare_flutter/features/door_step/domain/entities/confirm_form_args.dart';
+import 'package:carrocare_flutter/features/door_step/domain/entities/doorstep_book_args.dart';
 import 'package:carrocare_flutter/features/vehicles/core/vehicle_category_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Matches Android [CarPolishActivity].
+/// Doorstep machine polish with tier selection and bookable payment flow.
 class CarPolishPage extends StatefulWidget {
   const CarPolishPage({super.key});
 
@@ -28,6 +28,7 @@ class _CarPolishPageState extends State<CarPolishPage> {
   String _description = '';
   List<DailyServiceModel> _services = <DailyServiceModel>[];
   int _gstPercent = 0;
+  int? _selectedIndex;
 
   @override
   void initState() {
@@ -81,6 +82,25 @@ class _CarPolishPageState extends State<CarPolishPage> {
     );
   }
 
+  void _proceed() {
+    if (_selectedIndex == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a service tier')),
+      );
+      return;
+    }
+    final service = _services[_selectedIndex!];
+    context.push(
+      '/doorstep-book',
+      extra: DoorstepBookArgs(
+        packType: service.type,
+        packAmount: service.prices,
+        serviceLabel: 'Doorstep Machine Polish — ${service.type}',
+        action: 'machinePolish',
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return CarroCareScaffold(
@@ -115,6 +135,8 @@ class _CarPolishPageState extends State<CarPolishPage> {
                           return _ServiceCard(
                             service: service,
                             gstPercent: _gstPercent,
+                            selected: _selectedIndex == index,
+                            onSelect: () => setState(() => _selectedIndex = index),
                           );
                         },
                       ),
@@ -124,12 +146,7 @@ class _CarPolishPageState extends State<CarPolishPage> {
                       child: SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
-                          onPressed: () => context.push(
-                            '/confirm-form',
-                            extra: const ConfirmFormArgs(
-                              mode: ConfirmFormMode.machinePolish,
-                            ),
-                          ),
+                          onPressed: _proceed,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.primary,
                             foregroundColor: AppColors.white,
@@ -151,10 +168,14 @@ class _ServiceCard extends StatelessWidget {
   const _ServiceCard({
     required this.service,
     required this.gstPercent,
+    required this.selected,
+    required this.onSelect,
   });
 
   final DailyServiceModel service;
   final int gstPercent;
+  final bool selected;
+  final VoidCallback onSelect;
 
   String get _displayPrice {
     final price = int.tryParse(service.prices) ?? 0;
@@ -166,11 +187,18 @@ class _ServiceCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
-      elevation: 7,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(13)),
+      elevation: selected ? 10 : 7,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(13),
+        side: BorderSide(
+          color: selected ? AppColors.primary : Colors.transparent,
+          width: 2,
+        ),
+      ),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: () {
+        onTap: onSelect,
+        onLongPress: () {
           context.push(
             '/car-details',
             extra: CarDetailsArgs(
@@ -206,12 +234,24 @@ class _ServiceCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
-                      Text(
-                        service.type.toUpperCase(),
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 16,
-                        ),
+                      Row(
+                        children: <Widget>[
+                          Expanded(
+                            child: Text(
+                              service.type.toUpperCase(),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ),
+                          if (selected)
+                            const Icon(
+                              Icons.check_circle,
+                              color: AppColors.primary,
+                              size: 22,
+                            ),
+                        ],
                       ),
                       const SizedBox(height: 4),
                       Expanded(

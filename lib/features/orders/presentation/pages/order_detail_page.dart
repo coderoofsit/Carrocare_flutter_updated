@@ -10,6 +10,7 @@ import 'package:carrocare_flutter/features/orders/presentation/pages/wash_calend
 import 'package:carrocare_flutter/features/orders/presentation/utils/order_date_time_display.dart';
 import 'package:carrocare_flutter/features/orders/presentation/utils/order_pricing_display.dart';
 import 'package:carrocare_flutter/features/orders/presentation/widgets/cancel_order_dialog.dart';
+import 'package:carrocare_flutter/features/orders/presentation/widgets/pause_subscription_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -119,6 +120,11 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                             ),
                           if (ui.showStatus)
                             _DetailRow(label: 'Status', value: _order.status),
+                          if (ui.showPausedBadge)
+                            _DetailRow(
+                              label: 'Service pause',
+                              value: ui.pausedBadgeText,
+                            ),
                           if (ui.showWorkDone)
                             _DetailRow(
                               label: 'Work Done',
@@ -179,6 +185,12 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                                     ),
                                 ],
                               ),
+                            ),
+                          if (ui.showPauseSubscription)
+                            _fullWidthButton(
+                              'Pause Subscription',
+                              AppColors.primary,
+                              _confirmPauseSubscription,
                             ),
                           if (ui.showCancelSubscription)
                             _fullWidthButton(
@@ -344,6 +356,33 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
       downloadUrl: url,
       fileName: 'Carrocare_Invoice_$fileId.pdf',
     );
+  }
+
+  Future<void> _confirmPauseSubscription() async {
+    final isUpiAutopay = _order.isUpiAutopay == '1';
+    final pauseDays = await showPauseSubscriptionDialog(
+      context,
+      isUpiAutopay: isUpiAutopay,
+    );
+    if (pauseDays == null || !mounted) return;
+    setState(() => _busy = true);
+    final prefs = await SharedPreferences.getInstance();
+    try {
+      final result = await _ordersRepository.pauseSubscription(
+        token: prefs.getString('token') ?? '',
+        customerId: prefs.getString('customer_id') ?? '',
+        orderId: _order.orderId,
+        pauseDays: pauseDays,
+      );
+      if (!mounted) return;
+      _showSnack(result.message);
+      context.go('/my-orders');
+    } catch (e) {
+      if (!mounted) return;
+      _showSnack(e.toString().replaceFirst('Exception: ', ''));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   Future<void> _confirmCancelSubscription() async {
@@ -522,12 +561,15 @@ class _OrderDetailUi {
     required this.showDiscount,
     required this.showWashDetails,
     required this.showExtraInterior,
+    required this.showPauseSubscription,
+    required this.showPausedBadge,
     required this.showCancelSubscription,
     required this.showViewHistory,
     required this.showDownloadInvoice,
     required this.showCancelOrder,
     required this.showImageField,
     required this.validText,
+    required this.pausedBadgeText,
   });
 
   final bool showVehicleMake;
@@ -543,12 +585,15 @@ class _OrderDetailUi {
   final bool showDiscount;
   final bool showWashDetails;
   final bool showExtraInterior;
+  final bool showPauseSubscription;
+  final bool showPausedBadge;
   final bool showCancelSubscription;
   final bool showViewHistory;
   final bool showDownloadInvoice;
   final bool showCancelOrder;
   final bool showImageField;
   final String validText;
+  final String pausedBadgeText;
 
   factory _OrderDetailUi.fromOrder(OrderItem order) {
     final service = order.serviceType.toLowerCase();
@@ -568,12 +613,24 @@ class _OrderDetailUi {
     var showValid = true;
     var showWashDetails = false;
     var showExtraInterior = false;
+    var showPauseSubscription = false;
+    var showPausedBadge = false;
     var showCancelSubscription = false;
     var showViewHistory = false;
     var showDownloadInvoice = false;
     var showCancelOrder = false;
     var showImageField = false;
     var validText = order.valid;
+    var pausedBadgeText = '';
+
+    final isPaused =
+        order.pauseActive == '1' || order.status.toLowerCase() == 'paused';
+    if (isPaused) {
+      showPausedBadge = true;
+      pausedBadgeText = order.pauseResumeAt.isNotEmpty
+          ? 'Paused until ${order.pauseResumeAt}'
+          : 'Paused';
+    }
 
     if (service == 'addon' && paymentType == 'one time') {
       showVehicleMake = true;
@@ -597,6 +654,7 @@ class _OrderDetailUi {
       }
       showExtraInterior = order.extraInterior == '1';
       showCancelSubscription = order.cancelSubscription == '1';
+      showPauseSubscription = order.pauseSubscription == '1';
       if (order.paymentHistory == '1') {
         showViewHistory = true;
       } else {
@@ -611,6 +669,7 @@ class _OrderDetailUi {
       }
       showExtraInterior = order.extraInterior == '1';
       showCancelSubscription = order.cancelSubscription == '1';
+      showPauseSubscription = order.pauseSubscription == '1';
       if (order.paymentHistory == '1') {
         showViewHistory = true;
       } else {
@@ -631,7 +690,12 @@ class _OrderDetailUi {
       showPaidCount = false;
       showValid = false;
       showDownloadInvoice = true;
-      showCancelOrder = order.status != 'Cancel Requested';
+      final paymentMode = order.paymentMode.toLowerCase();
+      final isCod = paymentMode == 'cod' ||
+          order.orderId.startsWith('ORD_COD_') ||
+          paymentType == 'doorstep payment';
+      showCancelOrder =
+          isCod && order.status != 'Cancel Requested';
     } else if (service == 'disinsfection' || service == 'disinfection') {
       showVehicleMake = true;
       showVehicleModel = true;
@@ -659,12 +723,15 @@ class _OrderDetailUi {
       showDiscount: showDiscount,
       showWashDetails: showWashDetails,
       showExtraInterior: showExtraInterior,
+      showPauseSubscription: showPauseSubscription,
+      showPausedBadge: showPausedBadge,
       showCancelSubscription: showCancelSubscription,
       showViewHistory: showViewHistory,
       showDownloadInvoice: showDownloadInvoice,
       showCancelOrder: showCancelOrder,
       showImageField: showImageField,
       validText: validText,
+      pausedBadgeText: pausedBadgeText,
     );
   }
 
@@ -674,7 +741,9 @@ class _OrderDetailUi {
   static bool _isDoorStep(String service) {
     return service == 'door step wash' ||
         service == 'door step detailing' ||
-        service == 'door step addon';
+        service == 'door step addon' ||
+        service == 'door step painting' ||
+        service == 'door step battery';
   }
 }
 

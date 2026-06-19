@@ -360,7 +360,9 @@ class _OrderCard extends StatelessWidget {
     final service = order.serviceType.toLowerCase();
     return (service.contains('door step wash') ||
             service.contains('door step detailing') ||
-            service.contains('door step addon')) &&
+            service.contains('door step addon') ||
+            service.contains('door step painting') ||
+            service.contains('door step battery')) &&
         order.status == 'Cancel Requested';
   }
 

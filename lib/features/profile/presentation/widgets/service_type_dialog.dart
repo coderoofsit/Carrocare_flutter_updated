@@ -1,8 +1,14 @@
+import 'package:carrocare_flutter/core/di/injection.dart';
+import 'package:carrocare_flutter/core/widgets/remote_image_with_fallback.dart';
+import 'package:carrocare_flutter/features/mobile_assets/data/repositories/mobile_assets_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 Future<void> showServiceTypeDialog(BuildContext context) async {
+  final mobileAssets = sl<MobileAssetsRepository>();
+  await mobileAssets.ensureLoaded();
+  if (!context.mounted) return;
   final choice = await showDialog<String>(
     context: context,
     builder: (context) => AlertDialog(
@@ -11,19 +17,27 @@ Future<void> showServiceTypeDialog(BuildContext context) async {
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
           ListTile(
-            leading: Image.asset(
-              'assets/images/apartment_services.png',
+            leading: SizedBox(
               width: 40,
               height: 40,
+              child: RemoteImageWithFallback(
+                imageUrl: mobileAssets.serviceCardUrl('apartment_services'),
+                fallbackAsset: 'assets/images/apartment_services.png',
+                fit: BoxFit.contain,
+              ),
             ),
             title: const Text('Apartment Service'),
             onTap: () => Navigator.pop(context, 'apartment'),
           ),
           ListTile(
-            leading: Image.asset(
-              'assets/images/doorstep_service.png',
+            leading: SizedBox(
               width: 40,
               height: 40,
+              child: RemoteImageWithFallback(
+                imageUrl: mobileAssets.serviceCardUrl('doorstep_picker'),
+                fallbackAsset: 'assets/images/doorstep_service.png',
+                fit: BoxFit.contain,
+              ),
             ),
             title: const Text('Door Step Service'),
             onTap: () => Navigator.pop(context, 'doorstep'),
