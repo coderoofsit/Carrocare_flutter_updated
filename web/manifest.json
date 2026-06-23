@@ -1,11 +1,11 @@
 {
-    "name": "carrocare_flutter",
-    "short_name": "carrocare_flutter",
+    "name": "Carro Care",
+    "short_name": "Carro Care",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#EE3131",
+    "theme_color": "#EE3131",
+    "description": "Carro Care - Your car care companion.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

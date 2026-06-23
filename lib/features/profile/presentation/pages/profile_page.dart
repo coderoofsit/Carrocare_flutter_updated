@@ -1,5 +1,6 @@
 import 'package:carrocare_flutter/core/storage/map_location_store.dart';
 import 'package:carrocare_flutter/core/theme/app_colors.dart';
+import 'package:carrocare_flutter/core/theme/app_gradients.dart';
 import 'package:carrocare_flutter/core/widgets/carro_care_scaffold.dart';
 import 'package:carrocare_flutter/core/widgets/dotted_loader.dart';
 import 'package:carrocare_flutter/core/utils/validators.dart';
@@ -11,6 +12,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+/// Matches Android [ProfileActivity] / `activity_profile.xml`.
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
 
@@ -33,9 +35,21 @@ class _ProfilePageState extends State<ProfilePage> {
   String _token = '';
   String _customerId = '';
   String _userType = 'apartment';
+  bool _didBindProfile = false;
 
-  static const Color _fieldBorder = Color(0xFF8F8F8F);
   static const Color _hintColor = Color(0xFF8F8F8F);
+
+  static final BorderRadius _fieldRadius = BorderRadius.circular(12);
+
+  static final OutlineInputBorder _enabledFieldBorder = OutlineInputBorder(
+    borderRadius: _fieldRadius,
+    borderSide: BorderSide.none,
+  );
+
+  static final OutlineInputBorder _focusedFieldBorder = OutlineInputBorder(
+    borderRadius: _fieldRadius,
+    borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+  );
 
   @override
   void initState() {
@@ -67,6 +81,12 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   void _bindProfile(ProfileLoaded state) {
+    if (_didBindProfile &&
+        state.profile.customerId == _customerId &&
+        _name.text.isNotEmpty) {
+      return;
+    }
+    _didBindProfile = true;
     _userType = state.userType;
     _name.text = state.profile.name;
     _email.text = state.profile.email;
@@ -82,10 +102,10 @@ class _ProfilePageState extends State<ProfilePage> {
     _customerId = state.profile.customerId;
   }
 
-  bool get _isApartmentMode =>
-      _userType.toLowerCase() == 'apartment' || _userType.isEmpty;
+  bool _isApartmentMode(String userType) =>
+      userType.toLowerCase() == 'apartment' || userType.isEmpty;
 
-  bool get _isDoorstepMode => _userType.toLowerCase() == 'doorstep';
+  bool _isDoorstepMode(String userType) => userType.toLowerCase() == 'doorstep';
 
   Future<void> _pickApartment(List<String> apartments) async {
     if (apartments.isEmpty) return;
@@ -114,8 +134,25 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  void _submit() {
-    if (_isDoorstepMode) {
+  Future<void> _openMapPicker() async {
+    final result = await context.push<MapLocationResult>('/locate-on-map');
+    if (result != null) {
+      setState(() {
+        _address.text = result.address;
+        _latitude = result.latitude.toString();
+        _longitude = result.longitude.toString();
+      });
+      return;
+    }
+    final store = MapLocationStore();
+    final address = await store.readAddress();
+    if (address.isNotEmpty && mounted) {
+      setState(() => _address.text = address);
+    }
+  }
+
+  void _submit(String userType) {
+    if (_isDoorstepMode(userType)) {
       if (_name.text.trim().isEmpty ||
           _email.text.trim().isEmpty ||
           _mobile.text.trim().isEmpty ||
@@ -173,7 +210,7 @@ class _ProfilePageState extends State<ProfilePage> {
     return BlocConsumer<ProfileBloc, ProfileState>(
       listener: (context, state) {
         if (state is ProfileLoaded && state.errorMessage == null) {
-          _bindProfile(state);
+          setState(() => _bindProfile(state));
         }
         if (state is ProfileLoaded &&
             state.errorMessage != null &&
@@ -199,127 +236,120 @@ class _ProfilePageState extends State<ProfilePage> {
             state is ProfileLoading || state is ProfileInitial;
         final isUpdating = state is ProfileUpdating;
         final apartments = loadedState?.apartments ?? <String>[];
+        final userType = loadedState?.userType ?? _userType;
 
         return CarroCareScaffold(
           title: 'Profile Details',
           onBack: () => context.go('/home'),
-          body: isInitialLoading
-              ? const CarroCareLoadingOverlay()
-              : state is ProfileFailure
-                  ? Center(
-                      child: Text(
-                        state.message,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          color: AppColors.black,
-                          fontSize: 16,
+          backgroundDecoration: const BoxDecoration(
+            gradient: AppGradients.homeBackground,
+          ),
+          body: Container(
+            child: isInitialLoading
+                ? const CarroCareLoadingOverlay()
+                : state is ProfileFailure
+                    ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Text(
+                            state.message,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              color: AppColors.black,
+                              fontSize: 16,
+                            ),
+                          ),
                         ),
-                      ),
-                    )
-                  : SingleChildScrollView(
-                      padding: const EdgeInsets.all(7),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: <Widget>[
-                                    const Padding(
-                                      padding: EdgeInsets.symmetric(
-                                        horizontal: 5,
-                                        vertical: 10,
-                                      ),
-                                      child: Text(
-                                        'Welcome to the Carro Care !!',
-                                        style: TextStyle(
-                                          color: AppColors.black,
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.w400,
-                                        ),
-                                      ),
-                                    ),
-                                    _inputField(
-                                      controller: _name,
-                                      hint: 'Full Name',
-                                    ),
-                                    _inputField(
-                                      controller: _email,
-                                      hint: 'Email Address',
-                                      keyboardType: TextInputType.emailAddress,
-                                    ),
-                                    _inputField(
-                                      controller: _mobile,
-                                      hint: 'Mobile No.',
-                                      keyboardType: TextInputType.number,
-                                      maxLength: 10,
-                                    ),
-                                    if (_isApartmentMode) ...<Widget>[
-                                      _selectField(
-                                        label: _apartmentName.isEmpty
-                                            ? 'Apartment Name'
-                                            : _apartmentName,
-                                        onTap: () => _pickApartment(apartments),
-                                      ),
-                                      _inputField(
-                                        controller: _apartmentBuilding,
-                                        hint: 'Apartment Building',
-                                      ),
-                                      _inputField(
-                                        controller: _flatNo,
-                                        hint: 'Flat Number',
-                                      ),
-                                      _inputField(
-                                        controller: _gst,
-                                        hint: 'GST Number',
-                                      ),
-                                    ],
-                                    if (_isDoorstepMode)
-                                      _addressField(
-                                        controller: _address,
-                                        onGpsTap: () async {
-                                          final result = await context
-                                              .push<MapLocationResult>(
-                                            '/locate-on-map',
-                                          );
-                                          if (result != null) {
-                                            setState(() {
-                                              _address.text = result.address;
-                                              _latitude =
-                                                  result.latitude.toString();
-                                              _longitude =
-                                                  result.longitude.toString();
-                                            });
-                                          } else {
-                                            final store = MapLocationStore();
-                                            final address =
-                                                await store.readAddress();
-                                            if (address.isNotEmpty &&
-                                                mounted) {
-                                              setState(
-                                                () => _address.text = address,
-                                              );
-                                            }
-                                          }
-                                        },
-                                      ),
-                                    const SizedBox(height: 8),
-                                    Row(
-                                      children: <Widget>[
-                                        Expanded(
-                                          child: _actionBtn(
-                                            title: 'CANCEL',
-                                            onTap: () => context.go('/home'),
-                                          ),
-                                        ),
-                                        const SizedBox(width: 8),
-                                        Expanded(
-                                          child: _actionBtn(
-                                            title: isUpdating ? 'UPDATING...' : 'UPDATE',
-                                            onTap: isUpdating ? null : _submit,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
+                      )
+                    : SingleChildScrollView(
+                        padding: const EdgeInsets.fromLTRB(
+                          15,
+                          10,
+                          15,
+                          16,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: <Widget>[
+                            const Padding(
+                              padding: EdgeInsets.only(bottom: 7),
+                              child: Text(
+                                'Welcome to the Carro Care !!',
+                                style: TextStyle(
+                                  color: AppColors.black,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w400,
                                 ),
                               ),
+                            ),
+                            _inputField(
+                              controller: _name,
+                              hint: 'Full Name',
+                            ),
+                            _inputField(
+                              controller: _email,
+                              hint: 'Email Address',
+                              keyboardType: TextInputType.emailAddress,
+                            ),
+                            _inputField(
+                              controller: _mobile,
+                              hint: 'Mobile No.',
+                              keyboardType: TextInputType.number,
+                              maxLength: 10,
+                            ),
+                            if (_isApartmentMode(userType)) ...<Widget>[
+                              _selectField(
+                                label: _apartmentName.isEmpty
+                                    ? 'Apartment Name'
+                                    : _apartmentName,
+                                onTap: () => _pickApartment(apartments),
+                              ),
+                              _inputField(
+                                controller: _apartmentBuilding,
+                                hint: 'Apartment Building',
+                              ),
+                              _inputField(
+                                controller: _flatNo,
+                                hint: 'Flat Number',
+                              ),
+                              _inputField(
+                                controller: _gst,
+                                hint: 'GST Number',
+                              ),
+                            ],
+                            if (_isDoorstepMode(userType))
+                              _addressField(
+                                controller: _address,
+                                onGpsTap: _openMapPicker,
+                              ),
+                            Padding(
+                              padding: const EdgeInsets.all(10),
+                              child: Row(
+                                children: <Widget>[
+                                  Expanded(
+                                    child: _actionBtn(
+                                      title: 'CANCEL',
+                                      onTap: () => context.go('/home'),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: _actionBtn(
+                                      title: isUpdating
+                                          ? 'UPDATING...'
+                                          : 'UPDATE',
+                                      onTap: isUpdating
+                                          ? null
+                                          : () => _submit(userType),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+          ),
         );
       },
     );
@@ -331,13 +361,8 @@ class _ProfilePageState extends State<ProfilePage> {
     TextInputType? keyboardType,
     int? maxLength,
   }) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 7),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(7),
-        border: Border.all(color: _fieldBorder),
-      ),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 7),
       child: TextField(
         controller: controller,
         keyboardType: keyboardType,
@@ -348,6 +373,8 @@ class _ProfilePageState extends State<ProfilePage> {
           fontWeight: FontWeight.w300,
         ),
         decoration: InputDecoration(
+          filled: true,
+          fillColor: AppColors.white.withValues(alpha: 0.92),
           hintText: hint,
           counterText: '',
           hintStyle: const TextStyle(
@@ -355,9 +382,11 @@ class _ProfilePageState extends State<ProfilePage> {
             color: _hintColor,
             fontWeight: FontWeight.w300,
           ),
-          border: InputBorder.none,
+          border: _enabledFieldBorder,
+          enabledBorder: _enabledFieldBorder,
+          focusedBorder: _focusedFieldBorder,
           contentPadding: const EdgeInsets.symmetric(
-            horizontal: 12,
+            horizontal: 14,
             vertical: 12,
           ),
         ),
@@ -374,11 +403,10 @@ class _ProfilePageState extends State<ProfilePage> {
       onTap: onTap,
       child: Container(
         margin: const EdgeInsets.only(bottom: 7),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
-          color: AppColors.white,
-          borderRadius: BorderRadius.circular(7),
-          border: Border.all(color: _fieldBorder),
+          color: AppColors.white.withValues(alpha: 0.92),
+          borderRadius: BorderRadius.circular(12),
         ),
         child: Row(
           children: <Widget>[
@@ -415,53 +443,49 @@ class _ProfilePageState extends State<ProfilePage> {
     required TextEditingController controller,
     required VoidCallback onGpsTap,
   }) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 7),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(7),
-        border: Border.all(color: _fieldBorder),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Expanded(
-            child: TextField(
-              controller: controller,
-              readOnly: true,
-              maxLines: 3,
-              style: const TextStyle(
-                fontSize: 18,
-                color: AppColors.black,
-                fontWeight: FontWeight.w300,
-              ),
-              decoration: const InputDecoration(
-                hintText: 'Address',
-                hintStyle: TextStyle(
-                  fontSize: 18,
-                  color: _hintColor,
-                  fontWeight: FontWeight.w300,
-                ),
-                border: InputBorder.none,
-                contentPadding: EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 12,
-                ),
-              ),
-            ),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 7),
+      child: GestureDetector(
+        onTap: onGpsTap,
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 70),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: AppColors.white.withValues(alpha: 0.92),
+            borderRadius: BorderRadius.circular(12),
           ),
-          GestureDetector(
-            onTap: onGpsTap,
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: SvgPicture.asset(
-                'assets/vectors/ic_gps.svg',
-                width: 20,
-                height: 20,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Expanded(
+                child: ValueListenableBuilder<TextEditingValue>(
+                  valueListenable: controller,
+                  builder: (context, value, _) {
+                    final text = value.text.trim();
+                    return Text(
+                      text.isEmpty ? 'Address' : text,
+                      maxLines: 3,
+                      style: TextStyle(
+                        fontSize: 18,
+                        color: text.isEmpty ? _hintColor : AppColors.black,
+                        fontWeight: FontWeight.w300,
+                      ),
+                    );
+                  },
+                ),
               ),
-            ),
+              Padding(
+                padding: const EdgeInsets.only(left: 8),
+                child: SvgPicture.asset(
+                  'assets/vectors/ic_gps.svg',
+                  width: 20,
+                  height: 20,
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -476,6 +500,7 @@ class _ProfilePageState extends State<ProfilePage> {
         backgroundColor: AppColors.primary,
         foregroundColor: AppColors.white,
         disabledBackgroundColor: AppColors.primary.withValues(alpha: 0.6),
+        elevation: 0,
         padding: const EdgeInsets.symmetric(vertical: 12),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(7)),
       ),

@@ -346,23 +346,31 @@ class _ConfirmFormPageState extends State<ConfirmFormPage> {
     TextInputType? keyboardType,
     int? maxLength,
   }) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 7),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(7),
-        border: Border.all(color: _fieldBorder),
-      ),
+    final fieldBorder = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(7),
+      borderSide: const BorderSide(color: _fieldBorder),
+    );
+    final focusedFieldBorder = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(7),
+      borderSide: const BorderSide(color: AppColors.primary),
+    );
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 7),
       child: TextField(
         controller: controller,
         keyboardType: keyboardType,
         maxLength: maxLength,
         style: const TextStyle(fontSize: 16, color: AppColors.black),
         decoration: InputDecoration(
+          filled: true,
+          fillColor: AppColors.white,
           hintText: hint,
           counterText: '',
           hintStyle: const TextStyle(color: _hintColor, fontSize: 16),
-          border: InputBorder.none,
+          border: fieldBorder,
+          enabledBorder: fieldBorder,
+          focusedBorder: focusedFieldBorder,
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 12,
             vertical: 12,

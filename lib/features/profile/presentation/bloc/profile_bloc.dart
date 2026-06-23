@@ -8,6 +8,33 @@ import 'package:shared_preferences/shared_preferences.dart';
 part 'profile_event.dart';
 part 'profile_state.dart';
 
+/// Matches Android [ProfileActivity] visibility rules using saved service type
+/// and loaded profile data (not transient home navigation).
+String resolveProfileFormUserType({
+  required String prefUserWants,
+  required UserProfile profile,
+  String? profileLoadFrom,
+}) {
+  final loadFrom = (profileLoadFrom ?? '').toLowerCase();
+  if (loadFrom == 'main') {
+    return 'apartment';
+  }
+
+  final apartmentName = profile.apartmentName.trim();
+  if (apartmentName.isNotEmpty && apartmentName.toLowerCase() != 'null') {
+    return 'apartment';
+  }
+
+  final pref = prefUserWants.trim().toLowerCase();
+  final hasAddress = profile.address.trim().isNotEmpty;
+
+  if (pref == 'doorstep' && hasAddress) {
+    return 'doorstep';
+  }
+
+  return 'apartment';
+}
+
 class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
   ProfileBloc(this._profileRepository, this._vehiclesRepository)
       : super(const ProfileInitial()) {
@@ -25,13 +52,19 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
     emit(const ProfileLoading());
     try {
       final prefs = await SharedPreferences.getInstance();
-      final userType = prefs.getString('user_wants') ?? 'apartment';
+      final prefUserWants = prefs.getString('user_wants') ?? 'apartment';
+      final profileLoadFrom = prefs.getString('profile_load_from');
       final profile = await _profileRepository.getProfile(
         token: event.token,
         customerId: event.customerId,
       );
       final apartments = await _vehiclesRepository.getApartmentNames();
       await persistProfileToPrefs(profile, prefs);
+      final userType = resolveProfileFormUserType(
+        prefUserWants: prefUserWants,
+        profile: profile,
+        profileLoadFrom: profileLoadFrom,
+      );
       emit(
         ProfileLoaded(
           profile: profile,

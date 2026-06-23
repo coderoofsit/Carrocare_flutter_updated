@@ -80,13 +80,9 @@ class _HomePageState extends State<HomePage> {
   Future<void> _onServiceTap(String id) async {
     if (id == 'apartment_service') {
       await ProfileGate.prefsSetLoadFromMain();
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('user_wants', 'apartment');
       if (!mounted) return;
       context.push('/apartment-service');
     } else if (id == 'doorstep_service') {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('user_wants', 'doorstep');
       if (!mounted) return;
       context.push('/door-step-service');
     } else if (id == 'daily_car_wash') {
@@ -493,28 +489,25 @@ class _QuickAccessCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: AppColors.white,
-      borderRadius: BorderRadius.circular(14),
-      elevation: 0,
-      child: InkWell(
-        onTap: onTap,
+    return Container(
+      decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(14),
-        child: Ink(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: AppColors.grey200),
-            boxShadow: const <BoxShadow>[
-              BoxShadow(
-                color: AppColors.shadowLight,
-                blurRadius: 8,
-                offset: Offset(0, 2),
-              ),
-            ],
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: SizedBox(
+        boxShadow: AppDecorations.softCardShadow,
+      ),
+      child: Material(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(14),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(14),
+          child: Container(
             height: height,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: AppColors.grey200),
+            ),
             child: child,
           ),
         ),
@@ -561,36 +554,33 @@ class _DesignMatchedCard extends StatelessWidget {
       children: <Widget>[
         AspectRatio(
           aspectRatio: 1,
-          child: Material(
-            color: AppColors.white,
-            borderRadius: BorderRadius.circular(16),
-            elevation: 0,
-            shadowColor: AppColors.shadowLight,
-            child: InkWell(
-              onTap: onTap,
+          child: Container(
+            decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16),
-              child: Ink(
-                decoration: BoxDecoration(
-                  color: AppColors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.grey200),
-                  boxShadow: const <BoxShadow>[
-                    BoxShadow(
-                      color: AppColors.shadowLight,
-                      blurRadius: 8,
-                      offset: Offset(0, 3),
-                    ),
-                  ],
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Image.asset(
-                    imageAsset,
-                    fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) => Icon(
-                      Icons.local_car_wash_outlined,
-                      size: 40,
-                      color: AppColors.primary.withValues(alpha: 0.6),
+              boxShadow: AppDecorations.softCardShadow,
+            ),
+            child: Material(
+              color: AppColors.white,
+              borderRadius: BorderRadius.circular(16),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                onTap: onTap,
+                borderRadius: BorderRadius.circular(16),
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: AppColors.grey200),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Image.asset(
+                      imageAsset,
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) => Icon(
+                        Icons.local_car_wash_outlined,
+                        size: 40,
+                        color: AppColors.primary.withValues(alpha: 0.6),
+                      ),
                     ),
                   ),
                 ),
