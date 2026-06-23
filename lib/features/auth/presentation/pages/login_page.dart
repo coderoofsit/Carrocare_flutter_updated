@@ -59,7 +59,7 @@ class _LoginPageState extends State<LoginPage> {
       child: AuthScaffold(
         title: 'Sign In',
         subtitle: 'Welcome to the Carro Care !!',
-        onBack: () => Navigator.of(context).maybePop(),
+        showAppBar: false,
         child: Column(
           children: <Widget>[
             AuthField(

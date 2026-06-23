@@ -11,14 +11,16 @@ class AuthScaffold extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.child,
-    required this.onBack,
+    this.onBack,
+    this.showAppBar = true,
     this.bodyBackgroundColor = AppColors.grey200,
   });
 
   final String title;
   final String subtitle;
   final Widget child;
-  final VoidCallback onBack;
+  final VoidCallback? onBack;
+  final bool showAppBar;
   final Color bodyBackgroundColor;
 
   @override
@@ -35,12 +37,15 @@ class AuthScaffold extends StatelessWidget {
         child: SafeArea(
           child: Column(
             children: <Widget>[
-              CarroCareAppBar(
-                title: title,
-                leading: CarroCareAppBarLeading.back,
-                onLeadingTap: onBack,
-                showBorder: true,
-              ),
+              if (showAppBar)
+                CarroCareAppBar(
+                  title: title,
+                  leading: onBack == null
+                      ? CarroCareAppBarLeading.none
+                      : CarroCareAppBarLeading.back,
+                  onLeadingTap: onBack,
+                  showBorder: true,
+                ),
               Expanded(
                 child: Container(
                   width: double.infinity,

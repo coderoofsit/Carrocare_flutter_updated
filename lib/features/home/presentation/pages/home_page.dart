@@ -8,7 +8,6 @@ import 'package:carrocare_flutter/core/utils/session_debug.dart';
 import 'package:carrocare_flutter/core/widgets/app_bottom_nav.dart';
 import 'package:carrocare_flutter/core/widgets/carro_care_app_bar.dart';
 import 'package:carrocare_flutter/core/widgets/home_shell.dart';
-import 'package:carrocare_flutter/core/widgets/service_card.dart';
 import 'package:carrocare_flutter/features/checkout/data/local/cart_local_storage.dart';
 import 'package:carrocare_flutter/features/internal_wash/presentation/widgets/internal_wash_overlays.dart';
 import 'package:flutter/material.dart';
@@ -155,18 +154,19 @@ class _HomePageState extends State<HomePage> {
             ),
             const SizedBox(height: 20),
             const _SectionTitle(title: 'Subscription Services'),
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
             _TwoColCards(
               cards: <_ServiceCardData>[
                 _ServiceCardData(
                   id: 'daily_car_wash',
-                  title: 'Daily Car Wash',
-                  imageAsset: 'assets/images/car_wash.jpg',
+                  title: 'Daily Wash',
+                  imageAsset: 'assets/images/iosdailycardwash.png',
                 ),
+                
                 _ServiceCardData(
                   id: 'bike_wash',
                   title: 'Bike Wash',
-                  imageAsset: 'assets/images/bike_wash.jpg',
+                  imageAsset: 'assets/images/iosbikewash.png',
                 ),
               ],
               onTap: _onServiceTap,
@@ -186,29 +186,23 @@ class _HomePageState extends State<HomePage> {
             ),
             const SizedBox(height: 16),
             const _SectionTitle(title: 'Quick Services'),
-            const SizedBox(height: 10),
-            _TwoColCards(
+            const SizedBox(height: 12),
+            _ThreeColCards(
               cards: <_ServiceCardData>[
-                _ServiceCardData(
-                  id: 'extra_interior',
-                  title: 'Extra Interior',
-                  imageAsset: 'assets/images/extra_interior.png',
-                ),
                 _ServiceCardData(
                   id: 'wax_polish',
                   title: 'Wax Polish',
-                  imageAsset: 'assets/images/wax_polish.jpg',
+                  imageAsset: 'assets/images/ioscarrocare.png',
                 ),
-              ],
-              onTap: _onServiceTap,
-            ),
-            const SizedBox(height: 10),
-            _TwoColCards(
-              cards: <_ServiceCardData>[
+                _ServiceCardData(
+                  id: 'extra_interior',
+                  title: 'Extra Interior',
+                  imageAsset: 'assets/images/ioswaxpolish.png',
+                ),
                 _ServiceCardData(
                   id: 'my_vehicles',
                   title: 'My Vehicles',
-                  imageAsset: 'assets/images/my_vehicles.jpg',
+                  imageAsset: 'assets/images/iosextrainerior.png',
                 ),
               ],
               onTap: _onServiceTap,
@@ -542,9 +536,81 @@ class _SectionTitle extends StatelessWidget {
         style: AppTypography.quicksand(
           fontSize: 16,
           fontWeight: FontWeight.w700,
-          color: AppColors.grey800,
+          color: AppColors.primary,
         ),
       ),
+    );
+  }
+}
+
+class _DesignMatchedCard extends StatelessWidget {
+  const _DesignMatchedCard({
+    required this.title,
+    required this.imageAsset,
+    required this.onTap,
+  });
+
+  final String title;
+  final String imageAsset;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        AspectRatio(
+          aspectRatio: 1,
+          child: Material(
+            color: AppColors.white,
+            borderRadius: BorderRadius.circular(16),
+            elevation: 0,
+            shadowColor: AppColors.shadowLight,
+            child: InkWell(
+              onTap: onTap,
+              borderRadius: BorderRadius.circular(16),
+              child: Ink(
+                decoration: BoxDecoration(
+                  color: AppColors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppColors.grey200),
+                  boxShadow: const <BoxShadow>[
+                    BoxShadow(
+                      color: AppColors.shadowLight,
+                      blurRadius: 8,
+                      offset: Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Image.asset(
+                    imageAsset,
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) => Icon(
+                      Icons.local_car_wash_outlined,
+                      size: 40,
+                      color: AppColors.primary.withValues(alpha: 0.6),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          title,
+          textAlign: TextAlign.center,
+          style: AppTypography.quicksand(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: AppColors.grey800,
+          ),
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ],
     );
   }
 }
@@ -555,36 +621,107 @@ class _TwoColCards extends StatelessWidget {
     required this.onTap,
   });
 
+  static const int _gridColumns = 3;
+  static const EdgeInsets _cellPadding = EdgeInsets.symmetric(horizontal: 6);
+  static const double _pairGap = 20;
+
+  final List<_ServiceCardData> cards;
+  final Future<void> Function(String id) onTap;
+
+  Widget _buildCard(_ServiceCardData card) {
+    return Padding(
+      padding: _cellPadding,
+      child: _DesignMatchedCard(
+        title: card.title,
+        imageAsset: card.imageAsset,
+        onTap: () => onTap(card.id),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final double cardWidth = constraints.maxWidth / _gridColumns;
+
+          if (cards.length == 2) {
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                SizedBox(
+                  width: cardWidth,
+                  child: _buildCard(cards[0]),
+                ),
+                const SizedBox(width: _pairGap),
+                SizedBox(
+                  width: cardWidth,
+                  child: _buildCard(cards[1]),
+                ),
+              ],
+            );
+          }
+
+          final List<_ServiceCardData?> slots = List<_ServiceCardData?>.from(
+            cards,
+          );
+          while (slots.length < _gridColumns) {
+            slots.add(null);
+          }
+
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: slots
+                .take(_gridColumns)
+                .map(
+                  (card) => SizedBox(
+                    width: cardWidth,
+                    child: card == null
+                        ? const SizedBox.shrink()
+                        : _buildCard(card),
+                  ),
+                )
+                .toList(),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _ThreeColCards extends StatelessWidget {
+  const _ThreeColCards({
+    required this.cards,
+    required this.onTap,
+  });
+
+  static const EdgeInsets _cellPadding = EdgeInsets.symmetric(horizontal: 6);
+
   final List<_ServiceCardData> cards;
   final Future<void> Function(String id) onTap;
 
   @override
   Widget build(BuildContext context) {
-    final List<Widget> children = cards
-        .map(
-          (card) => Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              child: SizedBox(
-                height: 150,
-                child: ServiceCard(
-                  title: card.title,
-                  imageAsset: card.imageAsset,
-                  onTap: () => onTap(card.id),
-                ),
-              ),
-            ),
-          ),
-        )
-        .toList();
-    if (children.length == 1) {
-      children.add(const Expanded(child: SizedBox.shrink()));
-    }
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: children,
+        children: cards
+            .map(
+              (card) => Expanded(
+                child: Padding(
+                  padding: _cellPadding,
+                  child: _DesignMatchedCard(
+                    title: card.title,
+                    imageAsset: card.imageAsset,
+                    onTap: () => onTap(card.id),
+                  ),
+                ),
+              ),
+            )
+            .toList(),
       ),
     );
   }
