@@ -364,11 +364,11 @@ class _OrderDetailsCard extends StatelessWidget {
                 const Spacer(),
                 if (ui.showStatus)
                   Text(
-                    order.status.toUpperCase(),
+                    order.displayStatus.toUpperCase(),
                     style: AppTypography.quicksand(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
-                      color: order.status == 'Cancel Requested'
+                      color: order.displayStatus == 'Cancel Requested'
                           ? AppColors.primary
                           : AppColors.grey800,
                     ),

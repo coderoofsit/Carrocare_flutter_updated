@@ -1,0 +1,4 @@
+enum DoorstepPaymentMode {
+  online,
+  cod,
+}

@@ -1,4 +1,5 @@
 import 'package:carrocare_flutter/features/orders/domain/entities/payment_detail.dart';
+import 'package:carrocare_flutter/features/orders/core/order_display_status.dart';
 
 class OrderItem {
   const OrderItem({    required this.dateAndTime,
@@ -69,6 +70,12 @@ class OrderItem {
   final String workDone;
   final String invoice;
   final List<PaymentDetail> paymentDetails;
+
+  String get displayStatus => resolveOrderDisplayStatus(
+        serviceType: serviceType,
+        status: status,
+        paymentMode: paymentMode,
+      );
 
   factory OrderItem.fromJson(Map<String, dynamic> json) {
     return OrderItem(

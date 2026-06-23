@@ -419,11 +419,11 @@ class _OrderCard extends StatelessWidget {
                   ),
                   const Spacer(),
                   Text(
-                    order.status.toUpperCase(),
+                    order.displayStatus.toUpperCase(),
                     style: valueStyle.copyWith(
                       fontSize: 13,
                       letterSpacing: 0.4,
-                      color: order.status == 'Cancel Requested'
+                      color: order.displayStatus == 'Cancel Requested'
                           ? AppColors.primary
                           : AppColors.grey800,
                     ),

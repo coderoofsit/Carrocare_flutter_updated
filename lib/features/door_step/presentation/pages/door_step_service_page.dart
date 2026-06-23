@@ -1,9 +1,18 @@
 import 'package:carrocare_flutter/core/di/injection.dart';
 import 'package:carrocare_flutter/core/network/api_client.dart';
 import 'package:carrocare_flutter/core/theme/app_colors.dart';
+import 'package:carrocare_flutter/features/checkout/core/checkout_gst_config.dart';
+import 'package:carrocare_flutter/features/checkout/core/checkout_pricing.dart';
+import 'package:carrocare_flutter/features/checkout/domain/entities/razorpay_price_summary.dart';
+import 'package:carrocare_flutter/features/checkout/domain/repositories/checkout_repository.dart';
+import 'package:carrocare_flutter/features/checkout/presentation/services/checkout_navigation.dart';
+import 'package:carrocare_flutter/features/checkout/presentation/services/razorpay_checkout_service.dart';
+import 'package:carrocare_flutter/features/checkout/presentation/widgets/razorpay_price_summary_sheet.dart';
 import 'package:carrocare_flutter/features/door_step/data/datasources/door_step_remote_data_source.dart';
 import 'package:carrocare_flutter/features/door_step/domain/entities/confirm_form_args.dart';
 import 'package:carrocare_flutter/features/door_step/domain/entities/door_step_service_item.dart';
+import 'package:carrocare_flutter/features/door_step/domain/entities/doorstep_payment_mode.dart';
+import 'package:carrocare_flutter/features/door_step/presentation/widgets/doorstep_payment_mode_sheet.dart';
 import 'package:carrocare_flutter/features/internal_wash/presentation/constants/preferred_time_slots.dart';
 import 'package:carrocare_flutter/features/vehicles/domain/entities/vehicle_item.dart';
 import 'package:carrocare_flutter/features/vehicles/data/repositories/vehicles_repository.dart';
@@ -66,6 +75,8 @@ class _DoorStepServicePageState extends State<DoorStepServicePage> {
   final DoorStepRemoteDataSource _remote =
       DoorStepRemoteDataSource(sl<ApiClient>());
   final VehiclesRepository _vehiclesRepository = sl<VehiclesRepository>();
+  final RazorpayCheckoutService _razorpay = RazorpayCheckoutService();
+  bool _placingOrder = false;
 
   GoogleMapController? _mapController;
   LatLng _center = const LatLng(13.085274, 80.170185);
@@ -86,7 +97,37 @@ class _DoorStepServicePageState extends State<DoorStepServicePage> {
   void dispose() {
     _pagerController.dispose();
     _mapController?.dispose();
+    _razorpay.dispose();
     super.dispose();
+  }
+
+  String _serviceTypeForAction(String action) {
+    switch (action) {
+      case 'detailing':
+        return 'Door step Detailing';
+      case 'carwash':
+      default:
+        return 'Door step Wash';
+    }
+  }
+
+  String _orderMessage(Map<String, dynamic> data) {
+    final code = (data['code'] ?? '').toString();
+    if (code == '200' ||
+        (data['message'] ?? '').toString().toLowerCase() == 'success' ||
+        (data['status'] ?? '').toString().toLowerCase() == 'success') {
+      return (data['result'] ?? data['message'] ?? 'Order placed successfully')
+          .toString();
+    }
+    throw Exception(
+      (data['result'] ?? data['message'] ?? 'Order failed').toString(),
+    );
+  }
+
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
   }
 
   Future<void> _initLocation() async {
@@ -205,43 +246,121 @@ class _DoorStepServicePageState extends State<DoorStepServicePage> {
     if (time == null || !mounted) return;
 
     final prefs = await SharedPreferences.getInstance();
-    final gstPercent =
-        int.tryParse(prefs.getString('gst_percentage') ?? '0') ?? 0;
-    final price = int.tryParse(service.prices) ?? 0;
-    final gstAmount = (price * gstPercent) ~/ 100;
-    final total = price + gstAmount;
+    if (!mounted) return;
+    final gstPercent = CheckoutGstConfig.resolvePercent(prefs);
+    final listedPrice = int.tryParse(service.prices) ?? 0;
+    final breakdown =
+        CheckoutPricing.breakdownFromInclusive(listedPrice, gstPercent);
+    final total = breakdown.total;
+    final subTotal = breakdown.subTotal;
+    final gstAmount = breakdown.gstAmount;
+    final scheduleDate = DateFormat('yyyy-MM-dd').format(date);
+    final serviceType = _serviceTypeForAction(action);
 
+    final paymentMode = await showDoorstepPaymentModeSheet(
+      context: context,
+      totalAmount: total,
+    );
+    if (paymentMode == null || !mounted) return;
+
+    if (_placingOrder) return;
+    setState(() => _placingOrder = true);
     try {
-      final data = await _remote.saveDoorstepCodOrder(
-        customerId: prefs.getString('customer_id') ?? '',
-        token: prefs.getString('token') ?? '',
-        packType: service.service,
-        packAmount: service.prices,
-        vehicleId: _selectedVehicle!.id,
-        serviceType: 'Door step Wash',
-        subTotal: '$price',
-        gst: '$gstPercent',
-        gstAmount: '$gstAmount',
-        totalAmount: '$total',
-        scheduleDate: DateFormat('yyyy-MM-dd').format(date),
-        scheduleTime: time,
-        address: _address,
-        latitude: '${_center.latitude}',
-        longitude: '${_center.longitude}',
+      final customerId = prefs.getString('customer_id') ?? '';
+      final token = prefs.getString('token') ?? '';
+      final orderFields = <String, String>{
+        'customerId': customerId,
+        'packType': service.service,
+        'packAmount': service.prices,
+        'vehicleId': _selectedVehicle!.id,
+        'serviceType': serviceType,
+        'subTotal': '$subTotal',
+        'gst': '$gstPercent',
+        'gstAmount': '$gstAmount',
+        'totalAmount': '$total',
+        'scheduleDate': scheduleDate,
+        'scheduleTime': time,
+        'address': _address,
+        'latitude': '${_center.latitude}',
+        'longitude': '${_center.longitude}',
+      };
+
+      if (paymentMode == DoorstepPaymentMode.cod) {
+        final data = await _remote.saveDoorstepCodOrder(
+          customerId: customerId,
+          token: token,
+          packType: orderFields['packType']!,
+          packAmount: orderFields['packAmount']!,
+          vehicleId: orderFields['vehicleId']!,
+          serviceType: orderFields['serviceType']!,
+          subTotal: orderFields['subTotal']!,
+          gst: orderFields['gst']!,
+          gstAmount: orderFields['gstAmount']!,
+          totalAmount: orderFields['totalAmount']!,
+          scheduleDate: orderFields['scheduleDate']!,
+          scheduleTime: orderFields['scheduleTime']!,
+          address: orderFields['address']!,
+          latitude: orderFields['latitude']!,
+          longitude: orderFields['longitude']!,
+        );
+        if (!mounted) return;
+        _showMessage(_orderMessage(data));
+        return;
+      }
+
+      final email = prefs.getString('email') ?? '';
+      final mobile =
+          prefs.getString('mobile') ?? prefs.getString('usermobile') ?? '';
+      final priceSummary = RazorpayPriceSummary.fromInclusive(
+        serviceLabel: serviceType,
+        inclusiveTotal: listedPrice,
+        gstPercent: gstPercent,
+      );
+      final router = GoRouter.of(context);
+      final confirmed = await showRazorpayPriceSummarySheet(
+        context: context,
+        summary: priceSummary,
+        onConfirmPay: () async {
+          final keys = await sl<CheckoutRepository>().getRazorpayKeys();
+          if (!mounted) return;
+          final paymentId = await _razorpay.openAndWait(
+            keyId: keys.keyId,
+            amountPaise: total * 100,
+            description: serviceType,
+            email: email,
+            contact: mobile,
+            priceSummary: priceSummary,
+          );
+          final data = await _remote.saveDoorstepOnlineOrder(
+            paymentId: paymentId,
+            customerId: customerId,
+            token: token,
+            packType: orderFields['packType']!,
+            packAmount: orderFields['packAmount']!,
+            vehicleId: orderFields['vehicleId']!,
+            serviceType: orderFields['serviceType']!,
+            subTotal: orderFields['subTotal']!,
+            gst: orderFields['gst']!,
+            gstAmount: orderFields['gstAmount']!,
+            totalAmount: orderFields['totalAmount']!,
+            scheduleDate: orderFields['scheduleDate']!,
+            scheduleTime: orderFields['scheduleTime']!,
+            address: orderFields['address']!,
+            latitude: orderFields['latitude']!,
+            longitude: orderFields['longitude']!,
+          );
+          _orderMessage(data);
+        },
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            (data['message'] ?? 'Order placed').toString(),
-          ),
-        ),
-      );
+      if (confirmed) {
+        goToPaymentSuccess(router);
+      }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
-      );
+      _showMessage(e.toString().replaceFirst('Exception: ', ''));
+    } finally {
+      if (mounted) setState(() => _placingOrder = false);
     }
   }
 
@@ -301,6 +420,8 @@ class _DoorStepServicePageState extends State<DoorStepServicePage> {
                 ),
                 const Spacer(),
                 if (_loadingVehicles)
+                  const LinearProgressIndicator(minHeight: 2)
+                else if (_placingOrder)
                   const LinearProgressIndicator(minHeight: 2)
                 else
                   SizedBox(
