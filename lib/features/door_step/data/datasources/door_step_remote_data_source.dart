@@ -1,22 +1,33 @@
 import 'package:carrocare_flutter/core/network/api_client.dart';
+import 'package:carrocare_flutter/core/network/save_order_post.dart';
+import 'package:carrocare_flutter/features/door_step/domain/entities/doorstep_package.dart';
 
 class DoorStepRemoteDataSource {
   DoorStepRemoteDataSource(this._apiClient);
 
   final ApiClient _apiClient;
 
-  Future<Map<String, dynamic>> getDoorStepServices({
-    required String action,
-    required String vehicleCategory,
+  Future<DoorstepPackagesResponse> getDoorstepPackages({
+    String? category,
   }) async {
+    final data = <String, dynamic>{'action': 'packages'};
+    if (category != null && category.isNotEmpty && category != 'all') {
+      data['category'] = category;
+    }
     final response = await _apiClient.dio.post<Map<String, dynamic>>(
       'doorstep_details.php',
-      data: <String, dynamic>{
-        'action': action,
-        'type': vehicleCategory,
-      },
+      data: data,
     );
-    return response.data ?? <String, dynamic>{};
+    final payload = response.data ?? <String, dynamic>{};
+    final code = (payload['code'] ?? '').toString();
+    final status = (payload['status'] ?? '').toString().toLowerCase();
+    if (code != '200' && status != 'success') {
+      throw Exception(
+        (payload['result'] ?? payload['message'] ?? 'Failed to load doorstep services')
+            .toString(),
+      );
+    }
+    return DoorstepPackagesResponse.fromJson(payload);
   }
 
   Future<Map<String, dynamic>> saveDoorstepCodOrder({
@@ -78,9 +89,9 @@ class DoorStepRemoteDataSource {
     required String latitude,
     required String longitude,
   }) async {
-    final response = await _apiClient.dio.post<Map<String, dynamic>>(
-      'save_order.php',
-      data: <String, dynamic>{
+    return postSaveOrderWithRetry(
+      _apiClient.dio,
+      <String, dynamic>{
         'action': 'onetime_payment',
         'order_id': paymentId,
         'rzp_order_id': '',
@@ -101,6 +112,5 @@ class DoorStepRemoteDataSource {
         'longitude': longitude,
       },
     );
-    return response.data ?? <String, dynamic>{};
   }
 }

@@ -10,7 +10,6 @@ import 'package:carrocare_flutter/features/door_step/domain/entities/confirm_for
 import 'package:carrocare_flutter/features/vehicles/core/vehicle_category_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 /// Matches Android [CarPolishActivity].
 class CarPolishPage extends StatefulWidget {
@@ -27,7 +26,6 @@ class _CarPolishPageState extends State<CarPolishPage> {
   String? _error;
   String _description = '';
   List<DailyServiceModel> _services = <DailyServiceModel>[];
-  int _gstPercent = 0;
 
   @override
   void initState() {
@@ -41,8 +39,6 @@ class _CarPolishPageState extends State<CarPolishPage> {
       _error = null;
     });
     try {
-      final prefs = await SharedPreferences.getInstance();
-      _gstPercent = int.tryParse(prefs.getString('gst_percentage') ?? '0') ?? 0;
       final model = await _remote.getServicePrice('doorstep car machine polish');
       if ((model.code).toString() != '200') {
         throw Exception('Failed to load services');
@@ -112,10 +108,7 @@ class _CarPolishPageState extends State<CarPolishPage> {
                         itemCount: _services.length,
                         itemBuilder: (context, index) {
                           final service = _services[index];
-                          return _ServiceCard(
-                            service: service,
-                            gstPercent: _gstPercent,
-                          );
+                          return _ServiceCard(service: service);
                         },
                       ),
                     ),
@@ -148,19 +141,11 @@ class _CarPolishPageState extends State<CarPolishPage> {
 }
 
 class _ServiceCard extends StatelessWidget {
-  const _ServiceCard({
-    required this.service,
-    required this.gstPercent,
-  });
+  const _ServiceCard({required this.service});
 
   final DailyServiceModel service;
-  final int gstPercent;
 
-  String get _displayPrice {
-    final price = int.tryParse(service.prices) ?? 0;
-    final tax = (price * gstPercent) ~/ 100;
-    return (price + tax).toString();
-  }
+  String get _displayPrice => service.prices;
 
   @override
   Widget build(BuildContext context) {

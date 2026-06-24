@@ -14,6 +14,11 @@ import 'package:carrocare_flutter/features/orders/presentation/pages/wash_calend
 import 'package:carrocare_flutter/features/orders/presentation/utils/order_date_time_display.dart';
 import 'package:carrocare_flutter/features/orders/presentation/utils/order_pricing_display.dart';
 import 'package:carrocare_flutter/features/orders/presentation/widgets/cancel_order_dialog.dart';
+import 'package:carrocare_flutter/features/checkout/core/checkout_gst_config.dart';
+import 'package:carrocare_flutter/features/checkout/core/checkout_pricing.dart';
+import 'package:carrocare_flutter/features/checkout/core/convert_to_subscription_checkout.dart';
+import 'package:carrocare_flutter/features/checkout/domain/entities/razorpay_price_summary.dart';
+import 'package:carrocare_flutter/features/checkout/presentation/services/razorpay_checkout_service.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -45,6 +50,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
 
   final OrdersRepository _ordersRepository = sl<OrdersRepository>();
   final InvoiceDownloadHelper _invoiceHelper = InvoiceDownloadHelper();
+  final RazorpayCheckoutService _razorpay = RazorpayCheckoutService();
 
   OrderItem get _order => widget.args.order;
 
@@ -72,6 +78,10 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                   pricing: pricing,
                   showDiscount: ui.showDiscount,
                 ),
+                if (ui.showAutopayPending) ...<Widget>[
+                  const SizedBox(height: 12),
+                  _autopayPendingBanner(ui.autopayPendingMessage),
+                ],
                 if (ui.showWashDetails || ui.showExtraInterior) ...<Widget>[
                   const SizedBox(height: 12),
                   Row(
@@ -113,6 +123,11 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                   _fullWidthButton(
                     'Cancel Subscription',
                     _confirmCancelSubscription,
+                  ),
+                if (ui.showConvertToSubscription)
+                  _fullWidthButton(
+                    'Enable auto-renew',
+                    _enableAutoRenew,
                   ),
                 if (ui.showViewHistory)
                   _fullWidthButton(
@@ -270,6 +285,100 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
       context: context,
       downloadUrl: url,
       fileName: 'Carrocare_Invoice_$fileId.pdf',
+    );
+  }
+
+  Future<void> _enableAutoRenew() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Enable auto-renew'),
+        content: const Text(
+          'Set up monthly auto-renew now. Billing starts after your prepaid plan ends.',
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Continue'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() => _busy = true);
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token') ?? '';
+    final customerId = prefs.getString('customer_id') ?? '';
+    final gstPercent = _resolveGstPercent(prefs);
+    final packAmount = _order.packageValue.isNotEmpty
+        ? _order.packageValue
+        : _order.totalAmount;
+    final inclusive = CheckoutPricing.parseAmount(packAmount);
+    final priceSummary = RazorpayPriceSummary.fromInclusive(
+      serviceLabel: 'Wash subscription',
+      inclusiveTotal: inclusive,
+      gstPercent: gstPercent,
+    );
+    try {
+      await ConvertToSubscriptionCheckout.run(
+        razorpay: _razorpay,
+        token: token,
+        customerId: customerId,
+        sourceOrderId: _order.orderId,
+        vehicleId: _order.vehicleId,
+        gstPercent: gstPercent,
+        priceSummary: priceSummary,
+        onError: _showSnack,
+        onSuccess: (chargeAt) async {
+          if (!mounted) return;
+          final dateLabel = chargeAt.isNotEmpty ? chargeAt : 'your prepaid end date';
+          _showSnack('Auto-renew scheduled from $dateLabel');
+          context.go('/my-orders');
+        },
+      );
+    } catch (_) {
+      // onError already surfaced
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  int _resolveGstPercent(SharedPreferences prefs) {
+    final fromOrder = int.tryParse(_order.gst);
+    if (fromOrder != null && fromOrder > 0) {
+      return fromOrder > 100 ? fromOrder ~/ 100 : fromOrder;
+    }
+    return CheckoutGstConfig.resolvePercent(prefs);
+  }
+
+  Widget _autopayPendingBanner(String message) {
+    return Card(
+      color: AppColors.primary.withValues(alpha: 0.08),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            const Icon(Icons.autorenew, color: AppColors.primary, size: 20),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                message,
+                style: AppTypography.quicksand(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.grey800,
+                  height: 1.35,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -580,6 +689,9 @@ class _OrderDetailUi {
     required this.showWashDetails,
     required this.showExtraInterior,
     required this.showCancelSubscription,
+    required this.showConvertToSubscription,
+    required this.showAutopayPending,
+    required this.autopayPendingMessage,
     required this.showViewHistory,
     required this.showDownloadInvoice,
     required this.showCancelOrder,
@@ -601,6 +713,9 @@ class _OrderDetailUi {
   final bool showWashDetails;
   final bool showExtraInterior;
   final bool showCancelSubscription;
+  final bool showConvertToSubscription;
+  final bool showAutopayPending;
+  final String autopayPendingMessage;
   final bool showViewHistory;
   final bool showDownloadInvoice;
   final bool showCancelOrder;
@@ -626,6 +741,9 @@ class _OrderDetailUi {
     var showWashDetails = false;
     var showExtraInterior = false;
     var showCancelSubscription = false;
+    var showConvertToSubscription = false;
+    var showAutopayPending = false;
+    var autopayPendingMessage = '';
     var showViewHistory = false;
     var showDownloadInvoice = false;
     var showCancelOrder = false;
@@ -659,6 +777,14 @@ class _OrderDetailUi {
       } else {
         showDownloadInvoice = true;
       }
+      showConvertToSubscription = order.convertToSubscription == '1';
+      showAutopayPending = order.autopayPending == '1';
+      if (showAutopayPending) {
+        final chargeAt = order.subscriptionChargeAt;
+        autopayPendingMessage = chargeAt.isNotEmpty
+            ? 'Auto-renew scheduled from $chargeAt. Your prepaid plan continues until then.'
+            : 'Auto-renew is scheduled. Your prepaid plan continues until then.';
+      }
     } else if (service == 'wash') {
       showWashDetails = _flagVisible(order.washDetails);
       if (order.washDetails == '0') {
@@ -672,6 +798,16 @@ class _OrderDetailUi {
         showViewHistory = true;
       } else {
         showDownloadInvoice = true;
+      }
+      if (paymentType == 'one time') {
+        showConvertToSubscription = order.convertToSubscription == '1';
+        showAutopayPending = order.autopayPending == '1';
+        if (showAutopayPending) {
+          final chargeAt = order.subscriptionChargeAt;
+          autopayPendingMessage = chargeAt.isNotEmpty
+              ? 'Auto-renew scheduled from $chargeAt. Your prepaid plan continues until then.'
+              : 'Auto-renew is scheduled. Your prepaid plan continues until then.';
+        }
       }
       if (order.packageType.toLowerCase() == 'bike' ||
           order.plan.toLowerCase() == 'bike') {
@@ -717,6 +853,9 @@ class _OrderDetailUi {
       showWashDetails: showWashDetails,
       showExtraInterior: showExtraInterior,
       showCancelSubscription: showCancelSubscription,
+      showConvertToSubscription: showConvertToSubscription,
+      showAutopayPending: showAutopayPending,
+      autopayPendingMessage: autopayPendingMessage,
       showViewHistory: showViewHistory,
       showDownloadInvoice: showDownloadInvoice,
       showCancelOrder: showCancelOrder,

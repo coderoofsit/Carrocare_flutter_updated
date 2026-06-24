@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 /// Navigate after Razorpay returns from the native activity.
 void goToPaymentSuccess(GoRouter router) {
   SchedulerBinding.instance.addPostFrameCallback((_) {
-    router.go('/payment-success');
+    router.go('/my-orders');
   });
 }
 

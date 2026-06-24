@@ -285,17 +285,20 @@ class _ProfilePageState extends State<ProfilePage> {
                             _inputField(
                               controller: _name,
                               hint: 'Full Name',
+                              readOnly: true,
                             ),
                             _inputField(
                               controller: _email,
                               hint: 'Email Address',
                               keyboardType: TextInputType.emailAddress,
+                              readOnly: true,
                             ),
                             _inputField(
                               controller: _mobile,
                               hint: 'Mobile No.',
                               keyboardType: TextInputType.number,
                               maxLength: 10,
+                              readOnly: true,
                             ),
                             if (_isApartmentMode(userType)) ...<Widget>[
                               _selectField(
@@ -360,11 +363,18 @@ class _ProfilePageState extends State<ProfilePage> {
     required String hint,
     TextInputType? keyboardType,
     int? maxLength,
+    bool readOnly = false,
   }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 7),
       child: TextField(
         controller: controller,
+        readOnly: readOnly,
+        showCursor: !readOnly,
+        enableInteractiveSelection: !readOnly,
+        onTap: readOnly
+            ? () => FocusScope.of(context).unfocus()
+            : null,
         keyboardType: keyboardType,
         maxLength: maxLength,
         style: const TextStyle(

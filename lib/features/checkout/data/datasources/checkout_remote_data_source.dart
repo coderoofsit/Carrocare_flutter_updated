@@ -1,4 +1,5 @@
 import 'package:carrocare_flutter/core/network/api_client.dart';
+import 'package:carrocare_flutter/core/network/save_order_post.dart';
 import 'package:carrocare_flutter/features/checkout/core/checkout_constants.dart';
 
 class CheckoutRemoteDataSource {
@@ -103,9 +104,9 @@ class CheckoutRemoteDataSource {
     required String serviceType,
     required String packType,
   }) async {
-    final response = await _apiClient.dio.post<Map<String, dynamic>>(
-      'save_order.php',
-      data: <String, dynamic>{
+    return postSaveOrderWithRetry(
+      _apiClient.dio,
+      <String, dynamic>{
         'action': 'onetime_wash_payment',
         'payment_id': paymentId,
         'rzp_order_id': '',
@@ -123,7 +124,6 @@ class CheckoutRemoteDataSource {
         'pack_type': packType,
       },
     );
-    return response.data ?? <String, dynamic>{};
   }
 
   Future<Map<String, dynamic>> saveAddOnOrderOneTime({
@@ -141,9 +141,9 @@ class CheckoutRemoteDataSource {
     required String scheduleDate,
     required String scheduleTime,
   }) async {
-    final response = await _apiClient.dio.post<Map<String, dynamic>>(
-      'save_order.php',
-      data: <String, dynamic>{
+    return postSaveOrderWithRetry(
+      _apiClient.dio,
+      <String, dynamic>{
         'action': 'onetime_wash_payment',
         'payment_id': paymentId,
         'rzp_order_id': '',
@@ -163,7 +163,6 @@ class CheckoutRemoteDataSource {
         'schedule_time': scheduleTime,
       },
     );
-    return response.data ?? <String, dynamic>{};
   }
 
   Future<Map<String, dynamic>> createRazorpayOrderId({
@@ -347,6 +346,7 @@ class CheckoutRemoteDataSource {
     required String customerId,
     required String vehicleId,
     required String planId,
+    String? sourceOrderId,
   }) async {
     final response = await _apiClient.dio.post<Map<String, dynamic>>(
       'create_subscription.php',
@@ -356,9 +356,59 @@ class CheckoutRemoteDataSource {
         'vehicle_id': vehicleId,
         'plan_id': planId,
         'no_of_count': CheckoutConstants.subscriptionMonthsCount.toString(),
+        if (sourceOrderId != null && sourceOrderId.isNotEmpty)
+          'source_order_id': sourceOrderId,
       },
     );
     return response.data ?? <String, dynamic>{};
+  }
+
+  Future<Map<String, dynamic>> fetchConvertSubscriptionEligibility({
+    required String token,
+    required String customerId,
+    required String orderId,
+  }) async {
+    final response = await _apiClient.dio.post<Map<String, dynamic>>(
+      'convert_subscription_eligibility.php',
+      data: <String, dynamic>{
+        'token': token,
+        'customer_id': customerId,
+        'order_id': orderId,
+      },
+    );
+    return response.data ?? <String, dynamic>{};
+  }
+
+  Future<Map<String, dynamic>> saveConvertToSubscription({
+    required String sourceOrderId,
+    required String planId,
+    required String subscriptionId,
+    required String customerId,
+    required String vehicleId,
+    required String token,
+    required String serviceType,
+    required String totalAmount,
+    required String subTotal,
+    required String gst,
+    required String gstAmount,
+  }) async {
+    return postSaveOrderWithRetry(
+      _apiClient.dio,
+      <String, dynamic>{
+        'action': 'convert_to_subscription',
+        'source_order_id': sourceOrderId,
+        'plan_id': planId,
+        'subscription_id': subscriptionId,
+        'customer_id': customerId,
+        'token': token,
+        'vehicle_id': vehicleId,
+        'service_type': serviceType,
+        'tot_amt': totalAmount,
+        'sub_tot_amt': subTotal,
+        'gst': gst,
+        'gst_amount': gstAmount,
+      },
+    );
   }
 
   Future<Map<String, dynamic>> createSubscriptionOrderId({
@@ -389,9 +439,9 @@ class CheckoutRemoteDataSource {
     required String gst,
     required String gstAmount,
   }) async {
-    final response = await _apiClient.dio.post<Map<String, dynamic>>(
-      'save_order.php',
-      data: <String, dynamic>{
+    return postSaveOrderWithRetry(
+      _apiClient.dio,
+      <String, dynamic>{
         'action': CheckoutConstants.actionMonthly,
         'order_id': orderId,
         'plan_id': planId,
@@ -406,6 +456,5 @@ class CheckoutRemoteDataSource {
         'gst_amount': gstAmount,
       },
     );
-    return response.data ?? <String, dynamic>{};
   }
 }

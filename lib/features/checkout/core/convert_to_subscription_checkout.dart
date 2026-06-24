@@ -1,81 +1,75 @@
 import 'package:carrocare_flutter/core/di/injection.dart';
 import 'package:carrocare_flutter/features/checkout/core/checkout_pricing.dart';
+import 'package:carrocare_flutter/features/checkout/domain/entities/convert_subscription_eligibility.dart';
 import 'package:carrocare_flutter/features/checkout/domain/entities/razorpay_price_summary.dart';
 import 'package:carrocare_flutter/features/checkout/domain/repositories/checkout_repository.dart';
 import 'package:carrocare_flutter/features/checkout/presentation/services/razorpay_checkout_service.dart';
 
-/// Native monthly subscription flow:
-/// get_plan → create_subscription → Razorpay SDK →
-/// save_order (create_subscription_orderid + monthly_payment) → order_list.
-class MonthlySubscriptionCheckout {
-  MonthlySubscriptionCheckout._();
+/// One-time Wash order → deferred monthly autopay:
+/// eligibility → create_subscription(source_order_id) → Razorpay SDK →
+/// save_order (convert_to_subscription).
+class ConvertToSubscriptionCheckout {
+  ConvertToSubscriptionCheckout._();
 
   static Future<void> run({
     required RazorpayCheckoutService razorpay,
     required String token,
     required String customerId,
+    required String sourceOrderId,
     required String vehicleId,
-    required String packType,
-    required String vehicleType,
-    required String serviceType,
-    required String packAmount,
     required int gstPercent,
     required RazorpayPriceSummary priceSummary,
     required void Function(String message) onError,
-    required Future<void> Function() onSuccess,
+    required Future<void> Function(String chargeAt) onSuccess,
   }) async {
     final repo = sl<CheckoutRepository>();
 
-    // Always resolve via get_plan.php so Razorpay plan matches [packAmount]
-    // (plans_list may return older plan ids/amounts like 600 vs 635).
-    final planId = await repo.resolveMonthlyPlanId(
+    final ConvertSubscriptionEligibility eligibility =
+        await repo.fetchConvertSubscriptionEligibility(
       token: token,
-      packType: packType,
-      packAmount: packAmount,
-      vehicleType: vehicleType,
-      serviceType: serviceType,
+      customerId: customerId,
+      orderId: sourceOrderId,
+    );
+
+    final packAmount = eligibility.packAmount;
+    final breakdown = CheckoutPricing.breakdownFromInclusive(
+      CheckoutPricing.parseAmount(packAmount),
+      gstPercent,
     );
 
     final session = await repo.createSubscription(
       token: token,
       customerId: customerId,
       vehicleId: vehicleId,
-      planId: planId,
-    );
-
-    final breakdown = CheckoutPricing.breakdownFromInclusive(
-      CheckoutPricing.parseAmount(packAmount),
-      gstPercent,
+      planId: eligibility.planId,
+      sourceOrderId: sourceOrderId,
     );
 
     try {
       await razorpay.openSubscriptionAndWait(
         keyId: session.keyId,
         subscriptionId: session.subscriptionId,
-        description: serviceType,
+        description: eligibility.serviceType,
         email: session.customerEmail,
         contact: session.customerMobile,
         priceSummary: priceSummary,
       );
 
-      final orderId = await repo.createSubscriptionOrderId(
-        customerId: customerId,
-        token: token,
-      );
-      await repo.saveMonthlySubscriptionOrder(
-        orderId: orderId,
-        planId: planId,
+      await repo.saveConvertToSubscription(
+        sourceOrderId: sourceOrderId,
+        planId: eligibility.planId,
         subscriptionId: session.subscriptionId,
         customerId: customerId,
         vehicleId: vehicleId,
         token: token,
-        serviceType: serviceType,
+        serviceType: eligibility.serviceType,
         totalAmount: breakdown.total.toString(),
         subTotal: breakdown.subTotal.toString(),
         gst: gstPercent.toString(),
         gstAmount: breakdown.gstAmount.toString(),
       );
-      await onSuccess();
+
+      await onSuccess(eligibility.chargeAt);
     } catch (e) {
       final message = e.toString().replaceFirst('Exception: ', '');
       onError(message.isNotEmpty ? message : 'Payment failed');

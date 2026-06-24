@@ -12,6 +12,7 @@ import 'package:carrocare_flutter/features/checkout/presentation/services/checko
 import 'package:carrocare_flutter/features/checkout/presentation/services/razorpay_checkout_service.dart';
 import 'package:carrocare_flutter/features/checkout/presentation/widgets/razorpay_price_summary_sheet.dart';
 import 'package:carrocare_flutter/features/door_step/data/datasources/door_step_remote_data_source.dart';
+import 'package:carrocare_flutter/features/door_step/domain/entities/doorstep_package.dart';
 import 'package:carrocare_flutter/features/door_step/domain/entities/doorstep_payment_mode.dart';
 import 'package:carrocare_flutter/features/internal_wash/presentation/constants/preferred_time_slots.dart';
 import 'package:carrocare_flutter/features/vehicles/data/repositories/vehicles_repository.dart';
@@ -21,69 +22,6 @@ import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
-enum _DoorstepCatalog { all, carWash, bikeWash, waxing, acVent }
-
-class _DoorstepAddOn {
-  const _DoorstepAddOn({
-    required this.title,
-    required this.price,
-  });
-
-  final String title;
-  final int price;
-}
-
-class _DoorstepPackage {
-  const _DoorstepPackage({
-    required this.name,
-    required this.category,
-    required this.price,
-    required this.imageAsset,
-    required this.shortDescription,
-    required this.bullets,
-    this.note,
-    this.badge,
-    this.addOns = const <_DoorstepAddOn>[],
-  });
-
-  final String name;
-  final _DoorstepCatalog category;
-  final int price;
-  final String imageAsset;
-  final String shortDescription;
-  final List<String> bullets;
-  final String? note;
-  final String? badge;
-  final List<_DoorstepAddOn> addOns;
-
-  String get categoryLabel {
-    switch (category) {
-      case _DoorstepCatalog.carWash:
-        return 'Car Washing';
-      case _DoorstepCatalog.bikeWash:
-        return 'Bike Wash';
-      case _DoorstepCatalog.waxing:
-        return 'Car Waxing';
-      case _DoorstepCatalog.acVent:
-        return 'AC Vent Cleaning';
-      case _DoorstepCatalog.all:
-        return 'Doorstep Service';
-    }
-  }
-}
-
-class _DoorstepTab {
-  const _DoorstepTab({
-    required this.label,
-    required this.catalog,
-    required this.imageAsset,
-  });
-
-  final String label;
-  final _DoorstepCatalog catalog;
-  final String imageAsset;
-}
 
 class _DoorstepDraft {
   const _DoorstepDraft({
@@ -96,7 +34,50 @@ class _DoorstepDraft {
   final DateTime date;
   final String timeSlot;
   final DoorstepPaymentMode paymentMode;
-  final List<_DoorstepAddOn> addOns;
+  final List<DoorstepAddOn> addOns;
+}
+
+class _DoorstepServiceImage extends StatelessWidget {
+  const _DoorstepServiceImage({
+    required this.imageUrl,
+    required this.fallbackAsset,
+    this.width,
+    this.height,
+    this.fit = BoxFit.cover,
+    this.borderRadius,
+  });
+
+  final String? imageUrl;
+  final String fallbackAsset;
+  final double? width;
+  final double? height;
+  final BoxFit fit;
+  final BorderRadius? borderRadius;
+
+  @override
+  Widget build(BuildContext context) {
+    final child = imageUrl != null && imageUrl!.isNotEmpty
+        ? Image.network(
+            imageUrl!,
+            width: width,
+            height: height,
+            fit: fit,
+            errorBuilder: (_, __, ___) => Image.asset(
+              fallbackAsset,
+              width: width,
+              height: height,
+              fit: fit,
+            ),
+          )
+        : Image.asset(
+            fallbackAsset,
+            width: width,
+            height: height,
+            fit: fit,
+          );
+    if (borderRadius == null) return child;
+    return ClipRRect(borderRadius: borderRadius!, child: child);
+  }
 }
 
 class DoorStepServicePage extends StatefulWidget {
@@ -107,170 +88,6 @@ class DoorStepServicePage extends StatefulWidget {
 }
 
 class _DoorStepServicePageState extends State<DoorStepServicePage> {
-  static const List<_DoorstepAddOn> _carWashAddOns = <_DoorstepAddOn>[
-    _DoorstepAddOn(title: 'Premium Ceramic Wax Coat', price: 1499),
-    _DoorstepAddOn(title: 'Door Pad Cleaning', price: 499),
-    _DoorstepAddOn(title: 'Dashboard Cleaning', price: 499),
-    _DoorstepAddOn(title: 'Leather Cleaning', price: 799),
-    _DoorstepAddOn(title: 'Upholstery Dirt Cleaning', price: 999),
-    _DoorstepAddOn(title: 'Roof Cleaning', price: 799),
-    _DoorstepAddOn(title: 'Dashboard Polishing', price: 149),
-    _DoorstepAddOn(title: 'Engine Steam Cleaning', price: 299),
-    _DoorstepAddOn(title: 'Interior Steam Cleaning', price: 499),
-    _DoorstepAddOn(title: 'AC Vent Steaming', price: 199),
-  ];
-
-  static const List<_DoorstepPackage> _packages = <_DoorstepPackage>[
-    _DoorstepPackage(
-      name: 'Basic Wash',
-      category: _DoorstepCatalog.carWash,
-      price: 759,
-      imageAsset: 'assets/images/car_wash.jpg',
-      shortDescription: 'Carro care basic wash consists of the services listed below.',
-      bullets: <String>[
-        'Scratch-safe foam wash for showroom shine',
-        'Interior vacuum',
-        'Dashboard polish',
-        'Tyre polish',
-      ],
-      badge: 'Best Seller',
-      addOns: _carWashAddOns,
-    ),
-    _DoorstepPackage(
-      name: 'Premium Wash',
-      category: _DoorstepCatalog.carWash,
-      price: 1499,
-      imageAsset: 'assets/images/car_wash.jpg',
-      shortDescription: 'Carro care premium wash consists of the services listed below.',
-      bullets: <String>[
-        'Scratch-safe foam wash for showroom shine',
-        'Interior vacuum',
-        'Interior steam sanitisation & AC vent cleaning',
-        'Dashboard polish',
-        'Tyre polish',
-      ],
-      badge: 'Recommended',
-      addOns: _carWashAddOns,
-    ),
-    _DoorstepPackage(
-      name: 'Monthly Standard Wash',
-      category: _DoorstepCatalog.carWash,
-      price: 2699,
-      imageAsset: 'assets/images/car_wash.jpg',
-      shortDescription: 'Carro care monthly standard wash consists of the services listed below.',
-      note: 'Note: Each service is done one at a time on separate days.',
-      bullets: <String>[
-        '2 scratch-safe foam washes for showroom shine',
-        '2 interior vacuum sessions',
-        '2 dashboard polish sessions',
-        '3 tyre polish sessions',
-        '1 premium hand wax coating',
-        '1 interior steam sanitisation and AC vent cleaning',
-        '1 interior fragrance',
-      ],
-      badge: 'Value Pack',
-      addOns: _carWashAddOns,
-    ),
-    _DoorstepPackage(
-      name: 'Monthly Premium Wash',
-      category: _DoorstepCatalog.carWash,
-      price: 4499,
-      imageAsset: 'assets/images/car_wash.jpg',
-      shortDescription: 'Carro care monthly premium wash consists of the services listed below.',
-      note: 'Priority scheduling & preferred customer support with 1 emergency priority wash per month.',
-      bullets: <String>[
-        '4 scratch-safe foam washes for showroom shine',
-        '4 interior vacuum sessions',
-        '4 dashboard polish sessions',
-        '4 tyre polish sessions',
-        '2 premium hand wax coatings',
-        '2 interior steam sanitisation and AC vent cleaning sessions',
-        '2 interior fragrance treatments',
-      ],
-      badge: 'Priority Care',
-      addOns: _carWashAddOns,
-    ),
-    _DoorstepPackage(
-      name: 'Bike Wash',
-      category: _DoorstepCatalog.bikeWash,
-      price: 299,
-      imageAsset: 'assets/images/bike_wash.jpg',
-      shortDescription: 'Carro care bike wash consists of the services listed below.',
-      bullets: <String>[
-        'Scratch-safe foam wash for showroom shine',
-        'Tyre dressing',
-        'Towel hand dry',
-        'Add on: chain cleaning and lubrication',
-      ],
-      badge: 'Quick Service',
-      addOns: <_DoorstepAddOn>[
-        _DoorstepAddOn(title: 'Chain cleaning and lubrication', price: 149),
-      ],
-    ),
-    _DoorstepPackage(
-      name: 'Car Waxing',
-      category: _DoorstepCatalog.waxing,
-      price: 1499,
-      imageAsset: 'assets/images/wax_polish.jpg',
-      shortDescription: 'Carro care waxing consists of the services listed below.',
-      note: 'Up to 30 days paint protection & water beading effect.',
-      bullets: <String>[
-        'Scratch-safe foam wash for showroom shine',
-        'UV protection layer',
-        'Premium hand wax application',
-        'Exterior glass cleaning',
-        'Final microfiber finish',
-      ],
-      badge: 'Paint Care',
-      addOns: _carWashAddOns,
-    ),
-    _DoorstepPackage(
-      name: 'AC Vent 3M Foam Deep Cleaning',
-      category: _DoorstepCatalog.acVent,
-      price: 699,
-      imageAsset: 'assets/images/extra_interior.png',
-      shortDescription: 'Breathe fresh. Drive healthy.',
-      note: 'Service Time: 20–30 minutes. Recommended once every 3–4 months.',
-      bullets: <String>[
-        '3M professional-grade foam injection into AC ducts',
-        'Bacteria & odour-causing germ breakdown',
-        'Mould & dust residue removal',
-        'Deep vent sanitisation without dismantling',
-        'Fresh air flow restoration',
-        'Benefits: eliminates bad AC smell, improves cooling efficiency, and reduces allergy-causing particles',
-      ],
-      badge: 'Fresh Air',
-    ),
-  ];
-
-  static const List<_DoorstepTab> _tabs = <_DoorstepTab>[
-    _DoorstepTab(
-      label: 'All',
-      catalog: _DoorstepCatalog.all,
-      imageAsset: 'assets/images/app_icon_512.png',
-    ),
-    _DoorstepTab(
-      label: 'Car Washing',
-      catalog: _DoorstepCatalog.carWash,
-      imageAsset: 'assets/images/car_wash.jpg',
-    ),
-    _DoorstepTab(
-      label: 'Bike Wash',
-      catalog: _DoorstepCatalog.bikeWash,
-      imageAsset: 'assets/images/bike_wash.jpg',
-    ),
-    _DoorstepTab(
-      label: 'Car Waxing',
-      catalog: _DoorstepCatalog.waxing,
-      imageAsset: 'assets/images/wax_polish.jpg',
-    ),
-    _DoorstepTab(
-      label: 'AC Vent',
-      catalog: _DoorstepCatalog.acVent,
-      imageAsset: 'assets/images/extra_interior.png',
-    ),
-  ];
-
   final DoorStepRemoteDataSource _remote =
       DoorStepRemoteDataSource(sl<ApiClient>());
   final VehiclesRepository _vehiclesRepository = sl<VehiclesRepository>();
@@ -278,9 +95,20 @@ class _DoorStepServicePageState extends State<DoorStepServicePage> {
 
   bool _placingOrder = false;
   bool _loadingVehicles = true;
+  bool _loadingPackages = true;
+  String? _packagesError;
   List<VehicleItem> _vehicles = <VehicleItem>[];
   VehicleItem? _selectedVehicle;
-  _DoorstepCatalog _selectedCatalog = _DoorstepCatalog.all;
+  List<DoorstepPackage> _packages = <DoorstepPackage>[];
+  List<DoorstepCategoryTab> _tabs = const <DoorstepCategoryTab>[
+    DoorstepCategoryTab(
+      label: 'All',
+      category: DoorstepCatalogCategory.all,
+      imageUrl: null,
+      fallbackAsset: 'assets/images/app_icon_512.png',
+    ),
+  ];
+  DoorstepCatalogCategory _selectedCatalog = DoorstepCatalogCategory.all;
   double? _latitude;
   double? _longitude;
   String _currentLocationLabel = '';
@@ -290,6 +118,7 @@ class _DoorStepServicePageState extends State<DoorStepServicePage> {
     super.initState();
     _initLocation();
     _loadVehicles();
+    _loadPackages();
   }
 
   @override
@@ -298,13 +127,37 @@ class _DoorStepServicePageState extends State<DoorStepServicePage> {
     super.dispose();
   }
 
-  List<_DoorstepPackage> get _visiblePackages {
-    if (_selectedCatalog == _DoorstepCatalog.all) {
+  List<DoorstepPackage> get _visiblePackages {
+    if (_selectedCatalog == DoorstepCatalogCategory.all) {
       return _packages;
     }
     return _packages
         .where((package) => package.category == _selectedCatalog)
         .toList();
+  }
+
+  Future<void> _loadPackages() async {
+    setState(() {
+      _loadingPackages = true;
+      _packagesError = null;
+    });
+    try {
+      final response = await _remote.getDoorstepPackages();
+      if (!mounted) return;
+      setState(() {
+        _packages = response.packages;
+        if (response.tabs.isNotEmpty) {
+          _tabs = response.tabs;
+        }
+        _loadingPackages = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _loadingPackages = false;
+        _packagesError = error.toString().replaceFirst('Exception: ', '');
+      });
+    }
   }
 
   String _orderMessage(Map<String, dynamic> data) {
@@ -366,7 +219,12 @@ class _DoorStepServicePageState extends State<DoorStepServicePage> {
     }
   }
 
-  Future<void> _onRefresh() => _loadVehicles(isRefresh: true);
+  Future<void> _onRefresh() async {
+    await Future.wait(<Future<void>>[
+      _loadVehicles(isRefresh: true),
+      _loadPackages(),
+    ]);
+  }
 
   String _vehicleDisplayName(VehicleItem vehicle) {
     final model = vehicle.model.trim();
@@ -401,7 +259,7 @@ class _DoorStepServicePageState extends State<DoorStepServicePage> {
     return 'Current doorstep location will be confirmed before service.';
   }
 
-  Future<void> _startBookingFlow(_DoorstepPackage package) async {
+  Future<void> _startBookingFlow(DoorstepPackage package) async {
     if (_selectedVehicle == null) {
       _showMessage('Please add a vehicle first');
       return;
@@ -420,13 +278,13 @@ class _DoorStepServicePageState extends State<DoorStepServicePage> {
     if (confirmed != true || !mounted) return;
 
     final addOns =
-        await showModalBottomSheet<List<_DoorstepAddOn>>(
+        await showModalBottomSheet<List<DoorstepAddOn>>(
           context: context,
           isScrollControlled: true,
           backgroundColor: Colors.transparent,
           builder: (context) => _AddOnSheet(package: package),
         ) ??
-        <_DoorstepAddOn>[];
+        <DoorstepAddOn>[];
     if (!mounted) return;
 
     final draft = await showModalBottomSheet<_DoorstepDraft>(
@@ -457,18 +315,20 @@ class _DoorStepServicePageState extends State<DoorStepServicePage> {
     await _submitOrder(package, draft);
   }
 
-  Future<void> _submitOrder(_DoorstepPackage package, _DoorstepDraft draft) async {
+  Future<void> _submitOrder(DoorstepPackage package, _DoorstepDraft draft) async {
     if (_placingOrder || _selectedVehicle == null) return;
 
     final prefs = await SharedPreferences.getInstance();
     final gstPercent = CheckoutGstConfig.resolvePercent(prefs);
-    final addOnTotal = draft.addOns.fold<int>(
+  final addOnTotal = draft.addOns.fold<int>(
       0,
       (sum, addOn) => sum + addOn.price,
     );
-    final subTotal = package.price + addOnTotal;
-    final gstAmount = CheckoutPricing.taxAmount(subTotal, gstPercent);
-    final total = CheckoutPricing.finalAmount(subTotal, gstPercent);
+    final inclusiveTotal = package.price + addOnTotal;
+    final breakdown = CheckoutPricing.breakdownFromInclusive(
+      inclusiveTotal,
+      gstPercent,
+    );
     final serviceNames = <String>[
       package.name,
       ...draft.addOns.map((addOn) => addOn.title),
@@ -479,13 +339,13 @@ class _DoorStepServicePageState extends State<DoorStepServicePage> {
       'customerId': prefs.getString('customer_id') ?? '',
       'token': prefs.getString('token') ?? '',
       'packType': serviceNames.join(' + '),
-      'packAmount': '$subTotal',
+      'packAmount': '$inclusiveTotal',
       'vehicleId': _selectedVehicle!.id,
       'serviceType': serviceType,
-      'subTotal': '$subTotal',
+      'subTotal': '${breakdown.subTotal}',
       'gst': '$gstPercent',
-      'gstAmount': '$gstAmount',
-      'totalAmount': '$total',
+      'gstAmount': '${breakdown.gstAmount}',
+      'totalAmount': '${breakdown.total}',
       'scheduleDate': scheduleDate,
       'scheduleTime': draft.timeSlot,
       'address': _bookingAddressForVehicle(_selectedVehicle!),
@@ -523,7 +383,7 @@ class _DoorStepServicePageState extends State<DoorStepServicePage> {
           prefs.getString('mobile') ?? prefs.getString('usermobile') ?? '';
       final priceSummary = RazorpayPriceSummary.fromInclusive(
         serviceLabel: serviceType,
-        inclusiveTotal: total,
+        inclusiveTotal: inclusiveTotal,
         gstPercent: gstPercent,
       );
       final router = GoRouter.of(context);
@@ -535,7 +395,7 @@ class _DoorStepServicePageState extends State<DoorStepServicePage> {
           if (!mounted) return;
           final paymentId = await _razorpay.openAndWait(
             keyId: keys.keyId,
-            amountPaise: total * 100,
+            amountPaise: breakdown.total * 100,
             description: orderFields['packType']!,
             email: email,
             contact: mobile,
@@ -619,7 +479,61 @@ class _DoorStepServicePageState extends State<DoorStepServicePage> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  ..._visiblePackages.map(
+                  if (_loadingPackages)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 32),
+                      child: Center(
+                        child: SizedBox(
+                          width: 28,
+                          height: 28,
+                          child: CircularProgressIndicator(strokeWidth: 2.5),
+                        ),
+                      ),
+                    )
+                  else if (_packagesError != null)
+                    _SoftCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Text(
+                            'Unable to load packages',
+                            style: AppTypography.quicksand(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            _packagesError!,
+                            style: AppTypography.dmSans(
+                              fontSize: 13,
+                              color: AppColors.grey600,
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          FilledButton(
+                            onPressed: _loadPackages,
+                            style: FilledButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: AppColors.white,
+                            ),
+                            child: const Text('Retry'),
+                          ),
+                        ],
+                      ),
+                    )
+                  else if (_visiblePackages.isEmpty)
+                    _SoftCard(
+                      child: Text(
+                        'No packages available in this category right now.',
+                        style: AppTypography.dmSans(
+                          fontSize: 13,
+                          color: AppColors.grey600,
+                        ),
+                      ),
+                    )
+                  else
+                    ..._visiblePackages.map(
                     (package) => Padding(
                       padding: const EdgeInsets.only(bottom: 10),
                       child: _PackageCard(
@@ -798,8 +712,8 @@ class _DoorStepServicePageState extends State<DoorStepServicePage> {
               final tab = _tabs[index];
               return _CategoryTile(
                 tab: tab,
-                selected: tab.catalog == _selectedCatalog,
-                onTap: () => setState(() => _selectedCatalog = tab.catalog),
+                selected: tab.category == _selectedCatalog,
+                onTap: () => setState(() => _selectedCatalog = tab.category),
               );
             },
           ),
@@ -924,7 +838,7 @@ class _CategoryTile extends StatelessWidget {
     required this.onTap,
   });
 
-  final _DoorstepTab tab;
+  final DoorstepCategoryTab tab;
   final bool selected;
   final VoidCallback onTap;
 
@@ -963,10 +877,12 @@ class _CategoryTile extends StatelessWidget {
               Expanded(
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(10),
-                  child: Image.asset(
-                    tab.imageAsset,
+                  child: _DoorstepServiceImage(
+                    imageUrl: tab.imageUrl,
+                    fallbackAsset: tab.fallbackAsset,
                     width: double.infinity,
                     fit: BoxFit.cover,
+                    borderRadius: BorderRadius.circular(10),
                   ),
                 ),
               ),
@@ -997,7 +913,7 @@ class _PackageCard extends StatelessWidget {
     required this.onTap,
   });
 
-  final _DoorstepPackage package;
+  final DoorstepPackage package;
   final VoidCallback onTap;
 
   @override
@@ -1020,11 +936,12 @@ class _PackageCard extends StatelessWidget {
             children: <Widget>[
               ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: Image.asset(
-                  package.imageAsset,
+                child: _DoorstepServiceImage(
+                  imageUrl: package.imageUrl,
+                  fallbackAsset: package.fallbackAsset,
                   width: 84,
                   height: 84,
-                  fit: BoxFit.cover,
+                  borderRadius: BorderRadius.circular(12),
                 ),
               ),
               const SizedBox(width: 10),
@@ -1129,7 +1046,7 @@ class _PackageDetailSheet extends StatelessWidget {
     required this.address,
   });
 
-  final _DoorstepPackage package;
+  final DoorstepPackage package;
   final VehicleItem vehicle;
   final String address;
 
@@ -1249,7 +1166,7 @@ class _PackageDetailSheet extends StatelessWidget {
 class _AddOnSheet extends StatefulWidget {
   const _AddOnSheet({required this.package});
 
-  final _DoorstepPackage package;
+  final DoorstepPackage package;
 
   @override
   State<_AddOnSheet> createState() => _AddOnSheetState();
@@ -1264,7 +1181,7 @@ class _AddOnSheetState extends State<_AddOnSheet> {
       0,
       (sum, index) => sum + widget.package.addOns[index].price,
     );
-    final total = widget.package.price + addOnTotal;
+    final inclusiveTotal = widget.package.price + addOnTotal;
 
     return _BottomSheetContainer(
       child: Column(
@@ -1273,18 +1190,19 @@ class _AddOnSheetState extends State<_AddOnSheet> {
         children: <Widget>[
           _SheetHandleAndClose(
             title: 'Add Services',
-            onClose: () => Navigator.pop(context, <_DoorstepAddOn>[]),
+            onClose: () => Navigator.pop(context, <DoorstepAddOn>[]),
           ),
           _SoftCard(
             child: Row(
               children: <Widget>[
                 ClipRRect(
                   borderRadius: BorderRadius.circular(14),
-                  child: Image.asset(
-                    widget.package.imageAsset,
+                  child: _DoorstepServiceImage(
+                    imageUrl: widget.package.imageUrl,
+                    fallbackAsset: widget.package.fallbackAsset,
                     width: 72,
                     height: 72,
-                    fit: BoxFit.cover,
+                    borderRadius: BorderRadius.circular(14),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -1393,7 +1311,7 @@ class _AddOnSheetState extends State<_AddOnSheet> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '₹ $total',
+                        '₹ $inclusiveTotal',
                         style: AppTypography.quicksand(
                           fontSize: 24,
                           fontWeight: FontWeight.w700,
@@ -1401,7 +1319,7 @@ class _AddOnSheetState extends State<_AddOnSheet> {
                         ),
                       ),
                       Text(
-                        '(excl. tax)',
+                        '(incl. GST)',
                         style: AppTypography.dmSans(
                           fontSize: 12,
                           color: AppColors.grey500,
@@ -1449,8 +1367,8 @@ class _OrderDetailsSheet extends StatefulWidget {
     required this.vehicle,
   });
 
-  final _DoorstepPackage package;
-  final List<_DoorstepAddOn> addOns;
+  final DoorstepPackage package;
+  final List<DoorstepAddOn> addOns;
   final VehicleItem vehicle;
 
   @override
@@ -1458,7 +1376,7 @@ class _OrderDetailsSheet extends StatefulWidget {
 }
 
 class _OrderDetailsSheetState extends State<_OrderDetailsSheet> {
-  static const Set<int> _bookedIndices = <int>{0, 1, 2, 3, 4, 7, 9};
+  static const int _scheduleDayCount = 30;
 
   late DateTime _selectedDate;
   String? _selectedTime;
@@ -1472,10 +1390,10 @@ class _OrderDetailsSheetState extends State<_OrderDetailsSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final amount = widget.package.price +
+    final inclusiveTotal = widget.package.price +
         widget.addOns.fold<int>(0, (sum, addOn) => sum + addOn.price);
     final dates = List<DateTime>.generate(
-      5,
+      _scheduleDayCount,
       (index) => DateTime.now().add(Duration(days: index)),
     );
 
@@ -1594,12 +1512,9 @@ class _OrderDetailsSheetState extends State<_OrderDetailsSheet> {
                     kInternalWashPreferredTimes.length,
                     (index) {
                       final slot = kInternalWashPreferredTimes[index];
-                      final booked = _bookedIndices.contains(index);
                       final selected = _selectedTime == slot;
                       return GestureDetector(
-                        onTap: booked
-                            ? null
-                            : () => setState(() => _selectedTime = slot),
+                        onTap: () => setState(() => _selectedTime = slot),
                         child: Container(
                           width: slotWidth,
                           padding: const EdgeInsets.symmetric(
@@ -1607,18 +1522,14 @@ class _OrderDetailsSheetState extends State<_OrderDetailsSheet> {
                             horizontal: 4,
                           ),
                           decoration: BoxDecoration(
-                            color: booked
-                                ? AppColors.grey200
-                                : selected
-                                    ? AppColors.primaryTintStrong
-                                    : AppColors.white,
+                            color: selected
+                                ? AppColors.primaryTintStrong
+                                : AppColors.white,
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
-                              color: booked
-                                  ? AppColors.grey200
-                                  : selected
-                                      ? AppColors.primary
-                                      : AppColors.grey300,
+                              color: selected
+                                  ? AppColors.primary
+                                  : AppColors.grey300,
                             ),
                           ),
                           child: Text(
@@ -1629,11 +1540,9 @@ class _OrderDetailsSheetState extends State<_OrderDetailsSheet> {
                             style: AppTypography.dmSans(
                               fontSize: 10,
                               fontWeight: FontWeight.w600,
-                              color: booked
-                                  ? AppColors.grey500
-                                  : selected
-                                      ? AppColors.primary
-                                      : AppColors.grey800,
+                              color: selected
+                                  ? AppColors.primary
+                                  : AppColors.grey800,
                               height: 1.2,
                             ),
                           ),
@@ -1655,7 +1564,6 @@ class _OrderDetailsSheetState extends State<_OrderDetailsSheet> {
                   label: 'Available',
                   outlined: true,
                 ),
-                _LegendDot(color: AppColors.grey200, label: 'Booked'),
               ],
             ),
             const SizedBox(height: 16),
@@ -1742,7 +1650,7 @@ class _OrderDetailsSheetState extends State<_OrderDetailsSheet> {
                   padding: const EdgeInsets.symmetric(vertical: 14),
                 ),
                 child: Text(
-                  'Order Preview  •  ₹$amount',
+                  'Order Preview  •  ₹$inclusiveTotal',
                   style: AppTypography.quicksand(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
@@ -1768,18 +1676,20 @@ class _OrderPreviewSheet extends StatelessWidget {
     required this.address,
   });
 
-  final _DoorstepPackage package;
+  final DoorstepPackage package;
   final _DoorstepDraft draft;
   final VehicleItem vehicle;
   final String address;
 
   @override
   Widget build(BuildContext context) {
-    final subTotal = package.price +
+    final inclusiveTotal = package.price +
         draft.addOns.fold<int>(0, (sum, addOn) => sum + addOn.price);
     const gstPercent = CheckoutGstConfig.defaultGstPercent;
-    final gstAmount = CheckoutPricing.taxAmount(subTotal, gstPercent);
-    final total = CheckoutPricing.finalAmount(subTotal, gstPercent);
+    final breakdown = CheckoutPricing.breakdownFromInclusive(
+      inclusiveTotal,
+      gstPercent,
+    );
 
     return _BottomSheetContainer(
       child: SingleChildScrollView(
@@ -1795,11 +1705,12 @@ class _OrderPreviewSheet extends StatelessWidget {
               children: <Widget>[
                 ClipRRect(
                   borderRadius: BorderRadius.circular(20),
-                  child: Image.asset(
-                    package.imageAsset,
+                  child: _DoorstepServiceImage(
+                    imageUrl: package.imageUrl,
+                    fallbackAsset: package.fallbackAsset,
                     width: 128,
                     height: 128,
-                    fit: BoxFit.cover,
+                    borderRadius: BorderRadius.circular(20),
                   ),
                 ),
                 const SizedBox(width: 14),
@@ -1908,16 +1819,22 @@ class _OrderPreviewSheet extends StatelessWidget {
             _SoftCard(
               child: Column(
                 children: <Widget>[
-                  _SummaryRow(label: 'Item Total', value: '₹$subTotal'),
+                  _SummaryRow(
+                    label: 'Subtotal (excl. GST)',
+                    value: '₹${breakdown.subTotal}',
+                  ),
                   const SizedBox(height: 12),
-                  _SummaryRow(label: 'GST ($gstPercent%)', value: '₹$gstAmount'),
+                  _SummaryRow(
+                    label: 'GST ($gstPercent%)',
+                    value: '₹${breakdown.gstAmount}',
+                  ),
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: 14),
                     child: Divider(height: 1),
                   ),
                   _SummaryRow(
-                    label: 'Grand Total',
-                    value: '₹$total',
+                    label: 'Grand Total (incl. GST)',
+                    value: '₹${breakdown.total}',
                     emphasize: true,
                   ),
                 ],
@@ -1934,7 +1851,7 @@ class _OrderPreviewSheet extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
                 child: Text(
-                  'Confirm & Book  ₹$total',
+                  'Confirm & Book  ₹${breakdown.total}',
                   style: AppTypography.quicksand(
                     fontSize: 18,
                     fontWeight: FontWeight.w700,

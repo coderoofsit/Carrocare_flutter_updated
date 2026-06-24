@@ -1,3 +1,5 @@
+import 'package:carrocare_flutter/features/checkout/core/checkout_gst_config.dart';
+import 'package:carrocare_flutter/features/checkout/core/checkout_pricing.dart';
 import 'package:carrocare_flutter/features/daily_wash/domain/entities/daily_service.dart';
 import 'package:carrocare_flutter/features/disinfection/data/datasources/disinfection_remote_data_source.dart';
 import 'package:carrocare_flutter/features/disinfection/domain/repositories/disinfection_repository.dart';
@@ -16,19 +18,25 @@ class DisinfectionRepositoryImpl implements DisinfectionRepository {
       throw Exception(model.description.isEmpty ? 'Failed to load' : model.description);
     }
     final prefs = await SharedPreferences.getInstance();
-    final gstPercent =
-        int.tryParse(prefs.getString('gst_percentage') ?? '0') ?? 0;
+    final gstFromApi = model.services
+        .map((service) => int.tryParse(service.serviceGstPercentage) ?? 0)
+        .firstWhere((value) => value > 0, orElse: () => 0);
+    final gstPercent = gstFromApi > 0
+        ? gstFromApi
+        : CheckoutGstConfig.resolvePercent(prefs);
+    await CheckoutGstConfig.persistPercent(prefs, gstPercent);
 
     final services = model.services.map((service) {
-      final parsedPrice = int.tryParse(service.prices) ?? 0;
-      final taxAmt = (gstPercent * parsedPrice) ~/ 100;
+      final inclusivePrice = int.tryParse(service.prices) ?? 0;
+      final exclusivePrice =
+          CheckoutPricing.exclusiveAmount(inclusivePrice, gstPercent);
       return DailyService(
         id: service.id,
         image: service.image,
         type: service.type,
-        prices: service.prices,
+        prices: exclusivePrice.toString(),
         description: service.description,
-        displayPrice: (taxAmt + parsedPrice).toString(),
+        displayPrice: inclusivePrice.toString(),
       );
     }).toList();
     return (model.description, services);

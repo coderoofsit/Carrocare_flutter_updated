@@ -1,5 +1,6 @@
 import 'package:carrocare_flutter/features/checkout/domain/entities/cart_item.dart';
 import 'package:carrocare_flutter/features/checkout/domain/entities/checkout_plan.dart';
+import 'package:carrocare_flutter/features/checkout/domain/entities/convert_subscription_eligibility.dart';
 import 'package:carrocare_flutter/features/checkout/domain/entities/one_time_wash_checkout.dart';
 
 abstract class CheckoutRepository {
@@ -32,6 +33,27 @@ abstract class CheckoutRepository {
     required String customerId,
     required String vehicleId,
     required String planId,
+    String? sourceOrderId,
+  });
+
+  Future<ConvertSubscriptionEligibility> fetchConvertSubscriptionEligibility({
+    required String token,
+    required String customerId,
+    required String orderId,
+  });
+
+  Future<String> saveConvertToSubscription({
+    required String sourceOrderId,
+    required String planId,
+    required String subscriptionId,
+    required String customerId,
+    required String vehicleId,
+    required String token,
+    required String serviceType,
+    required String totalAmount,
+    required String subTotal,
+    required String gst,
+    required String gstAmount,
   });
 
   Future<String> createSubscriptionOrderId({

@@ -3,6 +3,7 @@ import 'package:carrocare_flutter/features/checkout/core/checkout_constants.dart
 import 'package:carrocare_flutter/features/checkout/data/datasources/checkout_remote_data_source.dart';
 import 'package:carrocare_flutter/features/checkout/domain/entities/cart_item.dart';
 import 'package:carrocare_flutter/features/checkout/domain/entities/checkout_plan.dart';
+import 'package:carrocare_flutter/features/checkout/domain/entities/convert_subscription_eligibility.dart';
 import 'package:carrocare_flutter/features/checkout/domain/entities/one_time_wash_checkout.dart';
 import 'package:carrocare_flutter/features/checkout/domain/repositories/checkout_repository.dart';
 
@@ -93,12 +94,14 @@ class CheckoutRepositoryImpl implements CheckoutRepository {
     required String customerId,
     required String vehicleId,
     required String planId,
+    String? sourceOrderId,
   }) async {
     final data = await _remote.createSubscription(
       token: token,
       customerId: customerId,
       vehicleId: vehicleId,
       planId: planId,
+      sourceOrderId: sourceOrderId,
     );
     final code = (data['code'] ?? '').toString();
     if (code != '200') {
@@ -119,6 +122,57 @@ class CheckoutRepositoryImpl implements CheckoutRepository {
       customerEmail: (data['customer_email'] ?? '').toString(),
       customerMobile: (data['customer_mobile'] ?? '').toString(),
     );
+  }
+
+  @override
+  Future<ConvertSubscriptionEligibility> fetchConvertSubscriptionEligibility({
+    required String token,
+    required String customerId,
+    required String orderId,
+  }) async {
+    final data = await _remote.fetchConvertSubscriptionEligibility(
+      token: token,
+      customerId: customerId,
+      orderId: orderId,
+    );
+    final code = (data['code'] ?? '').toString();
+    if (code != '200') {
+      throw Exception(
+        (data['message'] ?? data['result'] ?? 'Not eligible for auto-renew')
+            .toString(),
+      );
+    }
+    return ConvertSubscriptionEligibility.fromJson(data);
+  }
+
+  @override
+  Future<String> saveConvertToSubscription({
+    required String sourceOrderId,
+    required String planId,
+    required String subscriptionId,
+    required String customerId,
+    required String vehicleId,
+    required String token,
+    required String serviceType,
+    required String totalAmount,
+    required String subTotal,
+    required String gst,
+    required String gstAmount,
+  }) async {
+    final data = await _remote.saveConvertToSubscription(
+      sourceOrderId: sourceOrderId,
+      planId: planId,
+      subscriptionId: subscriptionId,
+      customerId: customerId,
+      vehicleId: vehicleId,
+      token: token,
+      serviceType: serviceType,
+      totalAmount: totalAmount,
+      subTotal: subTotal,
+      gst: gst,
+      gstAmount: gstAmount,
+    );
+    return _messageFromSave(data);
   }
 
   @override

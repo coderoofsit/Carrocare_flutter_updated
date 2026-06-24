@@ -35,6 +35,9 @@ class OrderItem {
     required this.workDone,
     required this.invoice,
     required this.paymentDetails,
+    this.convertToSubscription = '',
+    this.autopayPending = '',
+    this.subscriptionChargeAt = '',
   });
 
   final String dateAndTime;
@@ -70,6 +73,9 @@ class OrderItem {
   final String workDone;
   final String invoice;
   final List<PaymentDetail> paymentDetails;
+  final String convertToSubscription;
+  final String autopayPending;
+  final String subscriptionChargeAt;
 
   String get displayStatus => resolveOrderDisplayStatus(
         serviceType: serviceType,
@@ -112,6 +118,9 @@ class OrderItem {
       workDone: (json['work_done'] ?? '').toString(),
       invoice: (json['invoice'] ?? '').toString(),
       paymentDetails: _parsePaymentDetails(json['payment_details']),
+      convertToSubscription: (json['convert_to_subscription'] ?? '').toString(),
+      autopayPending: (json['autopay_pending'] ?? '').toString(),
+      subscriptionChargeAt: (json['subscription_charge_at'] ?? '').toString(),
     );
   }
 
