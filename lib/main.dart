@@ -4,11 +4,13 @@ import 'package:carrocare_flutter/core/network/connectivity_service.dart';
 import 'package:carrocare_flutter/core/network/offline_navigation_handler.dart';
 import 'package:carrocare_flutter/core/notifications/fcm_service.dart';
 import 'package:carrocare_flutter/core/notifications/push_registration_service.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
   await configureDependencies();
   await sl<FcmService>().initialize();
   sl<PushRegistrationService>().startTokenRefreshListener(() async {

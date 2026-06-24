@@ -7,23 +7,39 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 class FcmService {
   FcmService();
 
-  final FirebaseMessaging _messaging = FirebaseMessaging.instance;
+  FirebaseMessaging? _messaging;
   String? _cachedToken;
   bool _isInitialized = false;
+
+  FirebaseMessaging get _messagingInstance =>
+      _messaging ?? FirebaseMessaging.instance;
 
   Future<void> initialize() async {
     if (_isInitialized) {
       return;
     }
-    await Firebase.initializeApp();
-    await _requestPermission();
-    _cachedToken = await _messaging.getToken();
+    if (Firebase.apps.isEmpty) {
+      await Firebase.initializeApp();
+    }
+    _messaging = FirebaseMessaging.instance;
+    try {
+      await _requestPermission();
+    } catch (_) {}
+    _cachedToken = await _fetchToken();
     _isInitialized = true;
+  }
+
+  Future<String?> _fetchToken() async {
+    try {
+      return await _messagingInstance.getToken();
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<void> _requestPermission() async {
     if (Platform.isIOS || Platform.isAndroid) {
-      await _messaging.requestPermission(
+      await _messagingInstance.requestPermission(
         alert: true,
         badge: true,
         sound: true,
@@ -35,9 +51,9 @@ class FcmService {
     if (!_isInitialized) {
       await initialize();
     }
-    _cachedToken ??= await _messaging.getToken();
+    _cachedToken ??= await _fetchToken();
     return _cachedToken ?? '';
   }
 
-  Stream<String> get onTokenRefresh => _messaging.onTokenRefresh;
+  Stream<String> get onTokenRefresh => _messagingInstance.onTokenRefresh;
 }
