@@ -9,7 +9,9 @@ import UIKit
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
     GMSServices.provideAPIKey("AIzaSyBaXR9KcGfyCfz85jexsDdgAdankSntVXw")
-    return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+    let didFinish = super.application(application, didFinishLaunchingWithOptions: launchOptions)
+    application.registerForRemoteNotifications()
+    return didFinish
   }
 
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
