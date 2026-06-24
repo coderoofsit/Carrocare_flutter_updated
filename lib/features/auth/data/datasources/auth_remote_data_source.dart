@@ -50,6 +50,31 @@ class AuthRemoteDataSource {
     return LoginResponseModel.fromJson(response.data as Map<String, dynamic>);
   }
 
+  Future<void> loginVerify({
+    required String email,
+    required String firebaseInstanceId,
+    required String deviceName,
+    required String deviceModel,
+    required String osVersion,
+  }) async {
+    final response = await _apiClient.dio.post<dynamic>(
+      'login-verify.php',
+      data: <String, dynamic>{
+        'email': email.trim(),
+        'firebase_instance_id': firebaseInstanceId,
+        'device_name': deviceName,
+        'device_model': deviceModel,
+        'os_version': osVersion,
+      },
+    );
+    final data = response.data as Map<String, dynamic>;
+    if ((data['code'] ?? '').toString() != '200') {
+      throw Exception(
+        (data['message'] ?? 'Device registration failed').toString(),
+      );
+    }
+  }
+
   Future<OtpSendResult> sendOtp({
     required String mobile,
     required String name,

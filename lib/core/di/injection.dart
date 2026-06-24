@@ -3,6 +3,9 @@ import 'package:carrocare_flutter/core/network/api_client.dart';
 import 'package:carrocare_flutter/core/network/auth_token_service.dart';
 import 'package:carrocare_flutter/core/network/connectivity_service.dart';
 import 'package:carrocare_flutter/core/network/offline_navigation_handler.dart';
+import 'package:carrocare_flutter/core/device/device_info_service.dart';
+import 'package:carrocare_flutter/core/notifications/fcm_service.dart';
+import 'package:carrocare_flutter/core/notifications/push_registration_service.dart';
 import 'package:carrocare_flutter/features/auth/data/datasources/auth_remote_data_source.dart';
 import 'package:carrocare_flutter/features/auth/data/repositories/auth_repository_impl.dart';
 import 'package:carrocare_flutter/features/auth/domain/repositories/auth_repository.dart';
@@ -70,6 +73,15 @@ Future<void> configureDependencies() async {
   );
   sl.registerLazySingleton<AuthRemoteDataSource>(
     () => AuthRemoteDataSource(sl<ApiClient>()),
+  );
+  sl.registerLazySingleton<FcmService>(FcmService.new);
+  sl.registerLazySingleton<DeviceInfoService>(DeviceInfoService.new);
+  sl.registerLazySingleton<PushRegistrationService>(
+    () => PushRegistrationService(
+      sl<FcmService>(),
+      sl<DeviceInfoService>(),
+      sl<AuthRemoteDataSource>(),
+    ),
   );
   sl.registerLazySingleton<AuthRepository>(
     () => AuthRepositoryImpl(sl<AuthRemoteDataSource>()),
@@ -157,7 +169,12 @@ Future<void> configureDependencies() async {
   );
   sl.registerFactory<LoginBloc>(() => LoginBloc(sl<LoginUseCase>()));
   sl.registerFactory<SignupBloc>(
-    () => SignupBloc(sl<SendOtpUseCase>(), sl<RegisterUseCase>()),
+    () => SignupBloc(
+      sl<SendOtpUseCase>(),
+      sl<RegisterUseCase>(),
+      sl<FcmService>(),
+      sl<DeviceInfoService>(),
+    ),
   );
   sl.registerFactory<ForgotPasswordBloc>(
     () => ForgotPasswordBloc(sl<ForgotOtpUseCase>(), sl<ForgotUpdateUseCase>()),

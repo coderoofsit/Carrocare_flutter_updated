@@ -1,5 +1,6 @@
 import 'package:carrocare_flutter/core/di/injection.dart';
 import 'package:carrocare_flutter/core/network/auth_token_service.dart';
+import 'package:carrocare_flutter/core/notifications/push_registration_service.dart';
 import 'package:carrocare_flutter/core/theme/app_colors.dart';
 import 'package:carrocare_flutter/core/utils/profile_prefs_sync.dart';
 import 'package:carrocare_flutter/core/utils/session_debug.dart';
@@ -43,6 +44,7 @@ class _LoginPageState extends State<LoginPage> {
           ).showSnackBar(SnackBar(content: Text(state.errorMessage!)));
         }
         if (state.status == LoginStatus.success) {
+          final email = state.userEmail ?? _emailController.text.trim();
           await _saveUserSession(
             userName: state.userName ?? '',
             userMobile: state.userMobile ?? '',
@@ -50,8 +52,11 @@ class _LoginPageState extends State<LoginPage> {
             customerId: state.customerId ?? '',
             accessToken: state.accessToken ?? '',
             refreshToken: state.refreshToken ?? '',
-            email: state.userEmail ?? _emailController.text.trim(),
+            email: email,
           );
+          try {
+            await sl<PushRegistrationService>().syncForEmail(email);
+          } catch (_) {}
           if (!context.mounted) return;
           context.go('/home');
         }

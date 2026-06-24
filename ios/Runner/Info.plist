@@ -34,6 +34,11 @@
 	<string>Carro Care uses your location to display your position on the map and confirm the address where our team should visit for doorstep car wash and related services that you book in the app.</string>
 	<key>NSLocationAlwaysUsageDescription</key>
 	<string>Carro Care uses your location to display your position on the map and confirm the address where our team should visit for doorstep car wash and related services that you book in the app.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+		<string>remote-notification</string>
+	</array>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

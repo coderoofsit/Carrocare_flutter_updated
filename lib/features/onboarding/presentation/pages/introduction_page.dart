@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:carrocare_flutter/core/di/injection.dart';
 import 'package:carrocare_flutter/core/network/auth_token_service.dart';
+import 'package:carrocare_flutter/core/notifications/push_registration_service.dart';
 import 'package:carrocare_flutter/core/theme/app_gradients.dart';
 import 'package:carrocare_flutter/core/utils/profile_prefs_sync.dart';
 import 'package:carrocare_flutter/core/widgets/dotted_loader.dart';
@@ -51,6 +52,11 @@ class _IntroductionPageState extends State<IntroductionPage> {
             (legacyToken.isNotEmpty && customerId.isNotEmpty);
         if (canOpenHome) {
           targetRoute = '/home';
+          final email =
+              prefs.getString('email') ?? prefs.getString('useremail') ?? '';
+          if (email.isNotEmpty) {
+            unawaited(sl<PushRegistrationService>().syncForEmail(email));
+          }
           unawaited(
             syncProfileFromServer(
               token: legacyToken,

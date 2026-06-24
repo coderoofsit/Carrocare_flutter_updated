@@ -1,3 +1,5 @@
+import 'package:carrocare_flutter/core/device/device_info_service.dart';
+import 'package:carrocare_flutter/core/notifications/fcm_service.dart';
 import 'package:carrocare_flutter/core/utils/otp_utils.dart';
 import 'package:carrocare_flutter/core/utils/validators.dart';
 import 'package:carrocare_flutter/features/auth/domain/usecases/auth_usecases.dart';
@@ -8,14 +10,20 @@ part 'signup_event.dart';
 part 'signup_state.dart';
 
 class SignupBloc extends Bloc<SignupEvent, SignupState> {
-  SignupBloc(this._sendOtpUseCase, this._registerUseCase)
-    : super(const SignupState()) {
+  SignupBloc(
+    this._sendOtpUseCase,
+    this._registerUseCase,
+    this._fcmService,
+    this._deviceInfoService,
+  ) : super(const SignupState()) {
     on<SignupSendOtpPressed>(_onSendOtp);
     on<SignupSubmitPressed>(_onSubmit);
   }
 
   final SendOtpUseCase _sendOtpUseCase;
   final RegisterUseCase _registerUseCase;
+  final FcmService _fcmService;
+  final DeviceInfoService _deviceInfoService;
 
   Future<void> _onSendOtp(
     SignupSendOtpPressed event,
@@ -92,16 +100,18 @@ class SignupBloc extends Bloc<SignupEvent, SignupState> {
     }
     emit(state.copyWith(status: SignupStatus.loading, errorMessage: null));
     try {
+      final device = await _deviceInfoService.getRegistrationInfo();
+      final fcmToken = await _fcmService.getToken();
       final response = await _registerUseCase(
         mobile: event.mobile,
         password: event.password,
         name: event.name,
         email: event.email,
         otp: event.otp,
-        deviceId: 'flutter-device-id',
-        deviceName: 'flutter',
-        deviceModel: 'flutter',
-        osVersion: 'flutter',
+        deviceId: fcmToken,
+        deviceName: device.deviceName,
+        deviceModel: device.deviceModel,
+        osVersion: device.osVersion,
       );
       if (response.code == '200') {
         emit(
