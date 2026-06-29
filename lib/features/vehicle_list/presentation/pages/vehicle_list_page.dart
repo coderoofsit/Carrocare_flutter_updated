@@ -217,6 +217,8 @@ class _VehicleListPageState extends State<VehicleListPage> {
           }
 
           final loaded = state as VehicleListLoaded;
+          final isExtraInterior =
+              loaded.args.header.trim().toLowerCase() == 'extra interior';
           return Column(
             children: <Widget>[
               Expanded(
@@ -298,7 +300,9 @@ class _VehicleListPageState extends State<VehicleListPage> {
                       const SizedBox(height: 16),
                       const _SectionHeading(title: 'Select vehicle'),
                       Text(
-                        'Choose a vehicle to subscribe or add it to smart checkout.',
+                        isExtraInterior
+                            ? 'Choose a vehicle to continue with payment.'
+                            : 'Choose a vehicle to subscribe or add it to smart checkout.',
                         style: AppTypography.dmSans(
                           fontSize: 13,
                           color: AppColors.grey600,
@@ -347,11 +351,15 @@ class _VehicleListPageState extends State<VehicleListPage> {
                         ...loaded.vehicles.map(
                           (vehicle) => _BookingVehicleCard(
                             item: vehicle,
+                            showSmartCheckout: !isExtraInterior,
                             inCart: _cartVehicleIdsForService
                                 .contains(vehicle.id),
                             onSubscribe: () => _onSubscribe(vehicle),
                             onSmartCheckout: (checked) =>
                                 _onSmartCheckout(vehicle, checked),
+                            subscribeLabel: isExtraInterior
+                                ? 'Pay Now'
+                                : 'Subscribe',
                           ),
                         ),
                     ],
@@ -430,15 +438,19 @@ class _SectionHeading extends StatelessWidget {
 class _BookingVehicleCard extends StatelessWidget {
   const _BookingVehicleCard({
     required this.item,
+    required this.showSmartCheckout,
     required this.inCart,
     required this.onSubscribe,
     required this.onSmartCheckout,
+    required this.subscribeLabel,
   });
 
   final VehicleItem item;
+  final bool showSmartCheckout;
   final bool inCart;
   final VoidCallback onSubscribe;
   final ValueChanged<bool> onSmartCheckout;
+  final String subscribeLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -574,43 +586,45 @@ class _BookingVehicleCard extends StatelessWidget {
                     ),
                   ),
                 ],
-                const SizedBox(height: 12),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.grey50,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: AppColors.grey200),
-                  ),
-                  child: Row(
-                    children: <Widget>[
-                      Checkbox(
-                        value: inCart,
-                        activeColor: AppColors.primary,
-                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        visualDensity: VisualDensity.compact,
-                        onChanged: (value) =>
-                            onSmartCheckout(value ?? false),
-                      ),
-                      Expanded(
-                        child: Text(
-                          inCart
-                              ? 'Added to smart checkout'
-                              : 'Add to smart checkout',
-                          style: AppTypography.dmSans(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                            color: AppColors.grey700,
+                if (showSmartCheckout) ...<Widget>[
+                  const SizedBox(height: 12),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.grey50,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: AppColors.grey200),
+                    ),
+                    child: Row(
+                      children: <Widget>[
+                        Checkbox(
+                          value: inCart,
+                          activeColor: AppColors.primary,
+                          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          visualDensity: VisualDensity.compact,
+                          onChanged: (value) =>
+                              onSmartCheckout(value ?? false),
+                        ),
+                        Expanded(
+                          child: Text(
+                            inCart
+                                ? 'Added to smart checkout'
+                                : 'Add to smart checkout',
+                            style: AppTypography.dmSans(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.grey700,
+                            ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
+                ],
                 const SizedBox(height: 12),
                 SizedBox(
                   width: double.infinity,
@@ -628,7 +642,7 @@ class _BookingVehicleCard extends StatelessWidget {
                       ),
                     ),
                     child: Text(
-                      'Subscribe',
+                      subscribeLabel,
                       style: AppTypography.quicksand(
                         fontSize: 15,
                         fontWeight: FontWeight.w700,

@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:carrocare_flutter/core/network/api_client.dart';
+import 'package:carrocare_flutter/core/network/save_order_post.dart';
 
 class OrdersRemoteDataSource {
   OrdersRemoteDataSource(this._apiClient);
@@ -24,15 +25,15 @@ class OrdersRemoteDataSource {
   Future<Map<String, dynamic>> getOrders({
     required String token,
     required String customerId,
-  }) async {
-    final response = await _apiClient.dio.post<dynamic>(
+  }) {
+    return postApiWithRetry(
+      _apiClient.dio,
       'order_list.php',
-      data: <String, dynamic>{
+      <String, dynamic>{
         'token': token,
         'customer_id': customerId,
       },
     );
-    return _asMap(response.data);
   }
 
   Future<Map<String, dynamic>> getWashDetails({

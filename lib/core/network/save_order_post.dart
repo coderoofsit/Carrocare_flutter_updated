@@ -1,19 +1,29 @@
 import 'package:dio/dio.dart';
 
-/// Posts to save_order.php with one retry on transient connection errors
+/// Posts to a legacy PHP endpoint with one retry on transient connection errors
 /// (common right after Razorpay closes on Android).
-Future<Map<String, dynamic>> postSaveOrderWithRetry(
+Future<Map<String, dynamic>> postApiWithRetry(
   Dio dio,
+  String path,
   Map<String, dynamic> data, {
   int maxAttempts = 2,
 }) async {
   for (var attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
-      final response = await dio.post<Map<String, dynamic>>(
-        'save_order.php',
+      final response = await dio.post<dynamic>(
+        path,
         data: data,
       );
-      return response.data ?? <String, dynamic>{};
+      final body = response.data;
+      if (body is Map<String, dynamic>) {
+        return body;
+      }
+      if (body is Map) {
+        return body.map(
+          (key, value) => MapEntry(key.toString(), value),
+        );
+      }
+      return <String, dynamic>{};
     } on DioException catch (e) {
       final isRetryable =
           attempt < maxAttempts && _isTransientConnectionError(e);
@@ -23,6 +33,19 @@ Future<Map<String, dynamic>> postSaveOrderWithRetry(
     }
   }
   return <String, dynamic>{};
+}
+
+Future<Map<String, dynamic>> postSaveOrderWithRetry(
+  Dio dio,
+  Map<String, dynamic> data, {
+  int maxAttempts = 2,
+}) {
+  return postApiWithRetry(
+    dio,
+    'save_order.php',
+    data,
+    maxAttempts: maxAttempts,
+  );
 }
 
 bool _isTransientConnectionError(DioException e) {
