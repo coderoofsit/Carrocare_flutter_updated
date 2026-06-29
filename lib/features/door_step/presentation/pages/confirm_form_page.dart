@@ -1,10 +1,12 @@
 import 'package:carrocare_flutter/core/di/injection.dart';
 import 'package:carrocare_flutter/core/network/api_client.dart';
+import 'package:carrocare_flutter/core/storage/map_location_store.dart';
 import 'package:carrocare_flutter/core/theme/app_colors.dart';
 import 'package:carrocare_flutter/core/widgets/carro_care_scaffold.dart';
 import 'package:carrocare_flutter/core/utils/validators.dart';
 import 'package:carrocare_flutter/features/door_step/data/datasources/door_step_form_remote_data_source.dart';
 import 'package:carrocare_flutter/features/door_step/domain/entities/confirm_form_args.dart';
+import 'package:carrocare_flutter/features/map/domain/entities/map_location_result.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -21,6 +23,7 @@ class ConfirmFormPage extends StatefulWidget {
 
 class _ConfirmFormPageState extends State<ConfirmFormPage> {
   final _remote = DoorStepFormRemoteDataSource(sl<ApiClient>());
+  final _locationStore = MapLocationStore();
 
   final TextEditingController _name = TextEditingController();
   final TextEditingController _email = TextEditingController();
@@ -54,9 +57,26 @@ class _ConfirmFormPageState extends State<ConfirmFormPage> {
   void initState() {
     super.initState();
     _loadSession();
+    _loadSavedAddress();
     if (widget.args.mode == ConfirmFormMode.insurance) {
       _loadInsuranceInfo();
     }
+  }
+
+  Future<void> _loadSavedAddress() async {
+    final address = await _locationStore.readAddress();
+    if (address.isNotEmpty && mounted) {
+      _address.text = address;
+    }
+  }
+
+  Future<void> _openMapPicker() async {
+    final result = await context.push<MapLocationResult>('/locate-on-map');
+    if (result != null && mounted) {
+      setState(() => _address.text = result.address);
+      return;
+    }
+    await _loadSavedAddress();
   }
 
   Future<void> _loadSession() async {
@@ -289,7 +309,7 @@ class _ConfirmFormPageState extends State<ConfirmFormPage> {
                           keyboardType: TextInputType.phone,
                           maxLength: 10,
                         ),
-                        _inputField(controller: _address, hint: 'Address'),
+                        _inputField(controller: _address, hint: 'Address', onTap: _openMapPicker),
                         _inputField(controller: _landmark, hint: 'Landmark'),
                         _inputField(controller: _city, hint: 'City'),
                         _inputField(controller: _state, hint: 'State'),
@@ -345,6 +365,7 @@ class _ConfirmFormPageState extends State<ConfirmFormPage> {
     required String hint,
     TextInputType? keyboardType,
     int? maxLength,
+    VoidCallback? onTap,
   }) {
     final fieldBorder = OutlineInputBorder(
       borderRadius: BorderRadius.circular(7),
@@ -359,6 +380,8 @@ class _ConfirmFormPageState extends State<ConfirmFormPage> {
       padding: const EdgeInsets.only(bottom: 7),
       child: TextField(
         controller: controller,
+        readOnly: onTap != null,
+        onTap: onTap,
         keyboardType: keyboardType,
         maxLength: maxLength,
         style: const TextStyle(fontSize: 16, color: AppColors.black),
@@ -368,6 +391,9 @@ class _ConfirmFormPageState extends State<ConfirmFormPage> {
           hintText: hint,
           counterText: '',
           hintStyle: const TextStyle(color: _hintColor, fontSize: 16),
+          suffixIcon: onTap == null
+              ? null
+              : const Icon(Icons.map_outlined, color: AppColors.primary),
           border: fieldBorder,
           enabledBorder: fieldBorder,
           focusedBorder: focusedFieldBorder,

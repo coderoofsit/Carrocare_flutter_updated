@@ -1,5 +1,6 @@
 import 'package:carrocare_flutter/core/di/injection.dart';
 import 'package:carrocare_flutter/core/network/api_client.dart';
+import 'package:carrocare_flutter/core/storage/map_location_store.dart';
 import 'package:carrocare_flutter/core/theme/app_colors.dart';
 import 'package:carrocare_flutter/core/theme/app_gradients.dart';
 import 'package:carrocare_flutter/core/theme/app_typography.dart';
@@ -15,6 +16,7 @@ import 'package:carrocare_flutter/features/door_step/data/datasources/door_step_
 import 'package:carrocare_flutter/features/door_step/domain/entities/doorstep_package.dart';
 import 'package:carrocare_flutter/features/door_step/domain/entities/doorstep_payment_mode.dart';
 import 'package:carrocare_flutter/features/internal_wash/presentation/constants/preferred_time_slots.dart';
+import 'package:carrocare_flutter/features/map/domain/entities/map_location_result.dart';
 import 'package:carrocare_flutter/features/vehicles/data/repositories/vehicles_repository.dart';
 import 'package:carrocare_flutter/features/vehicles/domain/entities/vehicle_item.dart';
 import 'package:flutter/material.dart';
@@ -92,6 +94,7 @@ class _DoorStepServicePageState extends State<DoorStepServicePage> {
       DoorStepRemoteDataSource(sl<ApiClient>());
   final VehiclesRepository _vehiclesRepository = sl<VehiclesRepository>();
   final RazorpayCheckoutService _razorpay = RazorpayCheckoutService();
+  final MapLocationStore _locationStore = MapLocationStore();
 
   bool _placingOrder = false;
   bool _loadingVehicles = true;
@@ -111,12 +114,12 @@ class _DoorStepServicePageState extends State<DoorStepServicePage> {
   DoorstepCatalogCategory _selectedCatalog = DoorstepCatalogCategory.all;
   double? _latitude;
   double? _longitude;
-  String _currentLocationLabel = '';
+  String _serviceAddress = '';
 
   @override
   void initState() {
     super.initState();
-    _initLocation();
+    _loadServiceLocation();
     _loadVehicles();
     _loadPackages();
   }
@@ -179,7 +182,42 @@ class _DoorStepServicePageState extends State<DoorStepServicePage> {
     );
   }
 
-  Future<void> _initLocation() async {
+  Future<void> _loadServiceLocation() async {
+    final address = await _locationStore.readAddress();
+    final lat = await _locationStore.readLatitude();
+    final lng = await _locationStore.readLongitude();
+    if (!mounted) return;
+    if (address.isNotEmpty && lat != null && lng != null) {
+      setState(() {
+        _serviceAddress = address;
+        _latitude = lat;
+        _longitude = lng;
+      });
+      return;
+    }
+    await _initLocationFromDevice();
+  }
+
+  Future<void> _openMapPicker() async {
+    final result = await context.push<MapLocationResult>('/locate-on-map');
+    if (!mounted) return;
+    if (result != null) {
+      setState(() {
+        _serviceAddress = result.address;
+        _latitude = result.latitude;
+        _longitude = result.longitude;
+      });
+      return;
+    }
+    await _loadServiceLocation();
+  }
+
+  bool get _hasServiceLocation =>
+      _serviceAddress.trim().isNotEmpty &&
+      _latitude != null &&
+      _longitude != null;
+
+  Future<void> _initLocationFromDevice() async {
     try {
       final permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
@@ -190,8 +228,6 @@ class _DoorStepServicePageState extends State<DoorStepServicePage> {
       setState(() {
         _latitude = position.latitude;
         _longitude = position.longitude;
-        _currentLocationLabel =
-            '${position.latitude.toStringAsFixed(5)}, ${position.longitude.toStringAsFixed(5)}';
       });
     } catch (_) {}
   }
@@ -245,6 +281,9 @@ class _DoorStepServicePageState extends State<DoorStepServicePage> {
   }
 
   String _bookingAddressForVehicle(VehicleItem vehicle) {
+    if (_serviceAddress.trim().isNotEmpty) {
+      return _serviceAddress.trim();
+    }
     final parts = <String>[
       vehicle.apartmentName,
       vehicle.parkingArea,
@@ -253,16 +292,18 @@ class _DoorStepServicePageState extends State<DoorStepServicePage> {
     if (parts.isNotEmpty) {
       return parts.join(', ');
     }
-    if (_currentLocationLabel.isNotEmpty) {
-      return _currentLocationLabel;
-    }
-    return 'Current doorstep location will be confirmed before service.';
+    return 'Select service location on map';
   }
 
   Future<void> _startBookingFlow(DoorstepPackage package) async {
     if (_selectedVehicle == null) {
       _showMessage('Please add a vehicle first');
       return;
+    }
+    if (!_hasServiceLocation) {
+      _showMessage('Please select your service location on the map');
+      await _openMapPicker();
+      if (!mounted || !_hasServiceLocation) return;
     }
 
     final confirmed = await showModalBottomSheet<bool>(
@@ -459,6 +500,8 @@ class _DoorStepServicePageState extends State<DoorStepServicePage> {
                 padding: const EdgeInsets.fromLTRB(14, 10, 14, 20),
                 children: <Widget>[
                   _buildVehicleSection(),
+                  const SizedBox(height: 16),
+                  _buildLocationSection(),
                   const SizedBox(height: 16),
                   _buildCategorySection(),
                   const SizedBox(height: 16),
@@ -686,6 +729,83 @@ class _DoorStepServicePageState extends State<DoorStepServicePage> {
             ),
           ),
         ],
+      ],
+    );
+  }
+
+  Widget _buildLocationSection() {
+    final hasLocation = _hasServiceLocation;
+    final label = hasLocation
+        ? _serviceAddress
+        : 'Tap to select your doorstep service location on the map';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Text(
+          'Service Location',
+          style: AppTypography.quicksand(
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 10),
+        InkWell(
+          onTap: _openMapPicker,
+          borderRadius: BorderRadius.circular(14),
+          child: _SoftCard(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryTint,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.map_outlined,
+                    color: AppColors.primary,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(
+                        hasLocation ? 'Location selected' : 'Select on map',
+                        style: AppTypography.quicksand(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.grey800,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        label,
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTypography.dmSans(
+                          fontSize: 13,
+                          color: hasLocation
+                              ? AppColors.grey700
+                              : AppColors.grey600,
+                          height: 1.35,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(
+                  Icons.chevron_right,
+                  color: AppColors.grey500,
+                ),
+              ],
+            ),
+          ),
+        ),
       ],
     );
   }

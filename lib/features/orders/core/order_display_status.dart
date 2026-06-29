@@ -16,10 +16,6 @@ String resolveOrderDisplayStatus({
   required String status,
   required String paymentMode,
 }) {
-  final isDoorstep = isDoorstepServiceTypeLabel(serviceType);
-  if (!isDoorstep) {
-    return status;
-  }
   final normalizedStatus = status.trim();
   if (normalizedStatus == 'Completed' ||
       normalizedStatus == 'Cancel Requested') {
@@ -29,7 +25,8 @@ String resolveOrderDisplayStatus({
       normalizedStatus.toLowerCase() == 'not completed') {
     return 'Paid';
   }
-  if (normalizedStatus.toLowerCase() == 'paid') {
+  final isDoorstep = isDoorstepServiceTypeLabel(serviceType);
+  if (isDoorstep && normalizedStatus.toLowerCase() == 'paid') {
     return 'Paid';
   }
   return normalizedStatus.isEmpty ? 'Not Completed' : normalizedStatus;

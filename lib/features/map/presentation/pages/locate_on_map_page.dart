@@ -25,7 +25,11 @@ class _LocateOnMapPageState extends State<LocateOnMapPage> {
   @override
   void initState() {
     super.initState();
-    _bootstrap();
+  }
+
+  Future<void> _onMapCreated(GoogleMapController controller) async {
+    _mapController = controller;
+    await _bootstrap();
   }
 
   Future<void> _bootstrap() async {
@@ -122,7 +126,7 @@ class _LocateOnMapPageState extends State<LocateOnMapPage> {
               target: _position,
               zoom: 15,
             ),
-            onMapCreated: (controller) => _mapController = controller,
+            onMapCreated: _onMapCreated,
             markers: <Marker>{
               Marker(
                 markerId: const MarkerId('pick'),
