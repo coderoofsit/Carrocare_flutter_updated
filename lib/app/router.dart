@@ -47,9 +47,13 @@ import 'package:carrocare_flutter/features/orders/presentation/pages/wash_calend
 import 'package:carrocare_flutter/features/profile/presentation/pages/main_profile_page.dart';
 import 'package:carrocare_flutter/features/profile/presentation/pages/profile_page.dart';
 import 'package:carrocare_flutter/features/support/domain/entities/content_web_args.dart';
+import 'package:carrocare_flutter/features/support/presentation/pages/about_us_page.dart';
 import 'package:carrocare_flutter/features/support/presentation/pages/contact_us_page.dart';
-import 'package:carrocare_flutter/features/support/presentation/pages/help_and_support_page.dart';
 import 'package:carrocare_flutter/features/support/presentation/pages/content_webview_page.dart';
+import 'package:carrocare_flutter/features/support/presentation/pages/faq_page.dart';
+import 'package:carrocare_flutter/features/support/presentation/pages/help_and_support_page.dart';
+import 'package:carrocare_flutter/features/support/presentation/pages/privacy_policy_page.dart';
+import 'package:carrocare_flutter/features/support/presentation/pages/terms_and_conditions_page.dart';
 import 'package:carrocare_flutter/features/account/presentation/pages/delete_account_page.dart';
 import 'package:carrocare_flutter/features/notifications/presentation/pages/notification_page.dart';
 import 'package:carrocare_flutter/features/reminders/presentation/pages/my_reminder_page.dart';
@@ -222,6 +226,22 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/contact-us',
       builder: (context, state) => const ContactUsPage(),
+    ),
+    GoRoute(
+      path: '/about-us',
+      builder: (context, state) => const AboutUsPage(),
+    ),
+    GoRoute(
+      path: '/faq',
+      builder: (context, state) => const FaqPage(),
+    ),
+    GoRoute(
+      path: '/privacy-policy',
+      builder: (context, state) => const PrivacyPolicyPage(),
+    ),
+    GoRoute(
+      path: '/terms-and-conditions',
+      builder: (context, state) => const TermsAndConditionsPage(),
     ),
     GoRoute(
       path: '/payment-option',

@@ -490,11 +490,29 @@ class _OrderCard extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 12),
-              _infoBlock(
-                label: 'Service type',
-                value: order.serviceType,
-                labelStyle: labelStyle,
-                valueStyle: valueStyle,
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Expanded(
+                    child: _infoBlock(
+                      label: 'Service type',
+                      value: _displayValue(order.serviceType),
+                      labelStyle: labelStyle,
+                      valueStyle: valueStyle,
+                      maxLines: 2,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _infoBlock(
+                      label: 'Package type',
+                      value: _displayValue(order.packageType),
+                      labelStyle: labelStyle,
+                      valueStyle: valueStyle,
+                      maxLines: 2,
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 12),
               Row(

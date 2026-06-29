@@ -5,7 +5,6 @@ import 'package:carrocare_flutter/features/auth/data/datasources/auth_remote_dat
 import 'package:carrocare_flutter/core/theme/app_colors.dart';
 import 'package:carrocare_flutter/core/widgets/carro_care_scaffold.dart';
 import 'package:carrocare_flutter/features/checkout/data/local/cart_local_storage.dart';
-import 'package:carrocare_flutter/features/support/domain/entities/content_web_args.dart';
 import 'package:carrocare_flutter/features/support/presentation/utils/profile_actions.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -157,35 +156,17 @@ class _MainProfilePageState extends State<MainProfilePage> {
                             _MenuRow(
                               iconAsset: 'assets/vectors/ic_about_24.svg',
                               title: 'About Us',
-                              onTap: () => context.push(
-                                '/content-web',
-                                extra: ContentWebArgs(
-                                  title: 'About Us',
-                                  url: AppUrls.aboutUs,
-                                ),
-                              ),
+                              onTap: () => context.push('/about-us'),
                             ),
                             _MenuRow(
                               iconAsset: 'assets/vectors/ic_faqt_24.svg',
                               title: 'FAQ',
-                              onTap: () => context.push(
-                                '/content-web',
-                                extra: ContentWebArgs(
-                                  title: 'FAQ',
-                                  url: AppUrls.faq,
-                                ),
-                              ),
+                              onTap: () => context.push('/faq'),
                             ),
                             _MenuRow(
                               iconAsset: 'assets/vectors/ic_terms_24.svg',
                               title: 'Terms and Conditions',
-                              onTap: () => context.push(
-                                '/content-web',
-                                extra: ContentWebArgs(
-                                  title: 'Terms And Conditions',
-                                  url: AppUrls.termsAndConditions,
-                                ),
-                              ),
+                              onTap: () => context.push('/terms-and-conditions'),
                             ),
                             _MenuRow(
                               iconAsset: 'assets/vectors/ic_contact_24.svg',
@@ -195,13 +176,7 @@ class _MainProfilePageState extends State<MainProfilePage> {
                             _MenuRow(
                               iconAsset: 'assets/vectors/ic_privacy_24.svg',
                               title: 'Privacy Policy',
-                              onTap: () => context.push(
-                                '/content-web',
-                                extra: ContentWebArgs(
-                                  title: 'Privacy Policy',
-                                  url: AppUrls.privacyPolicy,
-                                ),
-                              ),
+                              onTap: () => context.push('/privacy-policy'),
                             ),
                             _MenuRow(
                               iconAsset: 'assets/vectors/ic_share_24.svg',

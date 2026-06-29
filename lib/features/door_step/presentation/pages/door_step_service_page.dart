@@ -18,8 +18,10 @@ import 'package:carrocare_flutter/features/internal_wash/presentation/constants/
 import 'package:carrocare_flutter/features/vehicles/data/repositories/vehicles_repository.dart';
 import 'package:carrocare_flutter/features/vehicles/domain/entities/vehicle_item.dart';
 import 'package:flutter/material.dart';
+import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -92,6 +94,7 @@ class _DoorStepServicePageState extends State<DoorStepServicePage> {
       DoorStepRemoteDataSource(sl<ApiClient>());
   final VehiclesRepository _vehiclesRepository = sl<VehiclesRepository>();
   final RazorpayCheckoutService _razorpay = RazorpayCheckoutService();
+  GoogleMapController? _mapController;
 
   bool _placingOrder = false;
   bool _loadingVehicles = true;
@@ -123,9 +126,22 @@ class _DoorStepServicePageState extends State<DoorStepServicePage> {
 
   @override
   void dispose() {
+    _mapController?.dispose();
     _razorpay.dispose();
     super.dispose();
   }
+
+  LatLng get _mapCenter => LatLng(
+        _latitude ?? 13.085274,
+        _longitude ?? 80.170185,
+      );
+
+  Set<Marker> get _mapMarkers => <Marker>{
+        Marker(
+          markerId: const MarkerId('doorstep_location'),
+          position: _mapCenter,
+        ),
+      };
 
   List<DoorstepPackage> get _visiblePackages {
     if (_selectedCatalog == DoorstepCatalogCategory.all) {
@@ -179,21 +195,79 @@ class _DoorStepServicePageState extends State<DoorStepServicePage> {
     );
   }
 
+  void _navigateToOrdersAfterSuccess(String message) {
+    if (!mounted) return;
+    _showMessage(message);
+    goToPaymentSuccess(GoRouter.of(context));
+  }
+
   Future<void> _initLocation() async {
+    await _moveToCurrentLocation();
+  }
+
+  Future<void> _moveToCurrentLocation() async {
     try {
-      final permission = await Geolocator.checkPermission();
+      var permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
-        await Geolocator.requestPermission();
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        return;
       }
       final position = await Geolocator.getCurrentPosition();
       if (!mounted) return;
+      final latLng = LatLng(position.latitude, position.longitude);
       setState(() {
-        _latitude = position.latitude;
-        _longitude = position.longitude;
-        _currentLocationLabel =
-            '${position.latitude.toStringAsFixed(5)}, ${position.longitude.toStringAsFixed(5)}';
+        _latitude = latLng.latitude;
+        _longitude = latLng.longitude;
       });
+      _mapController?.animateCamera(CameraUpdate.newLatLng(latLng));
+      await _reverseGeocode(latLng);
     } catch (_) {}
+  }
+
+  Future<void> _reverseGeocode(LatLng latLng) async {
+    try {
+      final places = await placemarkFromCoordinates(
+        latLng.latitude,
+        latLng.longitude,
+      );
+      if (!mounted) return;
+      if (places.isNotEmpty) {
+        final place = places.first;
+        final parts = <String>[
+          if ((place.street ?? '').isNotEmpty) place.street!,
+          if ((place.subLocality ?? '').isNotEmpty) place.subLocality!,
+          if ((place.locality ?? '').isNotEmpty) place.locality!,
+          if ((place.administrativeArea ?? '').isNotEmpty)
+            place.administrativeArea!,
+          if ((place.postalCode ?? '').isNotEmpty) place.postalCode!,
+        ];
+        setState(() {
+          _currentLocationLabel = parts.join(', ');
+        });
+      } else {
+        setState(() {
+          _currentLocationLabel =
+              '${latLng.latitude.toStringAsFixed(5)}, ${latLng.longitude.toStringAsFixed(5)}';
+        });
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _currentLocationLabel =
+            '${latLng.latitude.toStringAsFixed(5)}, ${latLng.longitude.toStringAsFixed(5)}';
+      });
+    }
+  }
+
+  Future<void> _onMapTap(LatLng latLng) async {
+    setState(() {
+      _latitude = latLng.latitude;
+      _longitude = latLng.longitude;
+    });
+    await _reverseGeocode(latLng);
   }
 
   Future<void> _loadVehicles({bool isRefresh = false}) async {
@@ -374,7 +448,7 @@ class _DoorStepServicePageState extends State<DoorStepServicePage> {
           longitude: orderFields['longitude']!,
         );
         if (!mounted) return;
-        _showMessage(_orderMessage(data));
+        _navigateToOrdersAfterSuccess(_orderMessage(data));
         return;
       }
 
@@ -386,7 +460,7 @@ class _DoorStepServicePageState extends State<DoorStepServicePage> {
         inclusiveTotal: inclusiveTotal,
         gstPercent: gstPercent,
       );
-      final router = GoRouter.of(context);
+      String? successMessage;
       final confirmed = await showRazorpayPriceSummarySheet(
         context: context,
         summary: priceSummary,
@@ -419,12 +493,14 @@ class _DoorStepServicePageState extends State<DoorStepServicePage> {
             latitude: orderFields['latitude']!,
             longitude: orderFields['longitude']!,
           );
-          _orderMessage(data);
+          successMessage = _orderMessage(data);
         },
       );
       if (!mounted) return;
       if (confirmed) {
-        goToPaymentSuccess(router);
+        _navigateToOrdersAfterSuccess(
+          successMessage ?? 'Order placed successfully',
+        );
       }
     } catch (e) {
       if (!mounted) return;
@@ -458,6 +534,8 @@ class _DoorStepServicePageState extends State<DoorStepServicePage> {
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.fromLTRB(14, 10, 14, 20),
                 children: <Widget>[
+                  _buildMapSection(),
+                  const SizedBox(height: 16),
                   _buildVehicleSection(),
                   const SizedBox(height: 16),
                   _buildCategorySection(),
@@ -548,6 +626,99 @@ class _DoorStepServicePageState extends State<DoorStepServicePage> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildMapSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Text(
+          'Service Location',
+          style: AppTypography.quicksand(
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 8),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(14),
+          child: SizedBox(
+            height: 200,
+            width: double.infinity,
+            child: Stack(
+              children: <Widget>[
+                GoogleMap(
+                  initialCameraPosition: CameraPosition(
+                    target: _mapCenter,
+                    zoom: 14,
+                  ),
+                  onMapCreated: (controller) => _mapController = controller,
+                  markers: _mapMarkers,
+                  onTap: _onMapTap,
+                  myLocationEnabled: true,
+                  myLocationButtonEnabled: false,
+                  zoomControlsEnabled: false,
+                  compassEnabled: false,
+                  mapToolbarEnabled: false,
+                ),
+                Positioned(
+                  top: 10,
+                  left: 10,
+                  right: 52,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.white.withValues(alpha: 0.95),
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: const <BoxShadow>[
+                        BoxShadow(
+                          color: AppColors.shadowLight,
+                          blurRadius: 8,
+                          offset: Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Text(
+                      _currentLocationLabel.isEmpty
+                          ? 'Tap map or use GPS to set location'
+                          : _currentLocationLabel,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTypography.dmSans(
+                        fontSize: 12,
+                        color: AppColors.grey700,
+                        height: 1.3,
+                      ),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: Material(
+                    color: AppColors.white,
+                    shape: const CircleBorder(),
+                    elevation: 2,
+                    child: IconButton(
+                      onPressed: _moveToCurrentLocation,
+                      icon: const Icon(
+                        Icons.my_location,
+                        color: AppColors.primary,
+                        size: 22,
+                      ),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 
