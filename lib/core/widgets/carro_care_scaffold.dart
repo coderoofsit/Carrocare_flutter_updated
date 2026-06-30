@@ -16,6 +16,8 @@ class CarroCareScaffold extends StatelessWidget {
     this.subtitle,
     this.floatingActionButton,
     this.backgroundDecoration,
+    this.leadingWithContrastBackground = false,
+    this.appBarElevation = 0,
   });
 
   final String title;
@@ -29,6 +31,8 @@ class CarroCareScaffold extends StatelessWidget {
   final String? subtitle;
   final Widget? floatingActionButton;
   final Decoration? backgroundDecoration;
+  final bool leadingWithContrastBackground;
+  final double appBarElevation;
 
   @override
   Widget build(BuildContext context) {
@@ -50,6 +54,8 @@ class CarroCareScaffold extends StatelessWidget {
                 transparent: appBarTransparent,
                 showBorder: showAppBarBorder,
                 subtitle: subtitle,
+                leadingWithContrastBackground: leadingWithContrastBackground,
+                elevation: appBarElevation,
               ),
               Expanded(child: body),
               if (footer != null) footer!,

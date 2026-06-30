@@ -164,6 +164,9 @@ class VehiclesRepository {  VehiclesRepository(this._remote);
     required String model,
     required String vehicleNo,
     required String color,
+    required String apartmentName,
+    required String latitude,
+    required String longitude,
     required String customerId,
     required String token,
   }) async {
@@ -174,6 +177,9 @@ class VehiclesRepository {  VehiclesRepository(this._remote);
       model: model,
       vehicleNo: vehicleNo,
       color: color,
+      apartmentName: apartmentName,
+      latitude: latitude,
+      longitude: longitude,
       customerId: customerId,
       token: token,
     );

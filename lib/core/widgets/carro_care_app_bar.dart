@@ -16,6 +16,8 @@ class CarroCareAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.transparent = false,
     this.showBorder = true,
     this.subtitle,
+    this.leadingWithContrastBackground = false,
+    this.elevation = 0,
   });
 
   final String title;
@@ -26,6 +28,8 @@ class CarroCareAppBar extends StatelessWidget implements PreferredSizeWidget {
   final bool transparent;
   final bool showBorder;
   final String? subtitle;
+  final bool leadingWithContrastBackground;
+  final double elevation;
 
   @override
   Size get preferredSize => Size.fromHeight(
@@ -37,6 +41,8 @@ class CarroCareAppBar extends StatelessWidget implements PreferredSizeWidget {
     final bg = transparent ? Colors.transparent : backgroundColor;
     return Material(
       color: bg,
+      elevation: transparent ? 0 : elevation,
+      shadowColor: AppColors.shadowMedium,
       child: SafeArea(
         bottom: false,
         child: Container(
@@ -59,6 +65,7 @@ class CarroCareAppBar extends StatelessWidget implements PreferredSizeWidget {
                       _LeadingButton(
                         leading: leading,
                         onTap: onLeadingTap,
+                        withContrastBackground: leadingWithContrastBackground,
                       ),
                       Expanded(
                         child: Column(
@@ -110,10 +117,12 @@ class _LeadingButton extends StatelessWidget {
   const _LeadingButton({
     required this.leading,
     this.onTap,
+    this.withContrastBackground = false,
   });
 
   final CarroCareAppBarLeading leading;
   final VoidCallback? onTap;
+  final bool withContrastBackground;
 
   @override
   Widget build(BuildContext context) {
@@ -125,18 +134,45 @@ class _LeadingButton extends StatelessWidget {
         ? 'assets/images/back.png'
         : 'assets/images/menu.png';
 
+    final icon = Image.asset(
+      asset,
+      color: AppColors.grey800,
+      colorBlendMode: BlendMode.srcIn,
+    );
+
+    if (!withContrastBackground) {
+      return GestureDetector(
+        onTap: onTap,
+        child: Container(
+          width: 40,
+          height: 40,
+          margin: const EdgeInsets.only(right: 4),
+          padding: const EdgeInsets.all(8),
+          child: icon,
+        ),
+      );
+    }
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
         width: 40,
         height: 40,
         margin: const EdgeInsets.only(right: 4),
-        padding: const EdgeInsets.all(8),
-        child: Image.asset(
-          asset,
-          color: AppColors.grey800,
-          colorBlendMode: BlendMode.srcIn,
+        decoration: BoxDecoration(
+          color: AppColors.white,
+          shape: BoxShape.circle,
+          border: Border.all(color: AppColors.grey200),
+          boxShadow: const <BoxShadow>[
+            BoxShadow(
+              color: AppColors.shadowLight,
+              blurRadius: 8,
+              offset: Offset(0, 2),
+            ),
+          ],
         ),
+        padding: const EdgeInsets.all(8),
+        child: icon,
       ),
     );
   }

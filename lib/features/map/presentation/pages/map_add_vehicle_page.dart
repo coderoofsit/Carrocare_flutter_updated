@@ -74,7 +74,14 @@ class _MapAddVehiclePageState extends State<MapAddVehiclePage> {
   Future<void> _openLocateMap() async {
     final result = await context.push<MapLocationResult>('/locate-on-map');
     if (result != null && mounted) {
-      setState(() => _address.text = result.address);
+      setState(() {
+        _address.text = result.address;
+      });
+      await _store.savePick(
+        address: result.address,
+        latitude: result.latitude,
+        longitude: result.longitude,
+      );
     } else {
       await _loadAddress();
     }
@@ -90,6 +97,19 @@ class _MapAddVehiclePageState extends State<MapAddVehiclePage> {
       );
       return;
     }
+
+    final latitude = await _store.readLatitude();
+    final longitude = await _store.readLongitude();
+    if (!mounted) return;
+    if (latitude == null || longitude == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select address on map and tap Update location'),
+        ),
+      );
+      return;
+    }
+
     final parts = _makeModel.split('-');
     final make = parts.isNotEmpty ? parts.first : '';
     final model = parts.length > 1 ? parts.sublist(1).join('-') : '';
@@ -103,6 +123,9 @@ class _MapAddVehiclePageState extends State<MapAddVehiclePage> {
         model: model,
         vehicleNo: _vehicleNo.text.trim(),
         color: _color.text.trim(),
+        apartmentName: _address.text.trim(),
+        latitude: latitude.toString(),
+        longitude: longitude.toString(),
         customerId: prefs.getString('customer_id') ?? '',
         token: prefs.getString('token') ?? '',
       );
@@ -168,6 +191,8 @@ class _MapAddVehiclePageState extends State<MapAddVehiclePage> {
     return CarroCareScaffold(
       title: 'Add Vehicle',
       onBack: () => context.pop(),
+      leadingWithContrastBackground: true,
+      appBarElevation: 3,
       body: _loading
           ? const CarroCareLoadingOverlay()
           : SingleChildScrollView(
@@ -196,7 +221,7 @@ class _MapAddVehiclePageState extends State<MapAddVehiclePage> {
                             ),
                             _selectField(
                               label: _address.text.isEmpty
-                                  ? 'Address'
+                                  ? 'Tap to search and select address on map'
                                   : _address.text,
                               onTap: _openLocateMap,
                               maxLines: 3,
@@ -272,7 +297,8 @@ class _MapAddVehiclePageState extends State<MapAddVehiclePage> {
   }) {
     final isPlaceholder = label == 'Vehicle Category' ||
         label == 'Make / Model' ||
-        label == 'Address';
+        label == 'Address' ||
+        label == 'Tap to search and select address on map';
     return InkWell(
       onTap: onTap,
       child: Container(

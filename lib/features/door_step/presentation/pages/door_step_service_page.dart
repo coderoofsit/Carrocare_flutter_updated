@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:carrocare_flutter/core/di/injection.dart';
+import 'package:carrocare_flutter/core/maps/google_places_service.dart';
 import 'package:carrocare_flutter/core/network/api_client.dart';
 import 'package:carrocare_flutter/core/theme/app_colors.dart';
 import 'package:carrocare_flutter/core/theme/app_gradients.dart';
@@ -94,7 +97,11 @@ class _DoorStepServicePageState extends State<DoorStepServicePage> {
       DoorStepRemoteDataSource(sl<ApiClient>());
   final VehiclesRepository _vehiclesRepository = sl<VehiclesRepository>();
   final RazorpayCheckoutService _razorpay = RazorpayCheckoutService();
+  final GooglePlacesService _placesService = GooglePlacesService();
+  final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocus = FocusNode();
   GoogleMapController? _mapController;
+  Timer? _searchDebounce;
 
   bool _placingOrder = false;
   bool _loadingVehicles = true;
@@ -115,17 +122,28 @@ class _DoorStepServicePageState extends State<DoorStepServicePage> {
   double? _latitude;
   double? _longitude;
   String _currentLocationLabel = '';
+  List<PlaceSuggestion> _searchSuggestions = <PlaceSuggestion>[];
+  bool _searchingPlaces = false;
 
   @override
   void initState() {
     super.initState();
+    _searchController.addListener(_onSearchFieldChanged);
     _initLocation();
     _loadVehicles();
     _loadPackages();
   }
 
+  void _onSearchFieldChanged() {
+    if (mounted) setState(() {});
+  }
+
   @override
   void dispose() {
+    _searchDebounce?.cancel();
+    _searchController.removeListener(_onSearchFieldChanged);
+    _searchController.dispose();
+    _searchFocus.dispose();
     _mapController?.dispose();
     _razorpay.dispose();
     super.dispose();
@@ -201,6 +219,81 @@ class _DoorStepServicePageState extends State<DoorStepServicePage> {
     goToPaymentSuccess(GoRouter.of(context));
   }
 
+  void _syncSearchField(String label) {
+    if (!_searchFocus.hasFocus) {
+      _searchController.text = label;
+    }
+  }
+
+  void _onSearchChanged(String query) {
+    _searchDebounce?.cancel();
+    final trimmed = query.trim();
+    if (trimmed.length < 2) {
+      setState(() {
+        _searchSuggestions = <PlaceSuggestion>[];
+        _searchingPlaces = false;
+      });
+      return;
+    }
+
+    _searchDebounce = Timer(const Duration(milliseconds: 350), () {
+      _fetchPlaceSuggestions(trimmed);
+    });
+  }
+
+  Future<void> _fetchPlaceSuggestions(String query) async {
+    setState(() => _searchingPlaces = true);
+    try {
+      final results = await _placesService.autocomplete(
+        query,
+        bias: _mapCenter,
+      );
+      if (!mounted) return;
+      setState(() {
+        _searchSuggestions = results;
+        _searchingPlaces = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _searchSuggestions = <PlaceSuggestion>[];
+        _searchingPlaces = false;
+      });
+    }
+  }
+
+  Future<void> _selectPlaceSuggestion(PlaceSuggestion suggestion) async {
+    _searchFocus.unfocus();
+    setState(() {
+      _searchSuggestions = <PlaceSuggestion>[];
+      _searchController.text = suggestion.description;
+    });
+
+    final details = await _placesService.placeDetails(suggestion.placeId);
+    if (!mounted || details == null) return;
+
+    final latLng = details.latLng;
+    setState(() {
+      _latitude = latLng.latitude;
+      _longitude = latLng.longitude;
+      _currentLocationLabel = details.address.isNotEmpty
+          ? details.address
+          : suggestion.description;
+      _searchController.text = _currentLocationLabel;
+    });
+    await _mapController?.animateCamera(
+      CameraUpdate.newLatLngZoom(latLng, 15),
+    );
+  }
+
+  void _clearSearch() {
+    _searchController.clear();
+    setState(() {
+      _searchSuggestions = <PlaceSuggestion>[];
+      _searchingPlaces = false;
+    });
+  }
+
   Future<void> _initLocation() async {
     await _moveToCurrentLocation();
   }
@@ -247,11 +340,13 @@ class _DoorStepServicePageState extends State<DoorStepServicePage> {
         setState(() {
           _currentLocationLabel = parts.join(', ');
         });
+        _syncSearchField(_currentLocationLabel);
       } else {
         setState(() {
           _currentLocationLabel =
               '${latLng.latitude.toStringAsFixed(5)}, ${latLng.longitude.toStringAsFixed(5)}';
         });
+        _syncSearchField(_currentLocationLabel);
       }
     } catch (_) {
       if (!mounted) return;
@@ -259,10 +354,14 @@ class _DoorStepServicePageState extends State<DoorStepServicePage> {
         _currentLocationLabel =
             '${latLng.latitude.toStringAsFixed(5)}, ${latLng.longitude.toStringAsFixed(5)}';
       });
+      _syncSearchField(_currentLocationLabel);
     }
   }
 
   Future<void> _onMapTap(LatLng latLng) async {
+    setState(() {
+      _searchSuggestions = <PlaceSuggestion>[];
+    });
     setState(() {
       _latitude = latLng.latitude;
       _longitude = latLng.longitude;
@@ -520,6 +619,8 @@ class _DoorStepServicePageState extends State<DoorStepServicePage> {
           ? 'Select a vehicle to continue'
           : _vehicleDisplayName(_selectedVehicle!),
       onBack: () => context.pop(),
+      leadingWithContrastBackground: true,
+      appBarElevation: 3,
       backgroundDecoration: const BoxDecoration(
         gradient: AppGradients.washScreenBackground,
       ),
@@ -641,10 +742,146 @@ class _DoorStepServicePageState extends State<DoorStepServicePage> {
           ),
         ),
         const SizedBox(height: 8),
+        Material(
+          elevation: 2,
+          shadowColor: AppColors.shadowLight,
+          borderRadius: BorderRadius.circular(12),
+          color: AppColors.white,
+          child: TextField(
+            controller: _searchController,
+            focusNode: _searchFocus,
+            onChanged: _onSearchChanged,
+            textInputAction: TextInputAction.search,
+            onSubmitted: (value) {
+              if (_searchSuggestions.isNotEmpty) {
+                _selectPlaceSuggestion(_searchSuggestions.first);
+              } else if (value.trim().length >= 2) {
+                _fetchPlaceSuggestions(value.trim());
+              }
+            },
+            style: AppTypography.dmSans(
+              fontSize: 14,
+              color: AppColors.grey800,
+            ),
+            decoration: InputDecoration(
+              hintText: 'Search area, street, or place name',
+              hintStyle: AppTypography.dmSans(
+                fontSize: 14,
+                color: AppColors.grey500,
+              ),
+              prefixIcon: const Icon(
+                Icons.search,
+                color: AppColors.primary,
+                size: 22,
+              ),
+              suffixIcon: _searchingPlaces
+                  ? const Padding(
+                      padding: EdgeInsets.all(12),
+                      child: SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    )
+                  : (_searchController.text.isNotEmpty
+                      ? IconButton(
+                          onPressed: _clearSearch,
+                          icon: const Icon(
+                            Icons.close,
+                            color: AppColors.grey600,
+                            size: 20,
+                          ),
+                        )
+                      : null),
+              filled: true,
+              fillColor: AppColors.white,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 14,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: AppColors.grey200),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: AppColors.grey200),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: AppColors.primary),
+              ),
+            ),
+          ),
+        ),
+        if (_searchSuggestions.isNotEmpty)
+          Container(
+            margin: const EdgeInsets.only(top: 6),
+            constraints: const BoxConstraints(maxHeight: 180),
+            decoration: BoxDecoration(
+              color: AppColors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.grey200),
+              boxShadow: const <BoxShadow>[
+                BoxShadow(
+                  color: AppColors.shadowLight,
+                  blurRadius: 8,
+                  offset: Offset(0, 2),
+                ),
+              ],
+            ),
+            child: ListView.separated(
+              shrinkWrap: true,
+              padding: EdgeInsets.zero,
+              itemCount: _searchSuggestions.length,
+              separatorBuilder: (_, __) => const Divider(
+                height: 1,
+                color: AppColors.grey200,
+              ),
+              itemBuilder: (context, index) {
+                final suggestion = _searchSuggestions[index];
+                return ListTile(
+                  dense: true,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 2,
+                  ),
+                  leading: const Icon(
+                    Icons.place_outlined,
+                    color: AppColors.primary,
+                    size: 20,
+                  ),
+                  title: Text(
+                    suggestion.mainText,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTypography.dmSans(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.grey800,
+                    ),
+                  ),
+                  subtitle: suggestion.secondaryText.isEmpty
+                      ? null
+                      : Text(
+                          suggestion.secondaryText,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTypography.dmSans(
+                            fontSize: 12,
+                            color: AppColors.grey600,
+                          ),
+                        ),
+                  onTap: () => _selectPlaceSuggestion(suggestion),
+                );
+              },
+            ),
+          ),
+        const SizedBox(height: 10),
         ClipRRect(
           borderRadius: BorderRadius.circular(14),
           child: SizedBox(
-            height: 200,
+            height: 220,
             width: double.infinity,
             child: Stack(
               children: <Widget>[
@@ -663,16 +900,16 @@ class _DoorStepServicePageState extends State<DoorStepServicePage> {
                   mapToolbarEnabled: false,
                 ),
                 Positioned(
-                  top: 10,
                   left: 10,
                   right: 52,
+                  bottom: 10,
                   child: Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 12,
                       vertical: 10,
                     ),
                     decoration: BoxDecoration(
-                      color: AppColors.white.withValues(alpha: 0.95),
+                      color: AppColors.white.withValues(alpha: 0.96),
                       borderRadius: BorderRadius.circular(12),
                       boxShadow: const <BoxShadow>[
                         BoxShadow(
