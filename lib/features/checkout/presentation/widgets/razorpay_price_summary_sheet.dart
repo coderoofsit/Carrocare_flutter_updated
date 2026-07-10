@@ -12,6 +12,12 @@ Future<bool> showRazorpayPriceSummarySheet({
   required BuildContext context,
   required RazorpayPriceSummary summary,
   Future<void> Function()? onConfirmPay,
+  bool showSubscriptionToggle = false,
+  bool subscriptionToggleEnabled = false,
+  String subscriptionToggleLabel = 'Auto-renew',
+  String subscriptionToggleDisabledReason = '',
+  bool initialSubscriptionToggleValue = false,
+  ValueChanged<bool>? onSubscriptionToggleChanged,
 }) async {
   final result = await showModalBottomSheet<bool>(
     context: context,
@@ -21,6 +27,12 @@ Future<bool> showRazorpayPriceSummarySheet({
       return _RazorpayPriceSummarySheet(
         summary: summary,
         onConfirmPay: onConfirmPay,
+        showSubscriptionToggle: showSubscriptionToggle,
+        subscriptionToggleEnabled: subscriptionToggleEnabled,
+        subscriptionToggleLabel: subscriptionToggleLabel,
+        subscriptionToggleDisabledReason: subscriptionToggleDisabledReason,
+        initialSubscriptionToggleValue: initialSubscriptionToggleValue,
+        onSubscriptionToggleChanged: onSubscriptionToggleChanged,
       );
     },
   );
@@ -31,10 +43,22 @@ class _RazorpayPriceSummarySheet extends StatefulWidget {
   const _RazorpayPriceSummarySheet({
     required this.summary,
     this.onConfirmPay,
+    this.showSubscriptionToggle = false,
+    this.subscriptionToggleEnabled = false,
+    this.subscriptionToggleLabel = 'Auto-renew',
+    this.subscriptionToggleDisabledReason = '',
+    this.initialSubscriptionToggleValue = false,
+    this.onSubscriptionToggleChanged,
   });
 
   final RazorpayPriceSummary summary;
   final Future<void> Function()? onConfirmPay;
+  final bool showSubscriptionToggle;
+  final bool subscriptionToggleEnabled;
+  final String subscriptionToggleLabel;
+  final String subscriptionToggleDisabledReason;
+  final bool initialSubscriptionToggleValue;
+  final ValueChanged<bool>? onSubscriptionToggleChanged;
 
   @override
   State<_RazorpayPriceSummarySheet> createState() =>
@@ -44,6 +68,15 @@ class _RazorpayPriceSummarySheet extends StatefulWidget {
 class _RazorpayPriceSummarySheetState
     extends State<_RazorpayPriceSummarySheet> {
   bool _processing = false;
+  late bool _subscriptionToggleValue;
+
+  @override
+  void initState() {
+    super.initState();
+    _subscriptionToggleValue = widget.subscriptionToggleEnabled
+        ? widget.initialSubscriptionToggleValue
+        : false;
+  }
 
   Future<void> _onPayPressed() async {
     if (_processing) return;
@@ -110,14 +143,62 @@ class _RazorpayPriceSummarySheetState
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
-                Text(
-                  'Payment Summary',
-                  style: AppTypography.quicksand(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.grey800,
-                  ),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Expanded(
+                      child: Text(
+                        'Payment Summary',
+                        style: AppTypography.quicksand(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.grey800,
+                        ),
+                      ),
+                    ),
+                    if (widget.showSubscriptionToggle)
+                      Padding(
+                        padding: const EdgeInsets.only(left: 12),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: <Widget>[
+                            Text(
+                              widget.subscriptionToggleLabel,
+                              style: AppTypography.dmSans(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: widget.subscriptionToggleEnabled
+                                    ? AppColors.grey800
+                                    : AppColors.grey500,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Switch(
+                              value: _subscriptionToggleValue,
+                              onChanged: widget.subscriptionToggleEnabled
+                                  ? (value) {
+                                      setState(() => _subscriptionToggleValue = value);
+                                      widget.onSubscriptionToggleChanged?.call(value);
+                                    }
+                                  : null,
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
                 ),
+                if (widget.showSubscriptionToggle &&
+                    !widget.subscriptionToggleEnabled &&
+                    widget.subscriptionToggleDisabledReason.trim().isNotEmpty) ...<Widget>[
+                  const SizedBox(height: 6),
+                  Text(
+                    widget.subscriptionToggleDisabledReason.trim(),
+                    style: AppTypography.dmSans(
+                      fontSize: 12,
+                      color: AppColors.grey600,
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 4),
                 Text(
                   widget.summary.serviceLabel,

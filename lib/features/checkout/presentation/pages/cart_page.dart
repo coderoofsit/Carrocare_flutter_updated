@@ -4,6 +4,7 @@ import 'package:carrocare_flutter/core/theme/app_typography.dart';
 import 'package:carrocare_flutter/core/widgets/carro_care_scaffold.dart';
 import 'package:carrocare_flutter/core/widgets/dotted_loader.dart';
 import 'package:carrocare_flutter/features/checkout/core/autopay_checkout_helper.dart';
+import 'package:carrocare_flutter/features/checkout/core/cart_subscription_toggle_helper.dart';
 import 'package:carrocare_flutter/features/checkout/core/cart_display_helper.dart';
 import 'package:carrocare_flutter/features/checkout/core/checkout_block_reason.dart';
 import 'package:carrocare_flutter/features/checkout/core/checkout_gst_config.dart';
@@ -15,6 +16,7 @@ import 'package:carrocare_flutter/features/checkout/core/monthly_subscription_ch
 import 'package:carrocare_flutter/features/checkout/presentation/widgets/autopay_consent_panel.dart';
 import 'package:carrocare_flutter/features/checkout/data/local/cart_local_storage.dart';
 import 'package:carrocare_flutter/features/checkout/domain/entities/cart_item.dart';
+import 'package:carrocare_flutter/features/checkout/domain/entities/convert_subscription_eligibility.dart';
 import 'package:carrocare_flutter/features/checkout/domain/entities/razorpay_price_summary.dart';
 import 'package:carrocare_flutter/features/checkout/domain/repositories/checkout_repository.dart';
 import 'package:carrocare_flutter/features/checkout/presentation/services/checkout_navigation.dart';
@@ -217,44 +219,28 @@ class _CartPageState extends State<CartPage> {
       }
     }
 
+    final subscriptionEvaluation = await _evaluateSubscriptionToggle(repo);
     final router = GoRouter.of(context);
     final priceSummary = _cartPriceSummary();
+    var subscribeFromOneTime = false;
     final confirmed = await showRazorpayPriceSummarySheet(
       context: context,
       summary: priceSummary,
+      showSubscriptionToggle: true,
+      subscriptionToggleEnabled: subscriptionEvaluation.enabled,
+      subscriptionToggleDisabledReason: subscriptionEvaluation.disabledReason,
+      onSubscriptionToggleChanged: (value) => subscribeFromOneTime = value,
       onConfirmPay: () async {
         setState(() => _checkingOut = true);
         try {
-          final keys = await repo.getRazorpayKeys();
-          final total = _cartTotal;
-          final orderId =
-              await repo.createCartRazorpayOrderId(cartTotal: total);
-
-          await repo.createTempOrdersForCart(
-            items: _items,
-            razorpayOrderId: orderId,
-            customerId: _customerId,
-            token: _token,
-            cartTotal: total.toString(),
-          );
-
-          if (!mounted) return;
-
-          final useRecurring =
-              _enableAutopay && AutopayCheckoutHelper.cartItemSupportsAutopay(
-                _items.first,
-              );
-
-          await _razorpay.openAndWait(
-            keyId: keys.keyId,
-            amountPaise: total * 100,
-            description: orderId,
-            email: _email,
-            contact: _mobile,
-            orderId: orderId,
-            enableRecurring: useRecurring && _items.length == 1,
-            priceSummary: priceSummary,
-          );
+          if (subscribeFromOneTime && subscriptionEvaluation.enabled) {
+            await _checkoutCartAsSubscriptions(
+              repo: repo,
+              items: subscriptionEvaluation.items,
+            );
+          } else {
+            await _checkoutOneTimeCart(repo: repo, priceSummary: priceSummary);
+          }
           await _storage.clear();
         } finally {
           if (mounted) setState(() => _checkingOut = false);
@@ -263,6 +249,166 @@ class _CartPageState extends State<CartPage> {
     );
     if (!confirmed || !mounted) return;
     goToPaymentSuccess(router);
+  }
+
+  Future<void> _checkoutOneTimeCart({
+    required CheckoutRepository repo,
+    required RazorpayPriceSummary priceSummary,
+  }) async {
+    final keys = await repo.getRazorpayKeys();
+    final total = _cartTotal;
+    final orderId = await repo.createCartRazorpayOrderId(cartTotal: total);
+
+    await repo.createTempOrdersForCart(
+      items: _items,
+      razorpayOrderId: orderId,
+      customerId: _customerId,
+      token: _token,
+      cartTotal: total.toString(),
+    );
+
+    final useRecurring =
+        _enableAutopay && AutopayCheckoutHelper.cartItemSupportsAutopay(
+          _items.first,
+        );
+
+    await _razorpay.openAndWait(
+      keyId: keys.keyId,
+      amountPaise: total * 100,
+      description: orderId,
+      email: _email,
+      contact: _mobile,
+      orderId: orderId,
+      enableRecurring: useRecurring && _items.length == 1,
+      priceSummary: priceSummary,
+    );
+  }
+
+  Future<_SubscriptionToggleEvaluation> _evaluateSubscriptionToggle(
+    CheckoutRepository repo,
+  ) async {
+    if (_items.isEmpty) {
+      return const _SubscriptionToggleEvaluation(
+        enabled: false,
+        disabledReason: '',
+        items: <_ConvertibleCartItem>[],
+      );
+    }
+
+    final convertibleItems = <_ConvertibleCartItem>[];
+    for (final item in _items) {
+      if (!CartSubscriptionToggleHelper.itemSupportsConversion(item)) {
+        final missingOrderLink =
+            item.action == CheckoutConstants.actionWashOneTime &&
+            item.sourceOrderId.trim().isEmpty;
+        return _SubscriptionToggleEvaluation(
+          enabled: false,
+          disabledReason: missingOrderLink
+              ? 'Remove and re-add this renew item from My Orders so auto-renew eligibility can be verified.'
+              : CartSubscriptionToggleHelper.defaultDisabledReason(),
+          items: const <_ConvertibleCartItem>[],
+        );
+      }
+
+      try {
+        final eligibility = await repo.fetchConvertSubscriptionEligibility(
+          token: _token,
+          customerId: _customerId,
+          orderId: item.sourceOrderId,
+        );
+        convertibleItems.add(
+          _ConvertibleCartItem(item: item, eligibility: eligibility),
+        );
+      } catch (error) {
+        return _SubscriptionToggleEvaluation(
+          enabled: false,
+          disabledReason:
+              'Subscription mode is unavailable: ${_humanizeError(error)}',
+          items: const <_ConvertibleCartItem>[],
+        );
+      }
+    }
+
+    if (convertibleItems.isEmpty) {
+      return _SubscriptionToggleEvaluation(
+        enabled: false,
+        disabledReason: CartSubscriptionToggleHelper.defaultDisabledReason(),
+        items: const <_ConvertibleCartItem>[],
+      );
+    }
+
+    return _SubscriptionToggleEvaluation(
+      enabled: true,
+      disabledReason: '',
+      items: convertibleItems,
+    );
+  }
+
+  Future<void> _checkoutCartAsSubscriptions({
+    required CheckoutRepository repo,
+    required List<_ConvertibleCartItem> items,
+  }) async {
+    var completed = 0;
+    try {
+      for (final entry in items) {
+        final item = entry.item;
+        final eligibility = entry.eligibility;
+        final gstPercent = int.tryParse(item.gstPercent) ?? 0;
+        final planAmount = eligibility.packAmount.isNotEmpty
+            ? eligibility.packAmount
+            : (item.totalAmount.isNotEmpty ? item.totalAmount : item.packAmount);
+        final inclusiveAmount = CheckoutPricing.parseAmount(planAmount);
+        final breakdown = CheckoutPricing.breakdownFromInclusive(
+          inclusiveAmount,
+          gstPercent,
+        );
+        final priceSummary = RazorpayPriceSummary.fromInclusive(
+          serviceLabel: eligibility.serviceType,
+          inclusiveTotal: inclusiveAmount,
+          gstPercent: gstPercent,
+        );
+
+        final session = await repo.createSubscription(
+          token: _token,
+          customerId: _customerId,
+          vehicleId: item.carId,
+          planId: eligibility.planId,
+          sourceOrderId: item.sourceOrderId,
+        );
+
+        await _razorpay.openSubscriptionAndWait(
+          keyId: session.keyId,
+          subscriptionId: session.subscriptionId,
+          description: eligibility.serviceType,
+          email: session.customerEmail,
+          contact: session.customerMobile,
+          priceSummary: priceSummary,
+        );
+
+        await repo.saveConvertToSubscription(
+          sourceOrderId: item.sourceOrderId,
+          planId: eligibility.planId,
+          subscriptionId: session.subscriptionId,
+          customerId: _customerId,
+          vehicleId: item.carId,
+          token: _token,
+          serviceType: eligibility.serviceType,
+          totalAmount: breakdown.total.toString(),
+          subTotal: breakdown.subTotal.toString(),
+          gst: gstPercent.toString(),
+          gstAmount: breakdown.gstAmount.toString(),
+        );
+        completed += 1;
+      }
+    } catch (error) {
+      throw Exception(
+        'Auto-renew setup failed after $completed of ${items.length} item(s): ${_humanizeError(error)}',
+      );
+    }
+  }
+
+  String _humanizeError(Object error) {
+    return error.toString().replaceFirst('Exception: ', '').trim();
   }
 
   Future<void> _checkoutMonthlySubscription(CartItem item) async {
@@ -392,6 +538,28 @@ class _CartPageState extends State<CartPage> {
                 ),
     );
   }
+}
+
+class _ConvertibleCartItem {
+  const _ConvertibleCartItem({
+    required this.item,
+    required this.eligibility,
+  });
+
+  final CartItem item;
+  final ConvertSubscriptionEligibility eligibility;
+}
+
+class _SubscriptionToggleEvaluation {
+  const _SubscriptionToggleEvaluation({
+    required this.enabled,
+    required this.disabledReason,
+    required this.items,
+  });
+
+  final bool enabled;
+  final String disabledReason;
+  final List<_ConvertibleCartItem> items;
 }
 
 class _EmptyCart extends StatelessWidget {

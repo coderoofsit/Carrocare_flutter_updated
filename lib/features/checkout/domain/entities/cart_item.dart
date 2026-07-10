@@ -19,6 +19,7 @@ class CartItem {
     required this.carName,
     required this.carCategory,
     required this.header,
+    this.sourceOrderId = '',
   });
 
   final String dbType;
@@ -40,6 +41,7 @@ class CartItem {
   final String carName;
   final String carCategory;
   final String header;
+  final String sourceOrderId;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
         'dbType': dbType,
@@ -61,6 +63,7 @@ class CartItem {
         'carName': carName,
         'carCategory': carCategory,
         'header': header,
+        'sourceOrderId': sourceOrderId,
       };
 
   factory CartItem.fromJson(Map<String, dynamic> json) {
@@ -84,6 +87,7 @@ class CartItem {
       carName: (json['carName'] ?? '').toString(),
       carCategory: (json['carCategory'] ?? '').toString(),
       header: (json['header'] ?? '').toString(),
+      sourceOrderId: (json['sourceOrderId'] ?? '').toString(),
     );
   }
 }

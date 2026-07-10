@@ -35,6 +35,7 @@ Future<bool> showRenewSmartCheckoutSheet({
     vehicle: mapped.vehicle,
     customerId: customerId,
     token: token,
+    sourceOrderId: order.orderId,
   );
 }
 
@@ -45,6 +46,7 @@ Future<bool> showSmartCheckoutSheet({
   required VehicleItem vehicle,
   required String customerId,
   required String token,
+  String? sourceOrderId,
 }) async {
   final added = await showModalBottomSheet<bool>(
     context: context,
@@ -56,6 +58,7 @@ Future<bool> showSmartCheckoutSheet({
         vehicle: vehicle,
         customerId: customerId,
         token: token,
+        sourceOrderId: sourceOrderId,
       );
     },
   );
@@ -68,12 +71,14 @@ class _SmartCheckoutLoaderSheet extends StatefulWidget {
     required this.vehicle,
     required this.customerId,
     required this.token,
+    this.sourceOrderId,
   });
 
   final VehicleListArgs booking;
   final VehicleItem vehicle;
   final String customerId;
   final String token;
+  final String? sourceOrderId;
 
   @override
   State<_SmartCheckoutLoaderSheet> createState() =>
@@ -216,6 +221,7 @@ class _SmartCheckoutLoaderSheetState extends State<_SmartCheckoutLoaderSheet> {
                 oneTimeBlocked: _oneTimeBlocked,
                 blockOneTimeDueToMonthly: _blockOneTimeDueToMonthly,
                 blockMonthlyDueToOneTime: _blockMonthlyDueToOneTime,
+                sourceOrderId: widget.sourceOrderId,
               ),
       ),
     );
@@ -236,6 +242,7 @@ class _SmartCheckoutSheetBody extends StatefulWidget {
     this.oneTimeBlocked = false,
     this.blockOneTimeDueToMonthly = false,
     this.blockMonthlyDueToOneTime = false,
+    this.sourceOrderId,
   });
 
   final VehicleListArgs booking;
@@ -248,6 +255,7 @@ class _SmartCheckoutSheetBody extends StatefulWidget {
   final bool oneTimeBlocked;
   final bool blockOneTimeDueToMonthly;
   final bool blockMonthlyDueToOneTime;
+  final String? sourceOrderId;
 
   @override
   State<_SmartCheckoutSheetBody> createState() =>
@@ -292,8 +300,10 @@ class _SmartCheckoutSheetBodyState extends State<_SmartCheckoutSheetBody> {
     return unit * _months;
   }
 
-  int get _finalAmount =>
-      CheckoutPricing.finalAmount(_baseAmount, widget.gstPercent);
+  ({int total, int subTotal, int gstAmount}) get _priceBreakdown =>
+      CheckoutPricing.breakdownFromInclusive(_baseAmount, widget.gstPercent);
+
+  int get _finalAmount => _priceBreakdown.total;
 
   int get _mrpAmount =>
       CheckoutPricing.mrpWithOffer(_finalAmount, months: _months);
@@ -388,7 +398,7 @@ class _SmartCheckoutSheetBodyState extends State<_SmartCheckoutSheetBody> {
     }
 
     setState(() => _saving = true);
-    final tax = CheckoutPricing.taxAmount(_baseAmount, widget.gstPercent);
+    final breakdown = _priceBreakdown;
     final action = CheckoutConstants.resolveAction(
       serviceType: widget.booking.header,
       isMonthlyPay: _isMonthlyMode,
@@ -407,15 +417,16 @@ class _SmartCheckoutSheetBodyState extends State<_SmartCheckoutSheetBody> {
       carId: widget.vehicle.id,
       paidMonths: _isMonthlyMode ? '1' : '$_months',
       fineAmount: widget.checkout.fineAmount,
-      subTotal: _baseAmount.toString(),
+      subTotal: breakdown.subTotal.toString(),
       gstPercent: widget.gstPercent.toString(),
-      gstAmount: tax.toString(),
-      totalAmount: _finalAmount.toString(),
+      gstAmount: breakdown.gstAmount.toString(),
+      totalAmount: breakdown.total.toString(),
       scheduleDate: _preferDate.isNotEmpty ? _preferDate : widget.vehicle.preferredSchedule,
       scheduleTime: _preferTime.isNotEmpty ? _preferTime : widget.vehicle.preferredTime,
       carName: widget.booking.carName,
       carCategory: widget.vehicle.category,
       header: widget.booking.header,
+      sourceOrderId: widget.sourceOrderId ?? '',
     );
 
     final ok = await CartLocalStorage().upsert(item);

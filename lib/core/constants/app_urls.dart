@@ -1,8 +1,11 @@
 /// App-wide URLs. Update [apiHost] when the backend base URL changes.
 class AppUrls {
-  /// Production API (Render). For local dev: `http://127.0.0.1:4000` with `adb reverse tcp:4000 tcp:4000`.
+    /// Production API (Render). For local dev: `http://127.0.0.1:4000` with `adb reverse tcp:4000 tcp:4000`.
   static const String apiHost = 'https://car-ro-care.onrender.com';
-  // static const String apiHost = 'http://10.96.64.49:4000';
+  /// Local API via USB: `adb reverse tcp:4000 tcp:4000` then use 127.0.0.1.
+  /// Wi‑Fi only: use your machine LAN IP, e.g. `http://10.37.175.49:4000`.
+  // static const String apiHost = 'http://127.0.0.1:4000';
+  // static const String apiHost = 'https://car-ro-care.onrender.com';
   /// REST API (login, orders, prices, save_order, etc.)
   static const String apiBaseUrl = '$apiHost/Android_API/api-1.2.11/';
 
