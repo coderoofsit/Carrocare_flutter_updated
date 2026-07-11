@@ -9,6 +9,7 @@ import 'package:carrocare_flutter/core/widgets/app_bottom_nav.dart';
 import 'package:carrocare_flutter/core/widgets/carro_care_app_bar.dart';
 import 'package:carrocare_flutter/core/widgets/home_shell.dart';
 import 'package:carrocare_flutter/features/checkout/data/local/cart_local_storage.dart';
+import 'package:carrocare_flutter/features/door_step/presentation/pages/door_step_coming_soon_page.dart';
 import 'package:carrocare_flutter/features/internal_wash/presentation/widgets/internal_wash_overlays.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -84,7 +85,12 @@ class _HomePageState extends State<HomePage> {
       context.push('/apartment-service');
     } else if (id == 'doorstep_service') {
       if (!mounted) return;
-      context.push('/door-step-service');
+      // Coming soon — open placeholder directly (avoids stale GoRouter cache).
+      await Navigator.of(context).push<void>(
+        MaterialPageRoute<void>(
+          builder: (_) => const DoorStepComingSoonPage(),
+        ),
+      );
     } else if (id == 'daily_car_wash') {
       if (!await ProfileGate.ensureApartmentProfile(context)) return;
       if (!mounted) return;

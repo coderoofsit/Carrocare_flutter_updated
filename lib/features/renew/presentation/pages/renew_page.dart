@@ -5,6 +5,7 @@ import 'package:carrocare_flutter/core/widgets/dotted_loader.dart';
 import 'package:carrocare_flutter/features/checkout/data/local/cart_local_storage.dart';
 import 'package:carrocare_flutter/features/checkout/presentation/widgets/smart_checkout_sheet.dart';
 import 'package:carrocare_flutter/features/orders/domain/entities/order_item.dart';
+import 'package:carrocare_flutter/features/orders/domain/entities/order_item_filters.dart';
 import 'package:carrocare_flutter/features/orders/presentation/bloc/my_orders_bloc.dart';
 import 'package:carrocare_flutter/features/orders/presentation/utils/order_date_time_display.dart';
 import 'package:flutter/material.dart';
@@ -19,8 +20,10 @@ class RenewPage extends StatefulWidget {
   State<RenewPage> createState() => _RenewPageState();
 }
 
-class _RenewPageState extends State<RenewPage> {
+class _RenewPageState extends State<RenewPage>
+    with SingleTickerProviderStateMixin {
   final CartLocalStorage _cartStorage = CartLocalStorage();
+  late final TabController _tabController;
   String _token = '';
   String _customerId = '';
   int _cartCount = 0;
@@ -29,7 +32,14 @@ class _RenewPageState extends State<RenewPage> {
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 2, vsync: this);
     _bootstrap();
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
   }
 
   Future<void> _bootstrap() async {
@@ -124,8 +134,11 @@ class _RenewPageState extends State<RenewPage> {
               );
             }
 
-            final orders = (state as MyOrdersLoaded).orders;
-            if (orders.isEmpty) {
+            final allOrders = (state as MyOrdersLoaded).orders;
+            final subs = subscriptionOrders(allOrders);
+            final oneTime = oneTimeOrders(allOrders);
+
+            if (allOrders.isEmpty) {
               return Center(
                 child: Image.asset(
                   'assets/images/placeholders.png',
@@ -134,22 +147,55 @@ class _RenewPageState extends State<RenewPage> {
               );
             }
 
-            return ListView.builder(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              itemCount: orders.length,
-              itemBuilder: (context, index) {
-                final order = orders[index];
-                return _RenewCard(
-                  order: order,
-                  inCart: _cartVehicleIds.contains(
-                    order.vehicleId,
+            return Column(
+              children: <Widget>[
+                Material(
+                  color: AppColors.primary,
+                  child: TabBar(
+                    controller: _tabController,
+                    indicatorColor: AppColors.white,
+                    indicatorWeight: 3,
+                    labelColor: AppColors.white,
+                    unselectedLabelColor:
+                        AppColors.white.withValues(alpha: 0.65),
+                    labelStyle: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
+                    tabs: <Widget>[
+                      Tab(text: 'Subscriptions (${subs.length})'),
+                      Tab(text: 'One-time (${oneTime.length})'),
+                    ],
                   ),
-                  showSmartCheckout: _showSmartCheckout(order),
-                  validLabel: _validLabel(order),
-                  onSmartCheckout: (checked) =>
-                      _onSmartCheckout(order, checked),
-                );
-              },
+                ),
+                Expanded(
+                  child: TabBarView(
+                    controller: _tabController,
+                    children: <Widget>[
+                      _RenewTabBody(
+                        orders: subs,
+                        emptyTitle: 'No subscriptions to renew',
+                        emptySubtitle:
+                            'Monthly autopay plans appear here.',
+                        cartVehicleIds: _cartVehicleIds,
+                        showSmartCheckout: _showSmartCheckout,
+                        validLabel: _validLabel,
+                        onSmartCheckout: _onSmartCheckout,
+                      ),
+                      _RenewTabBody(
+                        orders: oneTime,
+                        emptyTitle: 'No one-time orders to renew',
+                        emptySubtitle:
+                            'Prepaid and single purchases appear here.',
+                        cartVehicleIds: _cartVehicleIds,
+                        showSmartCheckout: _showSmartCheckout,
+                        validLabel: _validLabel,
+                        onSmartCheckout: _onSmartCheckout,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             );
           },
         ),
@@ -181,6 +227,84 @@ class _RenewPageState extends State<RenewPage> {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _RenewTabBody extends StatelessWidget {
+  const _RenewTabBody({
+    required this.orders,
+    required this.emptyTitle,
+    required this.emptySubtitle,
+    required this.cartVehicleIds,
+    required this.showSmartCheckout,
+    required this.validLabel,
+    required this.onSmartCheckout,
+  });
+
+  final List<OrderItem> orders;
+  final String emptyTitle;
+  final String emptySubtitle;
+  final Set<String> cartVehicleIds;
+  final bool Function(OrderItem order) showSmartCheckout;
+  final String Function(OrderItem order) validLabel;
+  final Future<void> Function(OrderItem order, bool checked) onSmartCheckout;
+
+  @override
+  Widget build(BuildContext context) {
+    if (orders.isEmpty) {
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: <Widget>[
+          SizedBox(height: MediaQuery.sizeOf(context).height * 0.12),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32),
+            child: Column(
+              children: <Widget>[
+                Icon(
+                  Icons.receipt_long_outlined,
+                  size: 56,
+                  color: AppColors.primary.withValues(alpha: 0.5),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  emptyTitle,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: AppColors.black,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  emptySubtitle,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Color(0xFF666666),
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      itemCount: orders.length,
+      itemBuilder: (context, index) {
+        final order = orders[index];
+        return _RenewCard(
+          order: order,
+          inCart: cartVehicleIds.contains(order.vehicleId),
+          showSmartCheckout: showSmartCheckout(order),
+          validLabel: validLabel(order),
+          onSmartCheckout: (checked) => onSmartCheckout(order, checked),
+        );
+      },
     );
   }
 }
@@ -246,8 +370,12 @@ class _RenewCard extends StatelessWidget {
             Row(
               children: <Widget>[
                 Expanded(
-                  child: _col('Status :', order.status, labelStyle,
-                      valueStyle.copyWith(color: AppColors.primary)),
+                  child: _col(
+                    'Status :',
+                    order.status,
+                    labelStyle,
+                    valueStyle.copyWith(color: AppColors.primary),
+                  ),
                 ),
                 Expanded(
                   child: _col('Valid :', validLabel, labelStyle, valueStyle),

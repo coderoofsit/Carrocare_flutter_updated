@@ -15,7 +15,7 @@ import 'package:carrocare_flutter/features/apartment/presentation/pages/apartmen
 import 'package:carrocare_flutter/features/daily_wash/presentation/bloc/daily_wash_bloc.dart';
 import 'package:carrocare_flutter/features/disinfection/presentation/bloc/disinfection_bloc.dart';
 import 'package:carrocare_flutter/features/disinfection/presentation/pages/disinfection_page.dart';
-import 'package:carrocare_flutter/features/door_step/presentation/pages/door_step_service_page.dart';
+import 'package:carrocare_flutter/features/door_step/presentation/pages/door_step_coming_soon_page.dart';
 import 'package:carrocare_flutter/features/daily_wash/presentation/pages/daily_car_wash_page.dart';
 import 'package:carrocare_flutter/features/home/presentation/pages/home_page.dart';
 import 'package:carrocare_flutter/features/onboarding/presentation/bloc/onboarding_bloc.dart';
@@ -123,7 +123,7 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: '/door-step-service',
-      builder: (context, state) => const DoorStepServicePage(),
+      builder: (context, state) => const DoorStepComingSoonPage(),
     ),
     GoRoute(
       path: '/help-support',
