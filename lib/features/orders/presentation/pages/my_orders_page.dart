@@ -22,11 +22,17 @@ class MyOrdersPage extends StatefulWidget {
 class _MyOrdersPageState extends State<MyOrdersPage>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
+  SubscriptionStatusFilter _subscriptionFilter =
+      SubscriptionStatusFilter.all;
+  OneTimeStatusFilter _oneTimeFilter = OneTimeStatusFilter.all;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _tabController.addListener(() {
+      if (mounted) setState(() {});
+    });
     context.read<MyOrdersBloc>().add(const MyOrdersStarted());
     _loadOrders();
   }
@@ -92,24 +98,40 @@ class _MyOrdersPageState extends State<MyOrdersPage>
                 }
                 final subs = subscriptionOrders(state.orders);
                 final oneTime = oneTimeOrders(state.orders);
-                return Material(
-                  color: AppColors.primary,
-                  child: TabBar(
-                    controller: _tabController,
-                    indicatorColor: AppColors.white,
-                    indicatorWeight: 3,
-                    labelColor: AppColors.white,
-                    unselectedLabelColor:
-                        AppColors.white.withValues(alpha: 0.65),
-                    labelStyle: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    Material(
+                      color: AppColors.primary,
+                      child: TabBar(
+                        controller: _tabController,
+                        indicatorColor: AppColors.white,
+                        indicatorWeight: 3,
+                        labelColor: AppColors.white,
+                        unselectedLabelColor:
+                            AppColors.white.withValues(alpha: 0.65),
+                        labelStyle: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                        ),
+                        tabs: <Widget>[
+                          Tab(text: 'Subscriptions (${subs.length})'),
+                          Tab(text: 'One-time (${oneTime.length})'),
+                        ],
+                      ),
                     ),
-                    tabs: <Widget>[
-                      Tab(text: 'Subscriptions (${subs.length})'),
-                      Tab(text: 'One-time (${oneTime.length})'),
-                    ],
-                  ),
+                    _StatusFilterChips(
+                      tabIndex: _tabController.index,
+                      subscriptionFilter: _subscriptionFilter,
+                      oneTimeFilter: _oneTimeFilter,
+                      onSubscriptionSelected: (filter) {
+                        setState(() => _subscriptionFilter = filter);
+                      },
+                      onOneTimeSelected: (filter) {
+                        setState(() => _oneTimeFilter = filter);
+                      },
+                    ),
+                  ],
                 );
               },
             ),
@@ -198,25 +220,52 @@ class _MyOrdersPageState extends State<MyOrdersPage>
 
                         final subs = subscriptionOrders(allOrders);
                         final oneTime = oneTimeOrders(allOrders);
+                        final filteredSubs = filterSubscriptionOrders(
+                          subs,
+                          _subscriptionFilter,
+                        );
+                        final filteredOneTime = filterOneTimeOrders(
+                          oneTime,
+                          _oneTimeFilter,
+                        );
+                        final subsFiltered =
+                            _subscriptionFilter !=
+                            SubscriptionStatusFilter.all;
+                        final oneTimeFiltered =
+                            _oneTimeFilter != OneTimeStatusFilter.all;
+                        final subsEmpty = emptyMessageForSubscriptionFilter(
+                          _subscriptionFilter,
+                        );
+                        final oneTimeEmpty = emptyMessageForOneTimeFilter(
+                          _oneTimeFilter,
+                        );
 
                         return TabBarView(
                           controller: _tabController,
                           children: <Widget>[
                             _OrdersTabBody(
-                              orders: subs,
+                              orders: filteredSubs,
                               variant: _OrderCardVariant.subscription,
-                              emptyTitle: 'No active subscriptions',
-                              emptySubtitle:
-                                  'Monthly autopay plans appear here.',
+                              emptyTitle: subsFiltered &&
+                                      subsEmpty.isNotEmpty
+                                  ? subsEmpty
+                                  : 'No active subscriptions',
+                              emptySubtitle: subsFiltered
+                                  ? 'Try another status filter.'
+                                  : 'Monthly autopay plans appear here.',
                               showRenew: true,
                               onOpenDetail: _openOrderDetail,
                             ),
                             _OrdersTabBody(
-                              orders: oneTime,
+                              orders: filteredOneTime,
                               variant: _OrderCardVariant.oneTime,
-                              emptyTitle: 'No one-time orders',
-                              emptySubtitle:
-                                  'Prepaid and single purchases appear here.',
+                              emptyTitle: oneTimeFiltered &&
+                                      oneTimeEmpty.isNotEmpty
+                                  ? oneTimeEmpty
+                                  : 'No one-time orders',
+                              emptySubtitle: oneTimeFiltered
+                                  ? 'Try another status filter.'
+                                  : 'Prepaid and single purchases appear here.',
                               showRenew: false,
                               onOpenDetail: _openOrderDetail,
                             ),
@@ -229,6 +278,107 @@ class _MyOrdersPageState extends State<MyOrdersPage>
           ],
         ),
       ),
+    );
+  }
+}
+
+class _StatusFilterChips extends StatelessWidget {
+  const _StatusFilterChips({
+    required this.tabIndex,
+    required this.subscriptionFilter,
+    required this.oneTimeFilter,
+    required this.onSubscriptionSelected,
+    required this.onOneTimeSelected,
+  });
+
+  final int tabIndex;
+  final SubscriptionStatusFilter subscriptionFilter;
+  final OneTimeStatusFilter oneTimeFilter;
+  final ValueChanged<SubscriptionStatusFilter> onSubscriptionSelected;
+  final ValueChanged<OneTimeStatusFilter> onOneTimeSelected;
+
+  static const List<(SubscriptionStatusFilter, String)> _subscriptionOptions =
+      <(SubscriptionStatusFilter, String)>[
+    (SubscriptionStatusFilter.all, 'All'),
+    (SubscriptionStatusFilter.active, 'Active'),
+    (SubscriptionStatusFilter.overDue, 'Over Due'),
+    (SubscriptionStatusFilter.paused, 'Paused'),
+    (SubscriptionStatusFilter.completed, 'Completed'),
+    (SubscriptionStatusFilter.cancelled, 'Cancelled'),
+  ];
+
+  static const List<(OneTimeStatusFilter, String)> _oneTimeOptions =
+      <(OneTimeStatusFilter, String)>[
+    (OneTimeStatusFilter.all, 'All'),
+    (OneTimeStatusFilter.paid, 'Paid'),
+    (OneTimeStatusFilter.notCompleted, 'Not Completed'),
+    (OneTimeStatusFilter.completed, 'Completed'),
+    (OneTimeStatusFilter.cancelRequested, 'Cancel Requested'),
+    (OneTimeStatusFilter.cancelled, 'Cancelled'),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final isSubscriptionTab = tabIndex == 0;
+    return Material(
+      color: AppColors.white,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        child: Row(
+          children: isSubscriptionTab
+              ? <Widget>[
+                  for (var i = 0; i < _subscriptionOptions.length; i++) ...<
+                      Widget>[
+                    if (i > 0) const SizedBox(width: 8),
+                    _buildChip(
+                      label: _subscriptionOptions[i].$2,
+                      selected:
+                          subscriptionFilter == _subscriptionOptions[i].$1,
+                      onSelected: () =>
+                          onSubscriptionSelected(_subscriptionOptions[i].$1),
+                    ),
+                  ],
+                ]
+              : <Widget>[
+                  for (var i = 0; i < _oneTimeOptions.length; i++) ...<
+                      Widget>[
+                    if (i > 0) const SizedBox(width: 8),
+                    _buildChip(
+                      label: _oneTimeOptions[i].$2,
+                      selected: oneTimeFilter == _oneTimeOptions[i].$1,
+                      onSelected: () =>
+                          onOneTimeSelected(_oneTimeOptions[i].$1),
+                    ),
+                  ],
+                ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildChip({
+    required String label,
+    required bool selected,
+    required VoidCallback onSelected,
+  }) {
+    return ChoiceChip(
+      label: Text(label),
+      selected: selected,
+      onSelected: (_) => onSelected(),
+      selectedColor: AppColors.primary,
+      backgroundColor: AppColors.grey100,
+      side: BorderSide(
+        color: selected ? AppColors.primary : AppColors.grey300,
+      ),
+      labelStyle: TextStyle(
+        color: selected ? AppColors.white : AppColors.grey800,
+        fontWeight: FontWeight.w600,
+        fontSize: 13,
+      ),
+      showCheckmark: false,
+      visualDensity: VisualDensity.compact,
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
     );
   }
 }
