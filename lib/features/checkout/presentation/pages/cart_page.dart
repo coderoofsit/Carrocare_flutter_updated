@@ -7,6 +7,7 @@ import 'package:carrocare_flutter/features/checkout/core/autopay_checkout_helper
 import 'package:carrocare_flutter/features/checkout/core/cart_subscription_toggle_helper.dart';
 import 'package:carrocare_flutter/features/checkout/core/cart_display_helper.dart';
 import 'package:carrocare_flutter/features/checkout/core/checkout_block_reason.dart';
+import 'package:carrocare_flutter/features/checkout/core/checkout_plan_fee_resolver.dart';
 import 'package:carrocare_flutter/features/checkout/core/checkout_gst_config.dart';
 import 'package:carrocare_flutter/features/checkout/core/checkout_constants.dart';
 import 'package:carrocare_flutter/features/checkout/core/checkout_pricing.dart';
@@ -65,6 +66,32 @@ class _CartPageState extends State<CartPage> {
       0,
       (sum, item) => sum + CheckoutPricing.parseAmount(item.gstAmount),
     );
+    final platformFee = _items.fold<int>(0, (sum, item) {
+      final stored = CheckoutPricing.parseMoney(item.platformFeeAmt);
+      if (stored > 0) return sum + stored;
+      final total = CheckoutPricing.parseMoney(item.totalAmount);
+      final pack = CheckoutPricing.parseMoney(item.packAmount);
+      final unitPlan = pack > 0 ? pack : total;
+      return sum +
+          CheckoutPlanFeeResolver.platformFeeForTotal(
+            inclusiveTotal: total,
+            unitPlanAmount: unitPlan,
+          );
+    });
+    final serviceFee = _items.fold<int>(0, (sum, item) {
+      final stored = CheckoutPricing.parseMoney(item.serviceFeeAmt);
+      if (stored > 0) return sum + stored;
+      final total = CheckoutPricing.parseMoney(item.totalAmount);
+      final platform = CheckoutPricing.parseMoney(item.platformFeeAmt);
+      if (platform > 0) return sum + (total - platform);
+      final pack = CheckoutPricing.parseMoney(item.packAmount);
+      final unitPlan = pack > 0 ? pack : total;
+      final platformPart = CheckoutPlanFeeResolver.platformFeeForTotal(
+        inclusiveTotal: total,
+        unitPlanAmount: unitPlan,
+      );
+      return sum + (total - platformPart);
+    });
     final rawGst = _items.isEmpty
         ? 0
         : int.tryParse(_items.first.gstPercent) ?? 0;
@@ -79,6 +106,8 @@ class _CartPageState extends State<CartPage> {
       subTotal: subTotal,
       gstAmount: gstAmount,
       gstPercent: gstPercent,
+      platformFee: platformFee,
+      serviceFee: serviceFee > 0 ? serviceFee : _cartTotal - platformFee,
     );
   }
 
@@ -357,15 +386,22 @@ class _CartPageState extends State<CartPage> {
         final planAmount = eligibility.packAmount.isNotEmpty
             ? eligibility.packAmount
             : (item.totalAmount.isNotEmpty ? item.totalAmount : item.packAmount);
-        final inclusiveAmount = CheckoutPricing.parseAmount(planAmount);
-        final breakdown = CheckoutPricing.breakdownFromInclusive(
-          inclusiveAmount,
-          gstPercent,
-        );
-        final priceSummary = RazorpayPriceSummary.fromInclusive(
-          serviceLabel: eligibility.serviceType,
+        final inclusiveAmount = CheckoutPricing.parseMoney(planAmount);
+        final storedPlatform = CheckoutPricing.parseMoney(item.platformFeeAmt);
+        final breakdown = CheckoutPlanFeeResolver.breakdown(
           inclusiveTotal: inclusiveAmount,
+          unitPlanAmount: CheckoutPricing.parseMoney(item.packAmount),
           gstPercent: gstPercent,
+          storedPlatformFeeAmt: storedPlatform > 0 ? storedPlatform : null,
+        );
+        final priceSummary = RazorpayPriceSummary(
+          serviceLabel: eligibility.serviceType,
+          total: breakdown.total,
+          subTotal: breakdown.subTotal,
+          gstAmount: breakdown.gstAmount,
+          gstPercent: gstPercent,
+          platformFee: breakdown.platformFee,
+          serviceFee: breakdown.serviceFee,
         );
 
         final session = await repo.createSubscription(
@@ -441,11 +477,22 @@ class _CartPageState extends State<CartPage> {
     final inclusivePackAmount = item.totalAmount.isNotEmpty
         ? item.totalAmount
         : item.packAmount;
-    final inclusiveTotal = CheckoutPricing.parseAmount(inclusivePackAmount);
-    final priceSummary = RazorpayPriceSummary.fromInclusive(
-      serviceLabel: apiServiceTypeForSubscription(item.serviceType),
+    final inclusiveTotal = CheckoutPricing.parseMoney(inclusivePackAmount);
+    final storedPlatform = CheckoutPricing.parseMoney(item.platformFeeAmt);
+    final breakdown = CheckoutPlanFeeResolver.breakdown(
       inclusiveTotal: inclusiveTotal,
+      unitPlanAmount: CheckoutPricing.parseMoney(item.packAmount),
       gstPercent: gstPercent,
+      storedPlatformFeeAmt: storedPlatform > 0 ? storedPlatform : null,
+    );
+    final priceSummary = RazorpayPriceSummary(
+      serviceLabel: apiServiceTypeForSubscription(item.serviceType),
+      total: breakdown.total,
+      subTotal: breakdown.subTotal,
+      gstAmount: breakdown.gstAmount,
+      gstPercent: gstPercent,
+      platformFee: breakdown.platformFee,
+      serviceFee: breakdown.serviceFee,
     );
 
     final router = GoRouter.of(context);
@@ -503,6 +550,10 @@ class _CartPageState extends State<CartPage> {
                 CartCheckoutFooter(
                   itemCount: _items.length,
                   total: _cartTotal,
+                  platformFee: _cartPriceSummary().platformFee,
+                  serviceFee: _cartPriceSummary().serviceFee,
+                  gstAmount: _cartPriceSummary().gstAmount,
+                  gstPercent: _cartPriceSummary().gstPercent,
                   checkingOut: _checkingOut,
                   onCheckout: _checkout,
                   consentSection: _showAutopayPanel || _showMonthlyTermsPanel

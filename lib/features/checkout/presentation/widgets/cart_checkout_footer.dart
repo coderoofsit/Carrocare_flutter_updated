@@ -14,6 +14,10 @@ class CartCheckoutFooter extends StatelessWidget {
     required this.onCheckout,
     this.checkingOut = false,
     this.consentSection,
+    this.platformFee,
+    this.serviceFee,
+    this.gstAmount,
+    this.gstPercent,
   });
 
   final int itemCount;
@@ -21,6 +25,10 @@ class CartCheckoutFooter extends StatelessWidget {
   final VoidCallback onCheckout;
   final bool checkingOut;
   final Widget? consentSection;
+  final int? platformFee;
+  final int? serviceFee;
+  final int? gstAmount;
+  final int? gstPercent;
 
   @override
   Widget build(BuildContext context) {
@@ -39,11 +47,23 @@ class CartCheckoutFooter extends StatelessWidget {
                 title: 'Order Summary',
                 lines: <BillLine>[
                   BillLine(label: 'Items ($itemCount)', amount: totalText),
-                  BillLine(
-                    label: 'Subtotal',
-                    amount: totalText,
-                    muted: true,
-                  ),
+                  if (platformFee != null && platformFee! > 0)
+                    BillLine(
+                      label: 'Platform fee',
+                      amount: CartDisplayHelper.formatRupee(platformFee!),
+                    ),
+                  if (serviceFee != null && serviceFee! > 0)
+                    BillLine(
+                      label: 'Service provider charges',
+                      amount: CartDisplayHelper.formatRupee(serviceFee!),
+                      muted: true,
+                    ),
+                  if (gstAmount != null && gstAmount! > 0)
+                    BillLine(
+                      label: 'GST (${gstPercent ?? 18}% on platform fee)',
+                      amount: CartDisplayHelper.formatRupee(gstAmount!),
+                      muted: true,
+                    ),
                 ],
                 totalLabel: 'Total',
                 totalAmount: totalText,

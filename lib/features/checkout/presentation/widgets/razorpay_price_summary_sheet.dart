@@ -109,15 +109,27 @@ class _RazorpayPriceSummarySheetState
 
   List<BillLine> get _lines {
     final lines = <BillLine>[
-      BillLine(
-        label: 'Subtotal',
-        amount: CheckoutPricing.rupee(widget.summary.subTotal),
-      ),
+      if (widget.summary.platformFee > 0)
+        BillLine(
+          label: 'Platform fee',
+          amount: CheckoutPricing.rupee(widget.summary.platformFee),
+        ),
+      if (widget.summary.serviceFee > 0)
+        BillLine(
+          label: 'Service provider charges',
+          amount: CheckoutPricing.rupee(widget.summary.serviceFee),
+          muted: true,
+        ),
+      if (widget.summary.platformFee <= 0 && widget.summary.serviceFee <= 0)
+        BillLine(
+          label: 'Subtotal',
+          amount: CheckoutPricing.rupee(widget.summary.subTotal),
+        ),
     ];
     if (widget.summary.gstPercent > 0 && widget.summary.gstAmount > 0) {
       lines.add(
         BillLine(
-          label: 'GST (${widget.summary.gstPercent}%)',
+          label: 'GST (${widget.summary.gstPercent}% on platform fee)',
           amount: CheckoutPricing.rupee(widget.summary.gstAmount),
           muted: true,
         ),

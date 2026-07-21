@@ -212,10 +212,19 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
         BillLine(label: 'Plan amount', amount: pricing.packageValueLabel),
       if (showDiscount && _order.discountAmount.isNotEmpty)
         BillLine(label: 'Discount', amount: '₹ ${_order.discountAmount}'),
-      BillLine(label: 'Amount (excl. GST)', amount: pricing.taxableLabel),
+      if (pricing.platformFee > 0)
+        BillLine(label: 'Platform fee', amount: pricing.platformFeeLabel),
+      if (pricing.serviceFee > 0)
+        BillLine(
+          label: 'Service provider charges',
+          amount: pricing.serviceFeeLabel,
+          muted: true,
+        ),
+      if (pricing.platformFee <= 0 && pricing.serviceFee <= 0)
+        BillLine(label: 'Amount (excl. GST)', amount: pricing.taxableLabel),
       if (pricing.gstPercent > 0 && pricing.gstAmount > 0)
         BillLine(
-          label: 'GST (${pricing.gstPercentLabel})',
+          label: 'GST (${pricing.gstPercentLabel} on platform fee)',
           amount: pricing.gstAmountLabel,
         ),
     ];

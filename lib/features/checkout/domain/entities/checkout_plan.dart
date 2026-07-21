@@ -1,3 +1,5 @@
+import 'package:carrocare_flutter/features/checkout/core/checkout_pricing.dart';
+
 class CheckoutPlan {
   const CheckoutPlan({
     required this.planId,
@@ -6,6 +8,9 @@ class CheckoutPlan {
     required this.subscriptionType,
     required this.serviceType,
     required this.planAmount,
+    this.platformFeeAmt = '',
+    this.platformFeePercent = '',
+    this.serviceFeeAmt = '',
   });
 
   final String planId;
@@ -14,6 +19,20 @@ class CheckoutPlan {
   final String subscriptionType;
   final String serviceType;
   final String planAmount;
+  final String platformFeeAmt;
+  final String platformFeePercent;
+  final String serviceFeeAmt;
+
+  int get resolvedPlatformFeeAmt {
+    final direct = CheckoutPricing.parseMoney(platformFeeAmt);
+    if (direct > 0) return direct;
+    final plan = CheckoutPricing.parseMoney(planAmount);
+    final pct = double.tryParse(platformFeePercent.trim()) ?? 0;
+    if (plan > 0 && pct > 0) {
+      return ((plan * pct) / 100).round();
+    }
+    return 0;
+  }
 
   bool get isMonthly =>
       subscriptionType.toLowerCase() == 'monthly';
@@ -30,6 +49,9 @@ class CheckoutPlan {
       subscriptionType: (json['subscription_type'] ?? '').toString(),
       serviceType: (json['service_type'] ?? '').toString(),
       planAmount: (json['plan_amount'] ?? '').toString(),
+      platformFeeAmt: (json['platform_fee_amt'] ?? '').toString(),
+      platformFeePercent: (json['platform_fee_percent'] ?? '').toString(),
+      serviceFeeAmt: (json['service_fee_amt'] ?? '').toString(),
     );
   }
 }

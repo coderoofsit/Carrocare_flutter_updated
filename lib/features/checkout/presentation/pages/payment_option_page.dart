@@ -9,6 +9,7 @@ import 'package:carrocare_flutter/core/widgets/dotted_loader.dart';
 import 'package:carrocare_flutter/features/checkout/core/checkout_block_reason.dart';
 import 'package:carrocare_flutter/features/checkout/core/checkout_gst_config.dart';
 import 'package:carrocare_flutter/features/checkout/core/checkout_constants.dart';
+import 'package:carrocare_flutter/features/checkout/core/checkout_plan_fee_resolver.dart';
 import 'package:carrocare_flutter/features/checkout/core/checkout_plan_params.dart';
 import 'package:carrocare_flutter/features/checkout/core/checkout_pricing.dart';
 import 'package:carrocare_flutter/features/checkout/core/checkout_service_type_mapper.dart';
@@ -305,6 +306,50 @@ class _PaymentOptionPageState extends State<PaymentOptionPage> {
   int _finalAmount(int inclusiveBase) =>
       CheckoutPricing.inclusiveTotal(inclusiveBase, _gstPercent);
 
+  RazorpayPriceSummary _priceSummaryFor(
+    int inclusiveTotal,
+    String label, {
+    required bool monthly,
+  }) {
+    final unitPlan = monthly
+        ? _monthlyBase
+        : CheckoutPricing.parseMoney(_a.carPrice);
+    final plan = monthly
+        ? _monthlyPlan
+        : CheckoutPlanParams.pickOneTime(_plans) ?? _monthlyPlan;
+    final breakdown = CheckoutPlanFeeResolver.breakdown(
+      inclusiveTotal: inclusiveTotal,
+      unitPlanAmount: unitPlan > 0 ? unitPlan : inclusiveTotal,
+      gstPercent: _gstPercent,
+      plan: plan,
+    );
+    return RazorpayPriceSummary(
+      serviceLabel: label,
+      total: breakdown.total,
+      subTotal: breakdown.subTotal,
+      gstAmount: breakdown.gstAmount,
+      gstPercent: _gstPercent,
+      platformFee: breakdown.platformFee,
+      serviceFee: breakdown.serviceFee,
+    );
+  }
+
+  ({int total, int subTotal, int gstAmount, int platformFee, int serviceFee})
+      _breakdownFor(int inclusiveTotal, {required bool monthly}) {
+    final unitPlan = monthly
+        ? _monthlyBase
+        : CheckoutPricing.parseMoney(_a.carPrice);
+    final plan = monthly
+        ? _monthlyPlan
+        : CheckoutPlanParams.pickOneTime(_plans) ?? _monthlyPlan;
+    return CheckoutPlanFeeResolver.breakdown(
+      inclusiveTotal: inclusiveTotal,
+      unitPlanAmount: unitPlan > 0 ? unitPlan : inclusiveTotal,
+      gstPercent: _gstPercent,
+      plan: plan,
+    );
+  }
+
   Future<void> _pickDate() async {
     final now = DateTime.now().add(const Duration(days: 1));
     final picked = await showDatePicker(
@@ -366,10 +411,10 @@ class _PaymentOptionPageState extends State<PaymentOptionPage> {
       }
       if (!mounted) return;
 
-      final priceSummary = RazorpayPriceSummary.fromInclusive(
-        serviceLabel: _displayServiceType(),
-        inclusiveTotal: _monthlyBase,
-        gstPercent: _gstPercent,
+      final priceSummary = _priceSummaryFor(
+        _monthlyBase,
+        _displayServiceType(),
+        monthly: true,
       );
       final router = GoRouter.of(context);
       final confirmed = await showRazorpayPriceSummarySheet(
@@ -439,10 +484,10 @@ class _PaymentOptionPageState extends State<PaymentOptionPage> {
 
       final base = monthlyCard ? _monthlyBase : _oneTimeBase;
       final amountPaise = _finalAmount(base) * 100;
-      final priceSummary = RazorpayPriceSummary.fromInclusive(
-        serviceLabel: _displayServiceType(),
-        inclusiveTotal: base,
-        gstPercent: _gstPercent,
+      final priceSummary = _priceSummaryFor(
+        base,
+        _displayServiceType(),
+        monthly: monthlyCard,
       );
       final action = CheckoutConstants.resolveAction(
         serviceType: _a.serviceType,
@@ -497,7 +542,7 @@ class _PaymentOptionPageState extends State<PaymentOptionPage> {
     }
     try {
       final base = monthlyCard ? _monthlyBase : _oneTimeBase;
-      final breakdown = CheckoutPricing.breakdownFromInclusive(base, _gstPercent);
+      final breakdown = _breakdownFor(base, monthly: monthlyCard);
       final total = breakdown.total.toString();
       final gst = _gstPercent.toString();
       String message;
@@ -584,7 +629,7 @@ class _PaymentOptionPageState extends State<PaymentOptionPage> {
     }
 
     final base = monthlyCard ? _monthlyBase : _oneTimeBase;
-    final breakdown = CheckoutPricing.breakdownFromInclusive(base, _gstPercent);
+    final breakdown = _breakdownFor(base, monthly: monthlyCard);
     final tax = breakdown.gstAmount;
     final total = breakdown.total;
     final action = CheckoutConstants.resolveAction(
@@ -609,6 +654,8 @@ class _PaymentOptionPageState extends State<PaymentOptionPage> {
       gstPercent: _gstPercent.toString(),
       gstAmount: tax.toString(),
       totalAmount: total.toString(),
+      platformFeeAmt: breakdown.platformFee.toString(),
+      serviceFeeAmt: breakdown.serviceFee.toString(),
       scheduleDate: _preferDate,
       scheduleTime: _preferTime,
       carName: _a.carName,
@@ -919,8 +966,17 @@ class _PaymentOptionPageState extends State<PaymentOptionPage> {
               'DEAL: ${CheckoutPricing.rupee(finalAmt)}',
               style: const TextStyle(fontWeight: FontWeight.w700),
             ),
-            if (_gstPercent > 0)
-              Text('Offer Price applied with GST ($_gstPercent%)'),
+            if (_gstPercent > 0) ...<Widget>[
+              Text(
+                'Platform fee: ${CheckoutPricing.rupee(_breakdownFor(finalAmt, monthly: isSubscription).platformFee)}',
+              ),
+              Text(
+                'Service provider: ${CheckoutPricing.rupee(_breakdownFor(finalAmt, monthly: isSubscription).serviceFee)}',
+              ),
+              Text(
+                'GST ($_gstPercent% on platform fee): ${CheckoutPricing.rupee(_breakdownFor(finalAmt, monthly: isSubscription).gstAmount)}',
+              ),
+            ],
             const SizedBox(height: 8),
             Row(
               children: <Widget>[

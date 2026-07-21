@@ -18,6 +18,8 @@ class OrderItem {
     required this.gstAmount,
     required this.subTotalAmount,
     required this.discountAmount,
+    this.platformFeeAmt = '',
+    this.serviceFeeAmt = '',
     required this.paymentMode,
     required this.valid,
     required this.paidCount,
@@ -56,6 +58,8 @@ class OrderItem {
   final String gstAmount;
   final String subTotalAmount;
   final String discountAmount;
+  final String platformFeeAmt;
+  final String serviceFeeAmt;
   final String paymentMode;
   final String valid;
   final String paidCount;
@@ -101,6 +105,8 @@ class OrderItem {
       gstAmount: (json['gst_amount'] ?? '').toString(),
       subTotalAmount: (json['sub_total_amount'] ?? '').toString(),
       discountAmount: (json['discount_amount'] ?? '').toString(),
+      platformFeeAmt: (json['platform_fee_amt'] ?? '').toString(),
+      serviceFeeAmt: (json['service_fee_amt'] ?? '').toString(),
       paymentMode: (json['payment_mode'] ?? '').toString(),
       valid: (json['valid'] ?? '').toString(),
       paidCount: (json['paid_count'] ?? '').toString(),

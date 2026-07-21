@@ -14,6 +14,8 @@ class CartItem {
     required this.gstPercent,
     required this.gstAmount,
     required this.totalAmount,
+    this.platformFeeAmt = '',
+    this.serviceFeeAmt = '',
     required this.scheduleDate,
     required this.scheduleTime,
     required this.carName,
@@ -36,6 +38,8 @@ class CartItem {
   final String gstPercent;
   final String gstAmount;
   final String totalAmount;
+  final String platformFeeAmt;
+  final String serviceFeeAmt;
   final String scheduleDate;
   final String scheduleTime;
   final String carName;
@@ -58,6 +62,8 @@ class CartItem {
         'gstPercent': gstPercent,
         'gstAmount': gstAmount,
         'totalAmount': totalAmount,
+        'platformFeeAmt': platformFeeAmt,
+        'serviceFeeAmt': serviceFeeAmt,
         'scheduleDate': scheduleDate,
         'scheduleTime': scheduleTime,
         'carName': carName,
@@ -82,6 +88,8 @@ class CartItem {
       gstPercent: (json['gstPercent'] ?? '0').toString(),
       gstAmount: (json['gstAmount'] ?? '0').toString(),
       totalAmount: (json['totalAmount'] ?? '').toString(),
+      platformFeeAmt: (json['platformFeeAmt'] ?? '').toString(),
+      serviceFeeAmt: (json['serviceFeeAmt'] ?? '').toString(),
       scheduleDate: (json['scheduleDate'] ?? '').toString(),
       scheduleTime: (json['scheduleTime'] ?? 'Anytime').toString(),
       carName: (json['carName'] ?? '').toString(),
