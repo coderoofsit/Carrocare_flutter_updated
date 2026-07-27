@@ -60,14 +60,22 @@ class CartDisplayHelper {
   }
 
   static String packageType(CartItem item) {
+    final fromCategory = CheckoutConstants.normalizePackageType(item.carCategory);
+    if (fromCategory.isNotEmpty &&
+        fromCategory != item.carCategory &&
+        !fromCategory.toLowerCase().contains('wash')) {
+      return fromCategory;
+    }
+    final fromName = CheckoutConstants.normalizePackageType(item.carName);
+    if (fromName.isNotEmpty && !fromName.toLowerCase().contains('wash')) {
+      return fromName;
+    }
     final parts = item.dbType.split('=');
     final tag = parts.length > 1 ? parts[1] : item.serviceType;
-    if (tag == CheckoutConstants.serviceWash) return 'Car Wash';
-    if (tag == CheckoutConstants.serviceBikeWash) return 'Bike Wash';
-    if (tag == CheckoutConstants.serviceAddon) return 'Wax Polish';
+    if (tag == CheckoutConstants.serviceBikeWash) return 'Bike';
     if (tag == CheckoutConstants.serviceExtraInterior) return 'ExtraInterior';
     if (tag == CheckoutConstants.serviceDisinfection) return 'Disinfection';
-    return CheckoutConstants.normalizePackageType(item.carCategory);
+    return fromCategory.isNotEmpty ? fromCategory : fromName;
   }
 
   static int parseAmount(String value) => int.tryParse(value) ?? 0;

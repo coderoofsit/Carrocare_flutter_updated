@@ -306,17 +306,25 @@ class _PaymentOptionPageState extends State<PaymentOptionPage> {
   int _finalAmount(int inclusiveBase) =>
       CheckoutPricing.inclusiveTotal(inclusiveBase, _gstPercent);
 
+  int _unitPlanAmount({required bool monthly}) {
+    if (monthly) return _monthlyBase;
+    final resolved = CheckoutPricing.parseMoney(_inclusivePackAmount);
+    if (resolved > 0) return resolved;
+    return CheckoutPricing.parseMoney(_a.carPrice);
+  }
+
+  CheckoutPlan? _planForBreakdown({required bool monthly}) {
+    if (monthly) return _monthlyPlan;
+    return CheckoutPlanParams.pickOneTime(_plans) ?? _monthlyPlan;
+  }
+
   RazorpayPriceSummary _priceSummaryFor(
     int inclusiveTotal,
     String label, {
     required bool monthly,
   }) {
-    final unitPlan = monthly
-        ? _monthlyBase
-        : CheckoutPricing.parseMoney(_a.carPrice);
-    final plan = monthly
-        ? _monthlyPlan
-        : CheckoutPlanParams.pickOneTime(_plans) ?? _monthlyPlan;
+    final unitPlan = _unitPlanAmount(monthly: monthly);
+    final plan = _planForBreakdown(monthly: monthly);
     final breakdown = CheckoutPlanFeeResolver.breakdown(
       inclusiveTotal: inclusiveTotal,
       unitPlanAmount: unitPlan > 0 ? unitPlan : inclusiveTotal,
@@ -336,12 +344,8 @@ class _PaymentOptionPageState extends State<PaymentOptionPage> {
 
   ({int total, int subTotal, int gstAmount, int platformFee, int serviceFee})
       _breakdownFor(int inclusiveTotal, {required bool monthly}) {
-    final unitPlan = monthly
-        ? _monthlyBase
-        : CheckoutPricing.parseMoney(_a.carPrice);
-    final plan = monthly
-        ? _monthlyPlan
-        : CheckoutPlanParams.pickOneTime(_plans) ?? _monthlyPlan;
+    final unitPlan = _unitPlanAmount(monthly: monthly);
+    final plan = _planForBreakdown(monthly: monthly);
     return CheckoutPlanFeeResolver.breakdown(
       inclusiveTotal: inclusiveTotal,
       unitPlanAmount: unitPlan > 0 ? unitPlan : inclusiveTotal,
@@ -589,6 +593,7 @@ class _PaymentOptionPageState extends State<PaymentOptionPage> {
           gst: gst,
           totalAmount: total,
           serviceType: 'Wash',
+          packType: _apiPackType,
         );
       }
 
@@ -646,7 +651,9 @@ class _PaymentOptionPageState extends State<PaymentOptionPage> {
       carImage: _a.vehicle.image,
       carMakeModel: _a.vehicle.makeModel,
       carNo: _a.vehicle.vehicleNo,
-      packAmount: _a.carPrice,
+      packAmount: _inclusivePackAmount.isNotEmpty
+          ? _inclusivePackAmount
+          : _a.carPrice,
       carId: _a.vehicle.id,
       paidMonths: monthlyCard ? '1' : _selectedMonths.toString(),
       fineAmount: _fineAmount,

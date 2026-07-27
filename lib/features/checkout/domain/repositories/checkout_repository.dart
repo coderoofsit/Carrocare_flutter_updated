@@ -108,6 +108,7 @@ abstract class CheckoutRepository {
     required String gst,
     required String totalAmount,
     required String serviceType,
+    required String packType,
   });
 
   Future<String> createCartRazorpayOrderId({required int cartTotal});

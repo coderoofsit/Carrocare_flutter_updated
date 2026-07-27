@@ -414,6 +414,7 @@ class CheckoutRepositoryImpl implements CheckoutRepository {
     required String gst,
     required String totalAmount,
     required String serviceType,
+    required String packType,
   }) async {
     final data = await _remote.saveWashOrderOneTime(
       paymentId: paymentId,
@@ -428,7 +429,7 @@ class CheckoutRepositoryImpl implements CheckoutRepository {
       gstAmount: '0',
       totalAmount: totalAmount,
       serviceType: serviceType,
-      packType: '',
+      packType: packType,
     );
     return _messageFromSave(data);
   }
