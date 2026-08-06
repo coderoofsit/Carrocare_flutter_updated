@@ -12,6 +12,7 @@ class InvoiceDownloadHelper {
     required BuildContext context,
     required String downloadUrl,
     required String fileName,
+    String loadingMessage = 'Downloading invoice…',
   }) async {
     if (downloadUrl.isEmpty) {
       _toast(context, 'Invoice Download Failed. Please Contact Admin.');
@@ -28,6 +29,27 @@ class InvoiceDownloadHelper {
       return;
     }
 
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    messenger?.showSnackBar(
+      SnackBar(
+        content: Row(
+          children: <Widget>[
+            const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(child: Text(loadingMessage)),
+          ],
+        ),
+        duration: const Duration(minutes: 2),
+      ),
+    );
+
     try {
       final dir = await getApplicationDocumentsDirectory();
       final safeName = fileName.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
@@ -37,6 +59,7 @@ class InvoiceDownloadHelper {
 
       final result = await OpenFilex.open(path);
       if (!context.mounted) return;
+      messenger?.hideCurrentSnackBar();
       if (result.type != ResultType.done) {
         _toast(
           context,
@@ -45,6 +68,7 @@ class InvoiceDownloadHelper {
       }
     } catch (_) {
       if (!context.mounted) return;
+      messenger?.hideCurrentSnackBar();
       _toast(context, 'Invoice Download Failed.');
     }
   }

@@ -290,11 +290,18 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
   }
 
   Future<void> _downloadInvoice(String url, String fileId) async {
-    await _invoiceHelper.downloadAndOpen(
-      context: context,
-      downloadUrl: url,
-      fileName: 'Carrocare_Invoice_$fileId.pdf',
-    );
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      await _invoiceHelper.downloadAndOpen(
+        context: context,
+        downloadUrl: url,
+        fileName: 'Carrocare_Invoice_$fileId.pdf',
+        loadingMessage: 'Downloading invoice…',
+      );
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   Future<void> _enableAutoRenew() async {
@@ -580,8 +587,11 @@ class _OrderDetailsCard extends StatelessWidget {
             if (ui.showSchedule) ...<Widget>[
               const SizedBox(height: 12),
               _OrderInfoBlock(
-                label: 'Schedule Date',
-                value: order.scheduleDate,
+                label: 'Schedule',
+                value: OrderDateTimeDisplay.formatSchedule(
+                  date: order.scheduleDate,
+                  time: order.scheduleTime,
+                ),
               ),
             ],
             if (ui.showWorkDone || ui.showPaymentMode) ...<Widget>[
@@ -845,6 +855,18 @@ class _OrderDetailUi {
       showPaidCount = false;
       showValid = false;
       showDownloadInvoice = true;
+    }
+
+    final hasScheduleData = order.scheduleDate.trim().isNotEmpty ||
+        order.scheduleTime.trim().isNotEmpty;
+    if (!showSchedule && hasScheduleData) {
+      if (service == 'wash' ||
+          service == 'addon' ||
+          _isDoorStep(service) ||
+          service == 'disinsfection' ||
+          service == 'disinfection') {
+        showSchedule = true;
+      }
     }
 
     return _OrderDetailUi(

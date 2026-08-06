@@ -448,6 +448,7 @@ class CheckoutRepositoryImpl implements CheckoutRepository {
     required String totalAmount,
     required String scheduleDate,
     required String scheduleTime,
+    required String packType,
   }) async {
     final data = await _remote.saveAddOnOrderOneTime(
       paymentId: paymentId,
@@ -463,6 +464,7 @@ class CheckoutRepositoryImpl implements CheckoutRepository {
       totalAmount: totalAmount,
       scheduleDate: scheduleDate,
       scheduleTime: scheduleTime,
+      packType: packType,
     );
     return _messageFromSave(data);
   }

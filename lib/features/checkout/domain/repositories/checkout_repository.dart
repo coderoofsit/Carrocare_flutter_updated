@@ -134,5 +134,6 @@ abstract class CheckoutRepository {
     required String totalAmount,
     required String scheduleDate,
     required String scheduleTime,
+    required String packType,
   });
 }

@@ -107,7 +107,9 @@ class _PaymentOptionPageState extends State<PaymentOptionPage> {
 
   String get _apiPackType {
     if (_a.serviceType == CheckoutConstants.serviceWash ||
-        _a.serviceType == CheckoutConstants.serviceBikeWash) {
+        _a.serviceType == CheckoutConstants.serviceBikeWash ||
+        _isAddon ||
+        _isExtraInterior) {
       return CheckoutPlanParams.packageType(category: '', carName: _a.carName);
     }
     return CheckoutPlanParams.packageType(
@@ -115,6 +117,8 @@ class _PaymentOptionPageState extends State<PaymentOptionPage> {
       carName: _a.carName,
     );
   }
+
+  String get _apiPlanServiceType => apiPlanServiceType(_a.serviceType);
 
   String get _apiVehicleType => CheckoutPlanParams.apiVehicleTypeFromVehicle(
         _a.vehicle,
@@ -256,20 +260,20 @@ class _PaymentOptionPageState extends State<PaymentOptionPage> {
     try {
       var plans = await sl<CheckoutRepository>().fetchPlansList(
         vehicleType: _apiVehicleType,
-        serviceType: _apiServiceType,
+        serviceType: _apiPlanServiceType,
         packType: _apiPackType,
         packAmount: _inclusivePackAmount,
       );
       plans = CheckoutPlanParams.filterForBooking(
         plans,
         packageType: _apiPackType,
-        serviceType: _apiServiceType,
+        serviceType: _apiPlanServiceType,
       );
       if (plans.isEmpty && !_isAddon && !_isExtraInterior) {
         plans = CheckoutPlanParams.fallbackPlans(
           packageType: _apiPackType,
           vehicleType: _apiVehicleType,
-          serviceType: _apiServiceType,
+          serviceType: _apiPlanServiceType,
           planAmount: _inclusivePackAmount,
         );
       }
@@ -283,7 +287,7 @@ class _PaymentOptionPageState extends State<PaymentOptionPage> {
         _plans = CheckoutPlanParams.fallbackPlans(
           packageType: _apiPackType,
           vehicleType: _apiVehicleType,
-          serviceType: _apiServiceType,
+          serviceType: _apiPlanServiceType,
           planAmount: _inclusivePackAmount,
         );
         _monthlyPlan = CheckoutPlanParams.pickMonthly(
@@ -299,6 +303,9 @@ class _PaymentOptionPageState extends State<PaymentOptionPage> {
   int get _oneTimeBase {
     if (_oneTimeCheckout != null) {
       return CheckoutPricing.parseAmount(_oneTimeCheckout!.totalAmount);
+    }
+    if (_isAddon || _isExtraInterior) {
+      return CheckoutPricing.parseAmount(_inclusivePackAmount);
     }
     return CheckoutPricing.parseAmount(_a.carPrice) * _selectedMonths;
   }
@@ -579,6 +586,7 @@ class _PaymentOptionPageState extends State<PaymentOptionPage> {
           totalAmount: total,
           scheduleDate: _preferDate,
           scheduleTime: _preferTime,
+          packType: _apiPackType,
         );
       } else {
         message = await sl<CheckoutRepository>().placeOneTimeWashOrder(

@@ -78,16 +78,23 @@ abstract final class CheckoutPlanParams {
     required String serviceType,
   }) {
     final normalizedPack = packageType.trim().toLowerCase();
-    final normalizedService = serviceType.trim().toLowerCase();
     return plans
         .where((CheckoutPlan plan) {
           final packMatch =
               plan.packageType.trim().toLowerCase() == normalizedPack;
           final serviceMatch =
-              plan.serviceType.trim().toLowerCase() == normalizedService;
+              serviceTypesMatch(plan.serviceType, serviceType);
           return packMatch && serviceMatch;
         })
         .toList();
+  }
+
+  static bool serviceTypesMatch(String a, String b) {
+    return _normalizeServiceType(a) == _normalizeServiceType(b);
+  }
+
+  static String _normalizeServiceType(String value) {
+    return value.trim().toLowerCase().replaceAll(RegExp(r'[\s_-]+'), '');
   }
 
   static CheckoutPlan? pickMonthly(

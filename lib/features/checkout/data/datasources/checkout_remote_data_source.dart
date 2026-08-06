@@ -140,6 +140,7 @@ class CheckoutRemoteDataSource {
     required String totalAmount,
     required String scheduleDate,
     required String scheduleTime,
+    required String packType,
   }) async {
     return postSaveOrderWithRetry(
       _apiClient.dio,
@@ -158,7 +159,7 @@ class CheckoutRemoteDataSource {
         'gst_amount': gstAmount,
         'tot_amt': totalAmount,
         'service_type': 'AddOn',
-        'pack_type': '',
+        'pack_type': packType,
         'schedule_date': scheduleDate,
         'schedule_time': scheduleTime,
       },

@@ -78,6 +78,7 @@ class CheckoutConstants {
     if (lower.contains('hatch')) return 'Hatchback';
     if (lower.contains('sedan')) return 'Sedan';
     if (lower.contains('suv')) return 'SUV';
+    if (lower.contains('extra')) return 'ExtraInterior';
     return category;
   }
 }
