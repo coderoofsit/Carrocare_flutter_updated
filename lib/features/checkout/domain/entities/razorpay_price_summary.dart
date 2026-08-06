@@ -14,11 +14,11 @@ class RazorpayPriceSummary {
 
   final String serviceLabel;
   final int total;
-  final int subTotal;
-  final int gstAmount;
+  final double subTotal;
+  final double gstAmount;
   final int gstPercent;
-  final int platformFee;
-  final int serviceFee;
+  final double platformFee;
+  final double serviceFee;
 
   factory RazorpayPriceSummary.fromInclusive({
     required String serviceLabel,
@@ -64,11 +64,11 @@ class RazorpayPriceSummary {
   /// Stored on the Razorpay payment for receipts / dashboard.
   Map<String, String> get notes => <String, String>{
         'service': serviceLabel,
-        'sub_total': subTotal.toString(),
-        'platform_fee': platformFee.toString(),
-        'service_fee': serviceFee.toString(),
+        'sub_total': CheckoutPricing.moneyString(subTotal),
+        'platform_fee': CheckoutPricing.moneyString(platformFee),
+        'service_fee': CheckoutPricing.moneyString(serviceFee),
         'gst_percent': gstPercent.toString(),
-        'gst_amount': gstAmount.toString(),
+        'gst_amount': CheckoutPricing.moneyString(gstAmount),
         'total': total.toString(),
       };
 }

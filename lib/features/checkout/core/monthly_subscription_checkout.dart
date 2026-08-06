@@ -71,9 +71,9 @@ class MonthlySubscriptionCheckout {
         token: token,
         serviceType: serviceType,
         totalAmount: breakdown.total.toString(),
-        subTotal: breakdown.subTotal.toString(),
+        subTotal: CheckoutPricing.moneyString(breakdown.subTotal),
         gst: gstPercent.toString(),
-        gstAmount: breakdown.gstAmount.toString(),
+        gstAmount: CheckoutPricing.moneyString(breakdown.gstAmount),
       );
       await onSuccess();
     } catch (e) {

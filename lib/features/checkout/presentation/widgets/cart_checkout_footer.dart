@@ -25,9 +25,9 @@ class CartCheckoutFooter extends StatelessWidget {
   final VoidCallback onCheckout;
   final bool checkingOut;
   final Widget? consentSection;
-  final int? platformFee;
-  final int? serviceFee;
-  final int? gstAmount;
+  final num? platformFee;
+  final num? serviceFee;
+  final num? gstAmount;
   final int? gstPercent;
 
   @override

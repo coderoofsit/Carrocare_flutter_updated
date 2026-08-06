@@ -36,8 +36,14 @@ abstract final class CheckoutPlanFeeResolver {
     }
 
     final unitPlatform = plan?.resolvedPlatformFeeAmt ?? 0;
-    if (unitPlanAmount > 0 && unitPlatform > 0) {
-      return ((unitPlatform * inclusiveTotal) / unitPlanAmount).round();
+    // Ratio base must be the plan's own amount when present (may differ from
+    // catalog/checkout price, e.g. plan 999 vs carPrice 847).
+    final planAmount = CheckoutPricing.parseMoney(plan?.planAmount ?? '');
+    final ratioBase = planAmount > 0
+        ? planAmount
+        : (unitPlanAmount > 0 ? unitPlanAmount : inclusiveTotal);
+    if (ratioBase > 0 && unitPlatform > 0) {
+      return ((unitPlatform * inclusiveTotal) / ratioBase).round();
     }
 
     return CheckoutPricing.derivePlatformFeeAmt(
@@ -48,10 +54,10 @@ abstract final class CheckoutPlanFeeResolver {
 
   static ({
     int total,
-    int subTotal,
-    int gstAmount,
-    int platformFee,
-    int serviceFee,
+    double subTotal,
+    double gstAmount,
+    double platformFee,
+    double serviceFee,
   }) breakdown({
     required int inclusiveTotal,
     required int unitPlanAmount,
@@ -59,15 +65,32 @@ abstract final class CheckoutPlanFeeResolver {
     CheckoutPlan? plan,
     int? storedPlatformFeeAmt,
   }) {
-    final platformFeeAmt = platformFeeForTotal(
-      inclusiveTotal: inclusiveTotal,
-      unitPlanAmount: unitPlanAmount > 0 ? unitPlanAmount : inclusiveTotal,
-      plan: plan,
-      storedPlatformFeeAmt: storedPlatformFeeAmt,
-    );
+    // Stored fee is the GST-inclusive platform share for this inclusiveTotal.
+    if (storedPlatformFeeAmt != null && storedPlatformFeeAmt > 0) {
+      return CheckoutPricing.breakdownWithPlatformFee(
+        inclusiveTotal: inclusiveTotal,
+        planAmount: inclusiveTotal,
+        platformFeeAmt: storedPlatformFeeAmt,
+        gstPercent: gstPercent,
+      );
+    }
+
+    // Plan platform fee must be ratioed against the plan's own amount, not the
+    // checkout/catalog price (those can diverge, e.g. 999 plan vs 847 total).
+    final listedPlanAmount = CheckoutPricing.parseMoney(plan?.planAmount ?? '');
+    final planAmount = listedPlanAmount > 0
+        ? listedPlanAmount
+        : (unitPlanAmount > 0 ? unitPlanAmount : inclusiveTotal);
+    final unitPlatform = plan?.resolvedPlatformFeeAmt ?? 0;
+    final platformFeeAmt = unitPlatform > 0
+        ? unitPlatform
+        : CheckoutPricing.derivePlatformFeeAmt(
+            planAmount,
+            CheckoutPricing.defaultPlatformFeePercent,
+          );
     return CheckoutPricing.breakdownWithPlatformFee(
       inclusiveTotal: inclusiveTotal,
-      planAmount: unitPlanAmount > 0 ? unitPlanAmount : inclusiveTotal,
+      planAmount: planAmount,
       platformFeeAmt: platformFeeAmt,
       gstPercent: gstPercent,
     );

@@ -329,15 +329,24 @@ class _SmartCheckoutSheetBodyState extends State<_SmartCheckoutSheetBody> {
 
   int get _baseAmount {
     if (_isMonthlyMode) {
+      // Monthly autopay charges the Razorpay plan amount (e.g. 999), not the
+      // catalog carPrice (e.g. 847). Cart / subscribe already use the plan.
+      final planAmt = CheckoutPricing.parseMoney(_matchedPlan?.planAmount ?? '');
+      if (planAmt > 0) return planAmt;
       return CheckoutPricing.parseAmount(widget.booking.carPrice);
     }
     final unit = CheckoutPricing.parseAmount(widget.checkout.totalAmount);
     return unit * _months;
   }
 
-  int get _unitPlanAmount => CheckoutPricing.parseMoney(
-        _isMonthlyMode ? widget.booking.carPrice : widget.checkout.totalAmount,
-      );
+  int get _unitPlanAmount {
+    if (_isMonthlyMode) {
+      final planAmt = CheckoutPricing.parseMoney(_matchedPlan?.planAmount ?? '');
+      if (planAmt > 0) return planAmt;
+      return CheckoutPricing.parseMoney(widget.booking.carPrice);
+    }
+    return CheckoutPricing.parseMoney(widget.checkout.totalAmount);
+  }
 
   CheckoutPlan? get _matchedPlan => CheckoutPlanFeeResolver.matchPlan(
         plans: widget.plans,
@@ -347,16 +356,21 @@ class _SmartCheckoutSheetBodyState extends State<_SmartCheckoutSheetBody> {
         monthly: _isMonthlyMode,
       );
 
-  ({int total, int subTotal, int gstAmount, int platformFee, int serviceFee})
-      get _priceBreakdown {
+  ({
+    int total,
+    double subTotal,
+    double gstAmount,
+    double platformFee,
+    double serviceFee,
+  }) get _priceBreakdown {
     final unitPlan = _unitPlanAmount;
     final inclusiveTotal = _baseAmount;
-    final scaledUnitPlan = unitPlan * (_isMonthlyMode ? 1 : _months);
+    final matched = _matchedPlan;
     return CheckoutPlanFeeResolver.breakdown(
       inclusiveTotal: inclusiveTotal,
-      unitPlanAmount: scaledUnitPlan > 0 ? scaledUnitPlan : inclusiveTotal,
+      unitPlanAmount: unitPlan > 0 ? unitPlan : inclusiveTotal,
       gstPercent: widget.gstPercent,
-      plan: _matchedPlan,
+      plan: matched,
     );
   }
 
@@ -468,18 +482,18 @@ class _SmartCheckoutSheetBodyState extends State<_SmartCheckoutSheetBody> {
       carImage: widget.vehicle.image,
       carMakeModel: widget.vehicle.makeModel,
       carNo: widget.vehicle.vehicleNo,
-      packAmount: _isMonthlyMode
-          ? widget.booking.carPrice
-          : widget.checkout.totalAmount,
+      packAmount: _finalAmount.toString(),
       carId: widget.vehicle.id,
       paidMonths: _isMonthlyMode ? '1' : '$_months',
       fineAmount: widget.checkout.fineAmount,
-      subTotal: breakdown.subTotal.toString(),
+      subTotal: CheckoutPricing.moneyString(breakdown.subTotal),
       gstPercent: widget.gstPercent.toString(),
-      gstAmount: breakdown.gstAmount.toString(),
+      gstAmount: CheckoutPricing.moneyString(breakdown.gstAmount),
       totalAmount: breakdown.total.toString(),
-      platformFeeAmt: breakdown.platformFee.toString(),
-      serviceFeeAmt: breakdown.serviceFee.toString(),
+      platformFeeAmt: CheckoutPricing.moneyString(
+        breakdown.platformFee + breakdown.gstAmount,
+      ),
+      serviceFeeAmt: CheckoutPricing.moneyString(breakdown.serviceFee),
       scheduleDate: _preferDate.isNotEmpty ? _preferDate : widget.vehicle.preferredSchedule,
       scheduleTime: _preferTime.isNotEmpty ? _preferTime : widget.vehicle.preferredTime,
       carName: widget.booking.carName,

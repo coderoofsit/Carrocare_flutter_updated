@@ -1,4 +1,5 @@
 import 'package:carrocare_flutter/features/checkout/core/checkout_constants.dart';
+import 'package:carrocare_flutter/features/checkout/core/checkout_pricing.dart';
 import 'package:carrocare_flutter/features/checkout/domain/entities/cart_item.dart';
 
 /// Display helpers matching Android [CartListAdapter].
@@ -78,10 +79,11 @@ class CartDisplayHelper {
     return fromCategory.isNotEmpty ? fromCategory : fromName;
   }
 
-  static int parseAmount(String value) => int.tryParse(value) ?? 0;
+  static int parseAmount(String value) =>
+      CheckoutPricing.parseMoney(value);
 
-  static String formatRupee(int amount) => '₹ $amount';
+  static String formatRupee(num amount) => CheckoutPricing.rupee(amount);
 
   static String formatRupeeFromString(String amount) =>
-      formatRupee(parseAmount(amount));
+      formatRupee(CheckoutPricing.parseMoneyDecimal(amount));
 }

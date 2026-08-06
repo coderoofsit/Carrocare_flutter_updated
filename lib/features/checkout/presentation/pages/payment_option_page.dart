@@ -349,8 +349,13 @@ class _PaymentOptionPageState extends State<PaymentOptionPage> {
     );
   }
 
-  ({int total, int subTotal, int gstAmount, int platformFee, int serviceFee})
-      _breakdownFor(int inclusiveTotal, {required bool monthly}) {
+  ({
+    int total,
+    double subTotal,
+    double gstAmount,
+    double platformFee,
+    double serviceFee,
+  }) _breakdownFor(int inclusiveTotal, {required bool monthly}) {
     final unitPlan = _unitPlanAmount(monthly: monthly);
     final plan = _planForBreakdown(monthly: monthly);
     return CheckoutPlanFeeResolver.breakdown(
@@ -566,7 +571,7 @@ class _PaymentOptionPageState extends State<PaymentOptionPage> {
           token: _token,
           packAmount: _inclusivePackAmount,
           vehicleId: _a.vehicle.id,
-          subTotal: breakdown.subTotal.toString(),
+          subTotal: CheckoutPricing.moneyString(breakdown.subTotal),
           gst: gst,
           totalAmount: total,
           scheduleDate: _preferDate,
@@ -581,7 +586,7 @@ class _PaymentOptionPageState extends State<PaymentOptionPage> {
           vehicleId: _a.vehicle.id,
           paidMonths: '1',
           fineAmount: _fineAmount,
-          subTotal: breakdown.subTotal.toString(),
+          subTotal: CheckoutPricing.moneyString(breakdown.subTotal),
           gst: gst,
           totalAmount: total,
           scheduleDate: _preferDate,
@@ -597,7 +602,7 @@ class _PaymentOptionPageState extends State<PaymentOptionPage> {
           vehicleId: _a.vehicle.id,
           paidMonths: _selectedMonths.toString(),
           fineAmount: _fineAmount,
-          subTotal: breakdown.subTotal.toString(),
+          subTotal: CheckoutPricing.moneyString(breakdown.subTotal),
           gst: gst,
           totalAmount: total,
           serviceType: 'Wash',
@@ -665,12 +670,14 @@ class _PaymentOptionPageState extends State<PaymentOptionPage> {
       carId: _a.vehicle.id,
       paidMonths: monthlyCard ? '1' : _selectedMonths.toString(),
       fineAmount: _fineAmount,
-      subTotal: breakdown.subTotal.toString(),
+      subTotal: CheckoutPricing.moneyString(breakdown.subTotal),
       gstPercent: _gstPercent.toString(),
-      gstAmount: tax.toString(),
+      gstAmount: CheckoutPricing.moneyString(tax),
       totalAmount: total.toString(),
-      platformFeeAmt: breakdown.platformFee.toString(),
-      serviceFeeAmt: breakdown.serviceFee.toString(),
+      platformFeeAmt: CheckoutPricing.moneyString(
+        breakdown.platformFee + breakdown.gstAmount,
+      ),
+      serviceFeeAmt: CheckoutPricing.moneyString(breakdown.serviceFee),
       scheduleDate: _preferDate,
       scheduleTime: _preferTime,
       carName: _a.carName,
@@ -982,14 +989,24 @@ class _PaymentOptionPageState extends State<PaymentOptionPage> {
               style: const TextStyle(fontWeight: FontWeight.w700),
             ),
             if (_gstPercent > 0) ...<Widget>[
-              Text(
-                'Platform fee: ${CheckoutPricing.rupee(_breakdownFor(finalAmt, monthly: isSubscription).platformFee)}',
-              ),
-              Text(
-                'Service provider: ${CheckoutPricing.rupee(_breakdownFor(finalAmt, monthly: isSubscription).serviceFee)}',
-              ),
-              Text(
-                'GST ($_gstPercent% on platform fee): ${CheckoutPricing.rupee(_breakdownFor(finalAmt, monthly: isSubscription).gstAmount)}',
+              Builder(
+                builder: (context) {
+                  final b = _breakdownFor(finalAmt, monthly: isSubscription);
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(
+                        'Platform fee: ${CheckoutPricing.rupee(b.platformFee)}',
+                      ),
+                      Text(
+                        'Service provider: ${CheckoutPricing.rupee(b.serviceFee)}',
+                      ),
+                      Text(
+                        'GST ($_gstPercent% on platform fee): ${CheckoutPricing.rupee(b.gstAmount)}',
+                      ),
+                    ],
+                  );
+                },
               ),
             ],
             const SizedBox(height: 8),

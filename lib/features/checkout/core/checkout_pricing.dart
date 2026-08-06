@@ -14,10 +14,29 @@ class CheckoutPricing {
     return int.tryParse(trimmed) ?? 0;
   }
 
+  /// Keeps paise precision for fee / GST display fields.
+  static double parseMoneyDecimal(String value) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) return 0;
+    return double.tryParse(trimmed) ?? 0;
+  }
+
+  /// Round to 2 decimal places (paise).
+  static double round2(num value) =>
+      (value.toDouble() * 100).round() / 100.0;
+
+  /// Persist money without trailing `.00` when whole rupees.
+  static String moneyString(num amount) {
+    final r = round2(amount);
+    if (r == r.roundToDouble()) return r.round().toString();
+    return r.toStringAsFixed(2);
+  }
+
   static int taxAmount(int base, int gstPercent) =>
       gstPercent == 0 ? 0 : ((gstPercent * base) / 100).round();
 
-  static int finalAmount(int base, int gstPercent) => base + taxAmount(base, gstPercent);
+  static int finalAmount(int base, int gstPercent) =>
+      base + taxAmount(base, gstPercent);
 
   /// Customer price already includes GST — do not add tax on top.
   static int inclusiveTotal(int inclusive, int gstPercent) => inclusive;
@@ -27,12 +46,13 @@ class CheckoutPricing {
       ((planAmount * platformFeePercent) / 100).round();
 
   /// GST applies only to platform fee. Service provider share is non-taxable.
+  /// Platform fee / GST are returned with 2-decimal (paise) precision.
   static ({
     int total,
-    int subTotal,
-    int gstAmount,
-    int platformFee,
-    int serviceFee,
+    double subTotal,
+    double gstAmount,
+    double platformFee,
+    double serviceFee,
   }) breakdownWithPlatformFee({
     required int inclusiveTotal,
     required int planAmount,
@@ -52,27 +72,28 @@ class CheckoutPricing {
     final plan = planAmount > 0 ? planAmount : inclusiveTotal;
     final ratio = plan > 0 ? (platformFeeAmt / plan).clamp(0.0, 1.0) : 0.0;
     final platformGross = (inclusiveTotal * ratio).round();
-    final serviceGross = inclusiveTotal - platformGross;
+    final serviceGross = (inclusiveTotal - platformGross).toDouble();
 
-    var platformExcl = platformGross;
-    var gstAmount = 0;
+    var platformExcl = platformGross.toDouble();
+    var gstAmount = 0.0;
     if (gstPercent > 0 && platformGross > 0) {
-      platformExcl = ((platformGross * 100) / (100 + gstPercent)).round();
-      gstAmount = platformGross - platformExcl;
+      platformExcl = round2((platformGross * 100) / (100 + gstPercent));
+      gstAmount = round2(platformGross - platformExcl);
     }
 
-    final subTotal = platformExcl + serviceGross;
+    final subTotal = round2(platformExcl + serviceGross);
     return (
       total: inclusiveTotal,
       subTotal: subTotal,
       gstAmount: gstAmount,
-      platformFee: platformGross,
+      // Display / bill lines: GST-exclusive platform fee (GST shown separately).
+      platformFee: platformExcl,
       serviceFee: serviceGross,
     );
   }
 
   /// Split a GST-inclusive price using platform-fee-only GST (default 64% platform).
-  static ({int total, int subTotal, int gstAmount}) breakdownFromInclusive(
+  static ({int total, double subTotal, double gstAmount}) breakdownFromInclusive(
     int inclusive,
     int gstPercent,
   ) {
@@ -102,5 +123,5 @@ class CheckoutPricing {
   static int mrpWithOffer(int finalAmt, {int months = 1}) =>
       finalAmt + (CheckoutConstants.offerPriceMarkup * months);
 
-  static String rupee(int amount) => '₹ $amount';
+  static String rupee(num amount) => '₹ ${moneyString(amount)}';
 }

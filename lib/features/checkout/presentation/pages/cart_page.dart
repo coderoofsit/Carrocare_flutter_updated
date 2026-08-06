@@ -58,40 +58,39 @@ class _CartPageState extends State<CartPage> {
       );
 
   RazorpayPriceSummary _cartPriceSummary() {
-    final subTotal = _items.fold<int>(
+    final subTotal = _items.fold<double>(
       0,
-      (sum, item) => sum + CheckoutPricing.parseAmount(item.subTotal),
+      (sum, item) => sum + CheckoutPricing.parseMoneyDecimal(item.subTotal),
     );
-    final gstAmount = _items.fold<int>(
+    final gstAmount = _items.fold<double>(
       0,
-      (sum, item) => sum + CheckoutPricing.parseAmount(item.gstAmount),
+      (sum, item) => sum + CheckoutPricing.parseMoneyDecimal(item.gstAmount),
     );
-    final platformFee = _items.fold<int>(0, (sum, item) {
-      final stored = CheckoutPricing.parseMoney(item.platformFeeAmt);
-      if (stored > 0) return sum + stored;
+    var platformFee = 0.0;
+    var serviceFee = 0.0;
+    for (final item in _items) {
       final total = CheckoutPricing.parseMoney(item.totalAmount);
       final pack = CheckoutPricing.parseMoney(item.packAmount);
       final unitPlan = pack > 0 ? pack : total;
-      return sum +
-          CheckoutPlanFeeResolver.platformFeeForTotal(
-            inclusiveTotal: total,
-            unitPlanAmount: unitPlan,
-          );
-    });
-    final serviceFee = _items.fold<int>(0, (sum, item) {
-      final stored = CheckoutPricing.parseMoney(item.serviceFeeAmt);
-      if (stored > 0) return sum + stored;
-      final total = CheckoutPricing.parseMoney(item.totalAmount);
-      final platform = CheckoutPricing.parseMoney(item.platformFeeAmt);
-      if (platform > 0) return sum + (total - platform);
-      final pack = CheckoutPricing.parseMoney(item.packAmount);
-      final unitPlan = pack > 0 ? pack : total;
-      final platformPart = CheckoutPlanFeeResolver.platformFeeForTotal(
+      final rawGst = int.tryParse(item.gstPercent) ?? 0;
+      final itemGst =
+          rawGst > 0 ? rawGst : CheckoutGstConfig.defaultGstPercent;
+      final storedPlatform = CheckoutPricing.parseMoney(item.platformFeeAmt);
+      final storedService =
+          CheckoutPricing.parseMoneyDecimal(item.serviceFeeAmt);
+      // Stored platform_fee_amt is GST-inclusive (gross). Prefer recomputed
+      // exclusive platform fee so cart UI matches Platform + Service + GST.
+      final breakdown = CheckoutPlanFeeResolver.breakdown(
         inclusiveTotal: total,
         unitPlanAmount: unitPlan,
+        gstPercent: itemGst,
+        storedPlatformFeeAmt: storedPlatform > 0 ? storedPlatform : null,
       );
-      return sum + (total - platformPart);
-    });
+      platformFee += breakdown.platformFee;
+      serviceFee += storedService > 0 ? storedService : breakdown.serviceFee;
+    }
+    platformFee = CheckoutPricing.round2(platformFee);
+    serviceFee = CheckoutPricing.round2(serviceFee);
     final rawGst = _items.isEmpty
         ? 0
         : int.tryParse(_items.first.gstPercent) ?? 0;
@@ -103,11 +102,13 @@ class _CartPageState extends State<CartPage> {
     return RazorpayPriceSummary(
       serviceLabel: label,
       total: _cartTotal,
-      subTotal: subTotal,
-      gstAmount: gstAmount,
+      subTotal: CheckoutPricing.round2(subTotal),
+      gstAmount: CheckoutPricing.round2(gstAmount),
       gstPercent: gstPercent,
       platformFee: platformFee,
-      serviceFee: serviceFee > 0 ? serviceFee : _cartTotal - platformFee,
+      serviceFee: serviceFee > 0
+          ? serviceFee
+          : CheckoutPricing.round2(_cartTotal - platformFee - gstAmount),
     );
   }
 
@@ -430,9 +431,9 @@ class _CartPageState extends State<CartPage> {
           token: _token,
           serviceType: eligibility.serviceType,
           totalAmount: breakdown.total.toString(),
-          subTotal: breakdown.subTotal.toString(),
+          subTotal: CheckoutPricing.moneyString(breakdown.subTotal),
           gst: gstPercent.toString(),
-          gstAmount: breakdown.gstAmount.toString(),
+          gstAmount: CheckoutPricing.moneyString(breakdown.gstAmount),
         );
         completed += 1;
       }

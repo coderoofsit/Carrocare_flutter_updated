@@ -515,9 +515,9 @@ class _DoorStepServicePageState extends State<DoorStepServicePage> {
       'packAmount': '$inclusiveTotal',
       'vehicleId': _selectedVehicle!.id,
       'serviceType': serviceType,
-      'subTotal': '${breakdown.subTotal}',
+      'subTotal': CheckoutPricing.moneyString(breakdown.subTotal),
       'gst': '$gstPercent',
-      'gstAmount': '${breakdown.gstAmount}',
+      'gstAmount': CheckoutPricing.moneyString(breakdown.gstAmount),
       'totalAmount': '${breakdown.total}',
       'scheduleDate': scheduleDate,
       'scheduleTime': draft.timeSlot,
@@ -2229,12 +2229,12 @@ class _OrderPreviewSheet extends StatelessWidget {
                 children: <Widget>[
                   _SummaryRow(
                     label: 'Subtotal (excl. GST)',
-                    value: '₹${breakdown.subTotal}',
+                    value: CheckoutPricing.rupee(breakdown.subTotal),
                   ),
                   const SizedBox(height: 12),
                   _SummaryRow(
                     label: 'GST ($gstPercent%)',
-                    value: '₹${breakdown.gstAmount}',
+                    value: CheckoutPricing.rupee(breakdown.gstAmount),
                   ),
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: 14),
@@ -2242,7 +2242,7 @@ class _OrderPreviewSheet extends StatelessWidget {
                   ),
                   _SummaryRow(
                     label: 'Grand Total (incl. GST)',
-                    value: '₹${breakdown.total}',
+                    value: CheckoutPricing.rupee(breakdown.total),
                     emphasize: true,
                   ),
                 ],
