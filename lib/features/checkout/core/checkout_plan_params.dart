@@ -1,4 +1,5 @@
 import 'package:carrocare_flutter/features/checkout/core/checkout_constants.dart';
+import 'package:carrocare_flutter/features/checkout/core/checkout_pricing.dart';
 import 'package:carrocare_flutter/features/checkout/domain/entities/checkout_plan.dart';
 import 'package:carrocare_flutter/features/vehicles/domain/entities/vehicle_item.dart';
 
@@ -45,13 +46,42 @@ abstract final class CheckoutPlanParams {
     );
   }
 
-  /// When [plans_list] returns nothing, still offer Monthly + OneTime from booking price.
+  static (String platformFeeAmt, String serviceFeeAmt) canonicalFeeSplit({
+    required String packageType,
+    required String planAmount,
+  }) {
+    final amt = CheckoutPricing.parseMoney(planAmount);
+    final pack = packageType.trim().toLowerCase();
+
+    if (amt == 749 || pack.contains('hatch')) {
+      return ('249', '500');
+    }
+    if (amt == 999 || pack.contains('sedan')) {
+      return ('299', '700');
+    }
+    if (amt == 1099 || pack.contains('suv')) {
+      return ('299', '800');
+    }
+    if (amt == 354 || pack.contains('bike')) {
+      return ('104', '250');
+    }
+    if (amt == 118 || pack.contains('extra')) {
+      return ('38', '80');
+    }
+    return ('', '');
+  }
+
+  /// When [plans_list] returns nothing, still offer Monthly + OneTime with canonical tier fee splits.
   static List<CheckoutPlan> fallbackPlans({
     required String packageType,
     required String vehicleType,
     required String serviceType,
     required String planAmount,
   }) {
+    final (platformFeeAmt, serviceFeeAmt) = canonicalFeeSplit(
+      packageType: packageType,
+      planAmount: planAmount,
+    );
     return <CheckoutPlan>[
       CheckoutPlan(
         planId: '',
@@ -60,6 +90,8 @@ abstract final class CheckoutPlanParams {
         subscriptionType: 'Monthly',
         serviceType: serviceType,
         planAmount: planAmount,
+        platformFeeAmt: platformFeeAmt,
+        serviceFeeAmt: serviceFeeAmt,
       ),
       CheckoutPlan(
         planId: '',
@@ -68,6 +100,8 @@ abstract final class CheckoutPlanParams {
         subscriptionType: 'OneTime',
         serviceType: serviceType,
         planAmount: planAmount,
+        platformFeeAmt: platformFeeAmt,
+        serviceFeeAmt: serviceFeeAmt,
       ),
     ];
   }
@@ -120,10 +154,22 @@ abstract final class CheckoutPlanParams {
     });
   }
 
-  static CheckoutPlan? pickOneTime(List<CheckoutPlan> plans) {
-    for (final plan in plans) {
-      if (plan.isOneTime) return plan;
+  static CheckoutPlan? pickOneTime(
+    List<CheckoutPlan> plans, {
+    String? planAmount,
+  }) {
+    final oneTime = plans.where((CheckoutPlan plan) => plan.isOneTime).toList();
+    if (oneTime.isEmpty) {
+      return null;
     }
-    return null;
+    final target = planAmount?.trim() ?? '';
+    if (target.isNotEmpty) {
+      for (final CheckoutPlan plan in oneTime) {
+        if (plan.planAmount.trim() == target) {
+          return plan;
+        }
+      }
+    }
+    return oneTime.first;
   }
 }

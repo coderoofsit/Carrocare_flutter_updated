@@ -258,18 +258,27 @@ class _PaymentOptionPageState extends State<PaymentOptionPage> {
 
   Future<void> _loadPlans() async {
     try {
-      var plans = await sl<CheckoutRepository>().fetchPlansList(
+      final rawPlans = await sl<CheckoutRepository>().fetchPlansList(
         vehicleType: _apiVehicleType,
         serviceType: _apiPlanServiceType,
         packType: _apiPackType,
         packAmount: _inclusivePackAmount,
       );
-      plans = CheckoutPlanParams.filterForBooking(
-        plans,
+      var plans = CheckoutPlanParams.filterForBooking(
+        rawPlans,
         packageType: _apiPackType,
         serviceType: _apiPlanServiceType,
       );
-      if (plans.isEmpty && !_isAddon && !_isExtraInterior) {
+      if (plans.isEmpty) {
+        final targetAmt = CheckoutPricing.parseMoney(_inclusivePackAmount);
+        plans = rawPlans.where((p) {
+          final amt = CheckoutPricing.parseMoney(p.planAmount);
+          final packMatch =
+              p.packageType.trim().toLowerCase() == _apiPackType.trim().toLowerCase();
+          return (targetAmt > 0 && amt == targetAmt) || packMatch;
+        }).toList();
+      }
+      if (plans.isEmpty) {
         plans = CheckoutPlanParams.fallbackPlans(
           packageType: _apiPackType,
           vehicleType: _apiVehicleType,
@@ -283,18 +292,16 @@ class _PaymentOptionPageState extends State<PaymentOptionPage> {
         planAmount: _inclusivePackAmount,
       );
     } catch (_) {
-      if (!_isAddon && !_isExtraInterior) {
-        _plans = CheckoutPlanParams.fallbackPlans(
-          packageType: _apiPackType,
-          vehicleType: _apiVehicleType,
-          serviceType: _apiPlanServiceType,
-          planAmount: _inclusivePackAmount,
-        );
-        _monthlyPlan = CheckoutPlanParams.pickMonthly(
-          _plans,
-          planAmount: _inclusivePackAmount,
-        );
-      }
+      _plans = CheckoutPlanParams.fallbackPlans(
+        packageType: _apiPackType,
+        vehicleType: _apiVehicleType,
+        serviceType: _apiPlanServiceType,
+        planAmount: _inclusivePackAmount,
+      );
+      _monthlyPlan = CheckoutPlanParams.pickMonthly(
+        _plans,
+        planAmount: _inclusivePackAmount,
+      );
     }
   }
 
@@ -304,10 +311,7 @@ class _PaymentOptionPageState extends State<PaymentOptionPage> {
     if (_oneTimeCheckout != null) {
       return CheckoutPricing.parseAmount(_oneTimeCheckout!.totalAmount);
     }
-    if (_isAddon || _isExtraInterior) {
-      return CheckoutPricing.parseAmount(_inclusivePackAmount);
-    }
-    return CheckoutPricing.parseAmount(_a.carPrice) * _selectedMonths;
+    return CheckoutPricing.parseAmount(_inclusivePackAmount) * _selectedMonths;
   }
 
   int _finalAmount(int inclusiveBase) =>
@@ -317,7 +321,7 @@ class _PaymentOptionPageState extends State<PaymentOptionPage> {
     if (monthly) return _monthlyBase;
     final resolved = CheckoutPricing.parseMoney(_inclusivePackAmount);
     if (resolved > 0) return resolved;
-    return CheckoutPricing.parseMoney(_a.carPrice);
+    return CheckoutPricing.parseMoney(_inclusivePackAmount);
   }
 
   CheckoutPlan? _planForBreakdown({required bool monthly}) {

@@ -95,7 +95,7 @@ class _BikeWashPageState extends State<BikeWashPage> {
                             '/vehicle-list',
                             extra: CarDetailsArgs(
                               carName: normalizeVehicleCategory(service.type),
-                              carPrice: service.price,
+                              carPrice: service.displayPrice,
                               carDesc: service.description,
                               carImage: service.image,
                               carId: service.id,

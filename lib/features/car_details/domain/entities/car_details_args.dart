@@ -16,4 +16,8 @@ class CarDetailsArgs {
   final String carId;
   final String header;
   final String displayPrice;
+
+  /// True catalog price (GST-inclusive) shown to customers and charged at checkout.
+  String get catalogPrice => displayPrice.isNotEmpty ? displayPrice : carPrice;
 }
+

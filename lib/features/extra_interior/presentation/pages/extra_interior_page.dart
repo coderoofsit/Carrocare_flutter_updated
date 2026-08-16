@@ -93,7 +93,7 @@ class _ExtraInteriorPageState extends State<ExtraInteriorPage> {
                               carName: normalizeVehicleCategory(
                                 service.type,
                               ),
-                              carPrice: service.price,
+                              carPrice: service.displayPrice,
                               carDesc: service.description,
                               carImage: service.image,
                               carId: service.id,

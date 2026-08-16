@@ -16,12 +16,24 @@ abstract final class CheckoutPlanFeeResolver {
       if (target > 0 && amount != target) return false;
       return monthly ? plan.isMonthly : plan.isOneTime;
     }).toList();
-    if (filtered.isEmpty) {
-      return monthly
-          ? CheckoutPlanParams.pickMonthly(plans, planAmount: planAmount)
-          : CheckoutPlanParams.pickOneTime(plans);
+    if (filtered.isNotEmpty) return filtered.first;
+
+    // Match exact planAmount across any subscription type first
+    if (target > 0) {
+      final exactMatch = plans.where((plan) {
+        return CheckoutPricing.parseMoney(plan.planAmount) == target;
+      }).toList();
+      if (exactMatch.isNotEmpty) return exactMatch.first;
     }
-    return filtered.first;
+
+    if (!monthly) {
+      final oneTime = CheckoutPlanParams.pickOneTime(plans, planAmount: planAmount);
+      if (oneTime != null) return oneTime;
+      // When no separate one-time plan row exists in the database, use the service tier's
+      // plan so platform fee, service charges, and GST structure remain identical.
+      return CheckoutPlanParams.pickMonthly(plans, planAmount: planAmount);
+    }
+    return CheckoutPlanParams.pickMonthly(plans, planAmount: planAmount);
   }
 
   /// Platform fee INR for a checkout total, scaled from the matched plan ratio.
@@ -35,13 +47,18 @@ abstract final class CheckoutPlanFeeResolver {
       return storedPlatformFeeAmt;
     }
 
-    final unitPlatform = plan?.resolvedPlatformFeeAmt ?? 0;
-    // Ratio base must be the plan's own amount when present (may differ from
-    // catalog/checkout price, e.g. plan 999 vs carPrice 847).
     final planAmount = CheckoutPricing.parseMoney(plan?.planAmount ?? '');
     final ratioBase = planAmount > 0
         ? planAmount
         : (unitPlanAmount > 0 ? unitPlanAmount : inclusiveTotal);
+    var unitPlatform = plan?.resolvedPlatformFeeAmt ?? 0;
+    if (unitPlatform <= 0) {
+      final (canonicalPlatform, _) = CheckoutPlanParams.canonicalFeeSplit(
+        packageType: plan?.packageType ?? '',
+        planAmount: ratioBase.toString(),
+      );
+      unitPlatform = CheckoutPricing.parseMoney(canonicalPlatform);
+    }
     if (ratioBase > 0 && unitPlatform > 0) {
       return ((unitPlatform * inclusiveTotal) / ratioBase).round();
     }
@@ -81,7 +98,14 @@ abstract final class CheckoutPlanFeeResolver {
     final planAmount = listedPlanAmount > 0
         ? listedPlanAmount
         : (unitPlanAmount > 0 ? unitPlanAmount : inclusiveTotal);
-    final unitPlatform = plan?.resolvedPlatformFeeAmt ?? 0;
+    var unitPlatform = plan?.resolvedPlatformFeeAmt ?? 0;
+    if (unitPlatform <= 0) {
+      final (canonicalPlatform, _) = CheckoutPlanParams.canonicalFeeSplit(
+        packageType: plan?.packageType ?? '',
+        planAmount: planAmount.toString(),
+      );
+      unitPlatform = CheckoutPricing.parseMoney(canonicalPlatform);
+    }
     final platformFeeAmt = unitPlatform > 0
         ? unitPlatform
         : CheckoutPricing.derivePlatformFeeAmt(

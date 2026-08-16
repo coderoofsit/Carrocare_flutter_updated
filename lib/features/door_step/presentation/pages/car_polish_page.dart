@@ -160,7 +160,7 @@ class _ServiceCard extends StatelessWidget {
             '/car-details',
             extra: CarDetailsArgs(
               carName: normalizeVehicleCategory(service.type),
-              carPrice: service.prices,
+              carPrice: _displayPrice,
               carDesc: service.description,
               carImage: service.image,
               carId: service.id,

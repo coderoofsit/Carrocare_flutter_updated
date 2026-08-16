@@ -8,6 +8,7 @@ import 'package:carrocare_flutter/features/checkout/core/checkout_block_reason.d
 import 'package:carrocare_flutter/features/checkout/core/checkout_vehicle_gate.dart';
 import 'package:carrocare_flutter/features/checkout/core/checkout_service_type_mapper.dart';
 import 'package:carrocare_flutter/features/checkout/core/checkout_constants.dart';
+import 'package:carrocare_flutter/features/checkout/core/checkout_gst_config.dart';
 import 'package:carrocare_flutter/features/checkout/core/checkout_plan_fee_resolver.dart';
 import 'package:carrocare_flutter/features/checkout/core/checkout_plan_params.dart';
 import 'package:carrocare_flutter/features/checkout/core/checkout_pricing.dart';
@@ -109,8 +110,7 @@ class _SmartCheckoutLoaderSheetState extends State<_SmartCheckoutLoaderSheet> {
   Future<void> _load() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final gstPercent =
-          int.tryParse(prefs.getString('gst_percentage') ?? '0') ?? 0;
+      final gstPercent = CheckoutGstConfig.resolvePercent(prefs);
 
       final isWash = widget.booking.header == CheckoutConstants.serviceWash ||
           widget.booking.header == CheckoutConstants.serviceBikeWash;
@@ -135,38 +135,72 @@ class _SmartCheckoutLoaderSheetState extends State<_SmartCheckoutLoaderSheet> {
         return;
       }
 
+      final catalogPackAmount = widget.booking.catalogPrice;
+
       final checkout = await sl<CheckoutRepository>().fetchOneTimeWashCheckout(
         customerId: widget.customerId,
-        packAmount: widget.booking.carPrice,
+        packAmount: catalogPackAmount,
         vehicleId: widget.vehicle.id,
         serviceType: CheckoutConstants.oneTimeApiService(widget.booking.header),
       );
 
       List<CheckoutPlan> plans = <CheckoutPlan>[];
-      if (isWash) {
-        try {
-          final packType = CheckoutPlanParams.packageType(
-            category: widget.vehicle.category,
-            carName: widget.booking.carName,
-          );
-          final vehicleType = CheckoutPlanParams.apiVehicleTypeFromVehicle(
-            widget.vehicle,
-          );
-          final serviceType = CheckoutConstants.oneTimeApiService(
-            widget.booking.header,
-          );
-          plans = await sl<CheckoutRepository>().fetchPlansList(
+      try {
+        final packType = CheckoutPlanParams.packageType(
+          category: widget.vehicle.category,
+          carName: widget.booking.carName,
+        );
+        final vehicleType = CheckoutPlanParams.apiVehicleTypeFromVehicle(
+          widget.vehicle,
+        );
+        final serviceType = CheckoutConstants.oneTimeApiService(
+          widget.booking.header,
+        );
+        final rawPlans = await sl<CheckoutRepository>().fetchPlansList(
+          vehicleType: vehicleType,
+          serviceType: serviceType,
+          packType: packType,
+          packAmount: catalogPackAmount,
+        );
+        plans = CheckoutPlanParams.filterForBooking(
+          rawPlans,
+          packageType: packType,
+          serviceType: serviceType,
+        );
+        if (plans.isEmpty) {
+          final targetAmt = CheckoutPricing.parseMoney(catalogPackAmount);
+          plans = rawPlans.where((p) {
+            final amt = CheckoutPricing.parseMoney(p.planAmount);
+            final packMatch =
+                p.packageType.trim().toLowerCase() == packType.trim().toLowerCase();
+            return (targetAmt > 0 && amt == targetAmt) || packMatch;
+          }).toList();
+        }
+        if (plans.isEmpty) {
+          plans = CheckoutPlanParams.fallbackPlans(
+            packageType: packType,
             vehicleType: vehicleType,
             serviceType: serviceType,
-            packType: packType,
-            packAmount: widget.booking.carPrice,
+            planAmount: catalogPackAmount,
           );
-          plans = CheckoutPlanParams.filterForBooking(
-            plans,
-            packageType: packType,
-            serviceType: serviceType,
-          );
-        } catch (_) {}
+        }
+      } catch (_) {
+        final packType = CheckoutPlanParams.packageType(
+          category: widget.vehicle.category,
+          carName: widget.booking.carName,
+        );
+        final vehicleType = CheckoutPlanParams.apiVehicleTypeFromVehicle(
+          widget.vehicle,
+        );
+        final serviceType = CheckoutConstants.oneTimeApiService(
+          widget.booking.header,
+        );
+        plans = CheckoutPlanParams.fallbackPlans(
+          packageType: packType,
+          vehicleType: vehicleType,
+          serviceType: serviceType,
+          planAmount: catalogPackAmount,
+        );
       }
 
       if (!mounted) return;
@@ -327,32 +361,31 @@ class _SmartCheckoutSheetBodyState extends State<_SmartCheckoutSheetBody> {
     return true;
   }
 
+  String get _catalogPackAmount => widget.booking.catalogPrice;
+
   int get _baseAmount {
     if (_isMonthlyMode) {
-      // Monthly autopay charges the Razorpay plan amount (e.g. 999), not the
-      // catalog carPrice (e.g. 847). Cart / subscribe already use the plan.
       final planAmt = CheckoutPricing.parseMoney(_matchedPlan?.planAmount ?? '');
       if (planAmt > 0) return planAmt;
-      return CheckoutPricing.parseAmount(widget.booking.carPrice);
+      return CheckoutPricing.parseAmount(_catalogPackAmount);
     }
     final unit = CheckoutPricing.parseAmount(widget.checkout.totalAmount);
-    return unit * _months;
+    return (unit > 0 ? unit : CheckoutPricing.parseAmount(_catalogPackAmount)) * _months;
   }
 
   int get _unitPlanAmount {
     if (_isMonthlyMode) {
       final planAmt = CheckoutPricing.parseMoney(_matchedPlan?.planAmount ?? '');
       if (planAmt > 0) return planAmt;
-      return CheckoutPricing.parseMoney(widget.booking.carPrice);
+      return CheckoutPricing.parseMoney(_catalogPackAmount);
     }
-    return CheckoutPricing.parseMoney(widget.checkout.totalAmount);
+    final unit = CheckoutPricing.parseMoney(widget.checkout.totalAmount);
+    return unit > 0 ? unit : CheckoutPricing.parseMoney(_catalogPackAmount);
   }
 
   CheckoutPlan? get _matchedPlan => CheckoutPlanFeeResolver.matchPlan(
         plans: widget.plans,
-        planAmount: _isMonthlyMode
-            ? widget.booking.carPrice
-            : widget.checkout.totalAmount,
+        planAmount: _catalogPackAmount,
         monthly: _isMonthlyMode,
       );
 
@@ -366,10 +399,13 @@ class _SmartCheckoutSheetBodyState extends State<_SmartCheckoutSheetBody> {
     final unitPlan = _unitPlanAmount;
     final inclusiveTotal = _baseAmount;
     final matched = _matchedPlan;
+    final effectiveGst = widget.gstPercent > 0
+        ? widget.gstPercent
+        : CheckoutGstConfig.defaultGstPercent;
     return CheckoutPlanFeeResolver.breakdown(
       inclusiveTotal: inclusiveTotal,
       unitPlanAmount: unitPlan > 0 ? unitPlan : inclusiveTotal,
-      gstPercent: widget.gstPercent,
+      gstPercent: effectiveGst,
       plan: matched,
     );
   }
@@ -656,18 +692,19 @@ class _SmartCheckoutSheetBodyState extends State<_SmartCheckoutSheetBody> {
               ),
             ],
             const SizedBox(height: 12),
-            if (widget.gstPercent > 0) ...<Widget>[
-              _row('Platform fee', CheckoutPricing.rupee(_priceBreakdown.platformFee)),
-              _row(
-                'Service provider charges',
-                CheckoutPricing.rupee(_priceBreakdown.serviceFee),
-              ),
-              _row(
-                'GST (${widget.gstPercent}% on platform fee)',
-                CheckoutPricing.rupee(_priceBreakdown.gstAmount),
-              ),
-              _row('Offer price', CheckoutPricing.rupee(_finalAmount)),
-            ],
+            _row(
+              'Platform fee',
+              CheckoutPricing.rupee(_priceBreakdown.platformFee),
+            ),
+            _row(
+              'Service provider charges',
+              CheckoutPricing.rupee(_priceBreakdown.serviceFee),
+            ),
+            _row(
+              'GST (${widget.gstPercent > 0 ? widget.gstPercent : CheckoutGstConfig.defaultGstPercent}% on platform fee)',
+              CheckoutPricing.rupee(_priceBreakdown.gstAmount),
+            ),
+            _row('Offer price', CheckoutPricing.rupee(_finalAmount)),
             _row(
               'MRP',
               CheckoutPricing.rupee(_mrpAmount),
