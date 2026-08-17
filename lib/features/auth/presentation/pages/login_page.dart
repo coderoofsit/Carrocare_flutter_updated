@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:carrocare_flutter/core/di/injection.dart';
 import 'package:carrocare_flutter/core/network/auth_token_service.dart';
 import 'package:carrocare_flutter/core/notifications/push_registration_service.dart';
@@ -23,6 +25,7 @@ class _LoginPageState extends State<LoginPage> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   bool _obscure = true;
+  bool _submitting = false;
 
   @override
   void dispose() {
@@ -39,9 +42,13 @@ class _LoginPageState extends State<LoginPage> {
     return BlocListener<LoginBloc, LoginState>(
       listener: (context, state) async {
         if (state.errorMessage != null && state.errorMessage!.isNotEmpty) {
+          if (mounted) setState(() => _submitting = false);
           ScaffoldMessenger.of(
             context,
           ).showSnackBar(SnackBar(content: Text(state.errorMessage!)));
+        }
+        if (state.status == LoginStatus.failure) {
+          if (mounted) setState(() => _submitting = false);
         }
         if (state.status == LoginStatus.success) {
           final email = state.userEmail ?? _emailController.text.trim();
@@ -54,9 +61,9 @@ class _LoginPageState extends State<LoginPage> {
             refreshToken: state.refreshToken ?? '',
             email: email,
           );
-          try {
-            await sl<PushRegistrationService>().syncForEmail(email);
-          } catch (_) {}
+          if (email.isNotEmpty) {
+            unawaited(sl<PushRegistrationService>().syncForEmail(email));
+          }
           if (!context.mounted) return;
           context.go('/home');
         }
@@ -108,25 +115,43 @@ class _LoginPageState extends State<LoginPage> {
               width: double.infinity,
               child: BlocBuilder<LoginBloc, LoginState>(
                 builder: (context, state) {
+                  final isLoading =
+                      _submitting ||
+                      state.status == LoginStatus.loading ||
+                      state.status == LoginStatus.success;
                   return ElevatedButton(
-                    onPressed: state.status == LoginStatus.loading
+                    onPressed: isLoading
                         ? null
                         : () {
+                            final email = _emailController.text.trim();
+                            final password = _passwordController.text;
+                            if (email.isEmpty || password.isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Please enter email and password'),
+                                ),
+                              );
+                              return;
+                            }
+                            setState(() => _submitting = true);
                             context.read<LoginBloc>().add(
                               LoginSubmitted(
-                                email: _emailController.text,
-                                password: _passwordController.text,
+                                email: email,
+                                password: password,
                               ),
                             );
                           },
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 14),
                     ),
-                    child: state.status == LoginStatus.loading
+                    child: isLoading
                         ? const SizedBox(
                             height: 22,
                             width: 22,
-                            child: CircularProgressIndicator(strokeWidth: 2),
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: AppColors.white,
+                            ),
                           )
                         : const Text('LOGIN'),
                   );

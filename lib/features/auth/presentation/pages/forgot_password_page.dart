@@ -165,7 +165,17 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                                 _otpActionInFlight
                             ? null
                             : () => _sendOtp(state),
-                        child: Text(state.otpButtonText.toUpperCase()),
+                        child: state.status == ForgotStatus.loading ||
+                                _otpActionInFlight
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: AppColors.white,
+                                ),
+                              )
+                            : Text(state.otpButtonText.toUpperCase()),
                       ),
                     ),
                   ],
@@ -179,7 +189,17 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                               _otpActionInFlight
                           ? null
                           : () => _submitForgot(state),
-                      child: Text(state.submitButtonText.toUpperCase()),
+                      child: state.status == ForgotStatus.loading ||
+                              _otpActionInFlight
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: AppColors.white,
+                              ),
+                            )
+                          : Text(state.submitButtonText.toUpperCase()),
                     ),
                   ),
                 ],

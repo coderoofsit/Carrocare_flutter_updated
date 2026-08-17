@@ -189,6 +189,12 @@ class _MainProfilePageState extends State<MainProfilePage> {
                               onTap: () => ProfileActions.rateApp(),
                             ),
                             _MenuRow(
+                              iconAsset: 'assets/vectors/ic_cancel.svg',
+                              title: 'Delete Account',
+                              color: _mainProfileLogoutRed,
+                              onTap: () => context.push('/delete-account'),
+                            ),
+                            _MenuRow(
                               iconAsset: 'assets/vectors/ic_logout_24.svg',
                               title: 'Logout',
                               color: _mainProfileLogoutRed,

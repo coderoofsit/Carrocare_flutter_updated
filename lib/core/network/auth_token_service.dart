@@ -5,6 +5,13 @@ import 'package:dart_jsonwebtoken/dart_jsonwebtoken.dart';
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+class AuthExpiredException implements Exception {
+  final String message;
+  const AuthExpiredException(this.message);
+  @override
+  String toString() => message;
+}
+
 /// Persists and refreshes customer access/refresh tokens for API header auth.
 class AuthTokenService {
   AuthTokenService()
@@ -65,9 +72,12 @@ class AuthTokenService {
     }
     try {
       return await refreshAccessToken();
-    } catch (_) {
+    } on AuthExpiredException {
       await onSessionExpired?.call();
       return null;
+    } catch (_) {
+      // Temporary network/timeout error; preserve session rather than logging out.
+      return stored;
     }
   }
 
@@ -80,31 +90,49 @@ class AuthTokenService {
     final prefs = await _prefs;
     final refreshToken = prefs.getString(refreshTokenKey);
     if (refreshToken == null || refreshToken.isEmpty) {
-      throw Exception('No refresh token');
+      throw const AuthExpiredException('No refresh token');
     }
-    final response = await _refreshDio.post<dynamic>(
-      'refresh-token.php',
-      data: <String, dynamic>{
-        'refresh_token': refreshToken,
-        'mode': ApiPlatformMode.android,
-      },
-    );
-    final raw = response.data;
-    final Map<String, dynamic> data = raw is String && raw.isNotEmpty
-        ? ApiResponseParser.decode(raw)
-        : (raw as Map<String, dynamic>? ?? <String, dynamic>{});
-    if ((data['code'] ?? '').toString() != '200') {
-      throw Exception(
-        (data['message'] ?? 'Token refresh failed').toString(),
+    try {
+      final response = await _refreshDio.post<dynamic>(
+        'refresh-token.php',
+        data: <String, dynamic>{
+          'refresh_token': refreshToken,
+          'mode': ApiPlatformMode.android,
+        },
       );
+      final raw = response.data;
+      final Map<String, dynamic> data = raw is String && raw.isNotEmpty
+          ? ApiResponseParser.decode(raw)
+          : (raw as Map<String, dynamic>? ?? <String, dynamic>{});
+      final code = (data['code'] ?? '').toString();
+      final message = (data['message'] ?? '').toString();
+      if (code == '401' ||
+          code == '403' ||
+          message.toLowerCase().contains('invalid') ||
+          message.toLowerCase().contains('expired')) {
+        throw AuthExpiredException(
+          message.isNotEmpty ? message : 'Invalid or expired refresh token',
+        );
+      }
+      if (code != '200') {
+        throw Exception(
+          message.isNotEmpty ? message : 'Token refresh failed',
+        );
+      }
+      final access = (data['access_token'] ?? '').toString();
+      final refresh = (data['refresh_token'] ?? '').toString();
+      if (access.isEmpty || refresh.isEmpty) {
+        throw Exception('Token refresh response incomplete');
+      }
+      await saveTokens(accessToken: access, refreshToken: refresh);
+      return access;
+    } on DioException catch (e) {
+      final status = e.response?.statusCode;
+      if (status == 401 || status == 403) {
+        throw const AuthExpiredException('Session expired');
+      }
+      rethrow;
     }
-    final access = (data['access_token'] ?? '').toString();
-    final refresh = (data['refresh_token'] ?? '').toString();
-    if (access.isEmpty || refresh.isEmpty) {
-      throw Exception('Token refresh response incomplete');
-    }
-    await saveTokens(accessToken: access, refreshToken: refresh);
-    return access;
   }
 
   Future<bool> hasStoredSession() async {

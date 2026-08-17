@@ -45,9 +45,9 @@ class ApiRequestInterceptor extends Interceptor {
         await _authTokens.refreshAccessToken();
         final retried = await _retryRequest(response.requestOptions);
         return handler.resolve(retried);
-      } catch (_) {
+      } on AuthExpiredException {
         await _sessionExpired.handleFromApi();
-      }
+      } catch (_) {}
     } else if (_isLegacySessionExpired(response)) {
       await _sessionExpired.handleFromApi();
     }
@@ -65,9 +65,9 @@ class ApiRequestInterceptor extends Interceptor {
         await _authTokens.refreshAccessToken();
         final retried = await _retryRequest(response.requestOptions);
         return handler.resolve(retried);
-      } catch (_) {
+      } on AuthExpiredException {
         await _sessionExpired.handleFromApi();
-      }
+      } catch (_) {}
     } else if (response != null && _isLegacySessionExpired(response)) {
       await _sessionExpired.handleFromApi();
     }
@@ -80,7 +80,14 @@ class ApiRequestInterceptor extends Interceptor {
     }
     final data = _responseMap(response.data);
     if (data == null) return false;
-    return (data['code'] ?? '').toString() == '203';
+    final code = (data['code'] ?? '').toString();
+    final message = (data['message'] ?? '').toString().toLowerCase();
+    return (code == '203' || code == '401') &&
+        (message.contains('token expired') ||
+            message.contains('session expired') ||
+            message.contains('invalid token') ||
+            message.contains('jwt expired') ||
+            message.contains('unauthorized'));
   }
 
   bool _isAuthEndpoint(String path) {

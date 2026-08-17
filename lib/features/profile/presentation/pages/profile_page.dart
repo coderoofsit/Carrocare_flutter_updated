@@ -349,6 +349,21 @@ class _ProfilePageState extends State<ProfilePage> {
                                 ],
                               ),
                             ),
+                            Center(
+                              child: TextButton(
+                                onPressed: () => context.push('/delete-account'),
+                                child: const Text(
+                                  'Delete My Account',
+                                  style: TextStyle(
+                                    color: Color(0xFFEA2C1F),
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w600,
+                                    decoration: TextDecoration.underline,
+                                    decorationColor: Color(0xFFEA2C1F),
+                                  ),
+                                ),
+                              ),
+                            ),
                           ],
                         ),
                       ),

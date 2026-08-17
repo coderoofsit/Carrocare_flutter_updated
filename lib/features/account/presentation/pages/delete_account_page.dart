@@ -1,10 +1,15 @@
+import 'package:carrocare_flutter/core/di/injection.dart';
+import 'package:carrocare_flutter/core/network/auth_token_service.dart';
 import 'package:carrocare_flutter/core/utils/validators.dart';
+import 'package:carrocare_flutter/features/auth/data/datasources/auth_remote_data_source.dart';
 import 'package:carrocare_flutter/features/auth/presentation/widgets/auth_fields.dart';
 import 'package:carrocare_flutter/features/auth/presentation/widgets/auth_scaffold.dart';
+import 'package:carrocare_flutter/features/checkout/data/local/cart_local_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-/// Matches Android [DeleteAccountActivity] — local submit with success toast.
+/// Deletes the customer account permanently, cleans local state, and redirects to login.
 class DeleteAccountPage extends StatefulWidget {
   const DeleteAccountPage({super.key});
 
@@ -18,6 +23,22 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
   bool _submitting = false;
 
   @override
+  void initState() {
+    super.initState();
+    _loadUserEmail();
+  }
+
+  Future<void> _loadUserEmail() async {
+    final prefs = await SharedPreferences.getInstance();
+    final email = prefs.getString('email') ?? prefs.getString('useremail') ?? '';
+    if (email.isNotEmpty && mounted) {
+      setState(() {
+        _email.text = email;
+      });
+    }
+  }
+
+  @override
   void dispose() {
     _email.dispose();
     _description.dispose();
@@ -25,27 +46,83 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
   }
 
   Future<void> _submit() async {
-    if (_email.text.trim().isEmpty) {
+    final emailText = _email.text.trim();
+    if (emailText.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter your email address')),
       );
       return;
     }
-    if (!Validators.isValidEmail(_email.text.trim())) {
+    if (!Validators.isValidEmail(emailText)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter a valid email address')),
       );
       return;
     }
-    setState(() => _submitting = true);
-    await Future<void>.delayed(const Duration(seconds: 3));
-    if (!mounted) return;
-    setState(() => _submitting = false);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Your request sent to admin successfully'),
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text(
+          'Delete Account',
+          style: TextStyle(fontWeight: FontWeight.w700),
+        ),
+        content: const Text(
+          'Are you sure you want to permanently delete your account? All your active bookings, vehicle details, and account data will be deactivated. This action cannot be undone.',
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFEE3131),
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Delete Permanently'),
+          ),
+        ],
       ),
     );
+
+    if (confirmed != true) return;
+
+    setState(() => _submitting = true);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final customerId = prefs.getString('customer_id') ?? '';
+      final token = prefs.getString('token') ?? '';
+
+      await sl<AuthRemoteDataSource>().deleteAccount(
+        email: emailText,
+        token: token,
+        customerId: customerId,
+        description: _description.text.trim(),
+      );
+
+      await CartLocalStorage().clear();
+      await sl<AuthTokenService>().clearTokens();
+      await prefs.clear();
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Your account has been deleted successfully.'),
+        ),
+      );
+      context.go('/login');
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString().replaceAll('Exception: ', '')),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
   }
 
   @override
@@ -66,14 +143,14 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
           Container(
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(0),
+              borderRadius: BorderRadius.circular(4),
             ),
             padding: const EdgeInsets.all(7),
             child: TextField(
               controller: _description,
               maxLines: 5,
               decoration: const InputDecoration(
-                hintText: 'Description',
+                hintText: 'Reason for deletion (optional)',
                 border: InputBorder.none,
                 contentPadding: EdgeInsets.all(12),
               ),
@@ -102,7 +179,7 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
                       ),
                     )
                   : const Text(
-                      'SUBMIT',
+                      'DELETE ACCOUNT',
                       style: TextStyle(
                         fontWeight: FontWeight.w700,
                         fontSize: 16,

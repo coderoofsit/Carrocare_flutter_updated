@@ -157,4 +157,30 @@ class AuthRemoteDataSource {
       throw Exception((data['message'] ?? 'Logout failed').toString());
     }
   }
+
+  Future<void> deleteAccount({
+    required String email,
+    required String token,
+    required String customerId,
+    String description = '',
+  }) async {
+    final response = await _apiClient.dio.post<dynamic>(
+      'delete_user.php',
+      data: <String, dynamic>{
+        'delete_customer': '1',
+        'email': email.trim(),
+        'token': token.trim(),
+        'customer_id': customerId.trim(),
+        'description': description.trim(),
+      },
+    );
+    final data = response.data as Map<String, dynamic>;
+    final code = (data['code'] ?? '').toString();
+    final status = (data['status'] ?? '').toString().toLowerCase();
+    if (code != '200' && status != 'success') {
+      throw Exception(
+        (data['message'] ?? 'Failed to delete account').toString(),
+      );
+    }
+  }
 }

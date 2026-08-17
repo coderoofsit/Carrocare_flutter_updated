@@ -192,7 +192,17 @@ class _SignupPageState extends State<SignupPage> {
                                 _otpActionInFlight
                             ? null
                             : () => _sendOtp(state),
-                        child: Text(state.showOtp ? 'RESEND OTP' : 'SEND OTP'),
+                        child: state.status == SignupStatus.loading ||
+                                _otpActionInFlight
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: AppColors.white,
+                                ),
+                              )
+                            : Text(state.showOtp ? 'RESEND OTP' : 'SEND OTP'),
                       ),
                     ),
                   ],
@@ -206,9 +216,19 @@ class _SignupPageState extends State<SignupPage> {
                               _otpActionInFlight
                           ? null
                           : () => _submitSignup(state),
-                      child: Text(
-                        state.showPassword ? 'REGISTER' : 'VERIFY OTP',
-                      ),
+                      child: state.status == SignupStatus.loading ||
+                              _otpActionInFlight
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: AppColors.white,
+                              ),
+                            )
+                          : Text(
+                              state.showPassword ? 'REGISTER' : 'VERIFY OTP',
+                            ),
                     ),
                   ),
                 ],

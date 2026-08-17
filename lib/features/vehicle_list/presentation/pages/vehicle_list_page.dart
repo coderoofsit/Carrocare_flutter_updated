@@ -37,6 +37,7 @@ class _VehicleListPageState extends State<VehicleListPage> {
   /// Vehicle ids in cart for [widget.args.header] only (not other services).
   Set<String> _cartVehicleIdsForService = <String>{};
   bool _actionBusy = false;
+  String? _subscribingVehicleId;
 
   @override
   void initState() {
@@ -110,7 +111,10 @@ class _VehicleListPageState extends State<VehicleListPage> {
       return;
     }
 
-    setState(() => _actionBusy = true);
+    setState(() {
+      _actionBusy = true;
+      _subscribingVehicleId = vehicle.id;
+    });
     try {
       final message = await CheckoutVehicleGate.blockMessageIfActiveSubscription(
         customerId: _customerId,
@@ -133,7 +137,12 @@ class _VehicleListPageState extends State<VehicleListPage> {
         ),
       );
     } finally {
-      if (mounted) setState(() => _actionBusy = false);
+      if (mounted) {
+        setState(() {
+          _actionBusy = false;
+          _subscribingVehicleId = null;
+        });
+      }
     }
   }
 
@@ -367,6 +376,8 @@ class _VehicleListPageState extends State<VehicleListPage> {
                             showSmartCheckout: !isExtraInterior,
                             inCart: _cartVehicleIdsForService
                                 .contains(vehicle.id),
+                            isSubscribing: _subscribingVehicleId == vehicle.id,
+                            actionBusy: _actionBusy,
                             onSubscribe: () => _onSubscribe(vehicle),
                             onSmartCheckout: (checked) =>
                                 _onSmartCheckout(vehicle, checked),
@@ -396,7 +407,7 @@ class _VehicleListPageState extends State<VehicleListPage> {
                   child: SafeArea(
                     top: false,
                     child: ElevatedButton(
-                      onPressed: _openAddVehicle,
+                      onPressed: _actionBusy ? null : _openAddVehicle,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primary,
                         foregroundColor: AppColors.white,
@@ -453,6 +464,8 @@ class _BookingVehicleCard extends StatelessWidget {
     required this.item,
     required this.showSmartCheckout,
     required this.inCart,
+    required this.isSubscribing,
+    required this.actionBusy,
     required this.onSubscribe,
     required this.onSmartCheckout,
     required this.subscribeLabel,
@@ -461,6 +474,8 @@ class _BookingVehicleCard extends StatelessWidget {
   final VehicleItem item;
   final bool showSmartCheckout;
   final bool inCart;
+  final bool isSubscribing;
+  final bool actionBusy;
   final VoidCallback onSubscribe;
   final ValueChanged<bool> onSmartCheckout;
   final String subscribeLabel;
@@ -642,7 +657,7 @@ class _BookingVehicleCard extends StatelessWidget {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: onSubscribe,
+                    onPressed: (actionBusy || isSubscribing) ? null : onSubscribe,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
                       foregroundColor: AppColors.white,
@@ -654,14 +669,19 @@ class _BookingVehicleCard extends StatelessWidget {
                         ),
                       ),
                     ),
-                    child: Text(
-                      subscribeLabel,
-                      style: AppTypography.quicksand(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.white,
-                      ),
-                    ),
+                    child: isSubscribing
+                        ? const DottedLoader(
+                            size: DottedLoaderSize.small,
+                            color: AppColors.white,
+                          )
+                        : Text(
+                            subscribeLabel,
+                            style: AppTypography.quicksand(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.white,
+                            ),
+                          ),
                   ),
                 ),
               ],
