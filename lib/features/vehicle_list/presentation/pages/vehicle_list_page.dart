@@ -36,6 +36,7 @@ class _VehicleListPageState extends State<VehicleListPage> {
   int _cartCount = 0;
   /// Vehicle ids in cart for [widget.args.header] only (not other services).
   Set<String> _cartVehicleIdsForService = <String>{};
+  bool _actionBusy = false;
 
   @override
   void initState() {
@@ -86,8 +87,8 @@ class _VehicleListPageState extends State<VehicleListPage> {
   }
 
   Future<void> _refreshCartState() async {
-    _cartCount = await _cartStorage.count();
     final items = await _cartStorage.getItems();
+    _cartCount = items.length;
     final serviceHeader = widget.args.header;
     _cartVehicleIdsForService = items
         .where(
@@ -100,6 +101,7 @@ class _VehicleListPageState extends State<VehicleListPage> {
   }
 
   Future<void> _onSubscribe(VehicleItem vehicle) async {
+    if (_actionBusy) return;
     if (_token.isEmpty || _customerId.isEmpty) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -108,29 +110,35 @@ class _VehicleListPageState extends State<VehicleListPage> {
       return;
     }
 
-    final message = await CheckoutVehicleGate.blockMessageIfActiveSubscription(
-      customerId: _customerId,
-      vehicleId: vehicle.id,
-      serviceHeader: widget.args.header,
-    );
-    if (!mounted) return;
-    if (message != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message)),
+    setState(() => _actionBusy = true);
+    try {
+      final message = await CheckoutVehicleGate.blockMessageIfActiveSubscription(
+        customerId: _customerId,
+        vehicleId: vehicle.id,
+        serviceHeader: widget.args.header,
       );
-      return;
-    }
+      if (!mounted) return;
+      if (message != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(message)),
+        );
+        return;
+      }
 
-    await context.push(
-      '/payment-option',
-      extra: PaymentOptionArgs(
-        booking: widget.args,
-        vehicle: vehicle,
-      ),
-    );
+      await context.push(
+        '/payment-option',
+        extra: PaymentOptionArgs(
+          booking: widget.args,
+          vehicle: vehicle,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _actionBusy = false);
+    }
   }
 
   Future<void> _onSmartCheckout(VehicleItem vehicle, bool checked) async {
+    if (_actionBusy) return;
     if (!checked) {
       await _cartStorage.removeByVehicleId(vehicle.id);
       await _refreshCartState();
@@ -145,31 +153,36 @@ class _VehicleListPageState extends State<VehicleListPage> {
       return;
     }
 
-    final added = await showSmartCheckoutSheet(
-      context: context,
-      booking: widget.args,
-      vehicle: vehicle,
-      customerId: _customerId,
-      token: _token,
-    );
-    if (!mounted) return;
-    if (!added) {
-      // User closed sheet without adding — keep checkbox unchecked.
-      await _refreshCartState();
-      return;
-    }
+    setState(() => _actionBusy = true);
+    try {
+      final added = await showSmartCheckoutSheet(
+        context: context,
+        booking: widget.args,
+        vehicle: vehicle,
+        customerId: _customerId,
+        token: _token,
+      );
+      if (!mounted) return;
+      if (!added) {
+        // User closed sheet without adding — keep checkbox unchecked.
+        await _refreshCartState();
+        return;
+      }
 
-    await _refreshCartState();
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Added to cart. Open cart when you are ready to pay.'),
-        action: SnackBarAction(
-          label: 'View cart',
-          onPressed: () => context.push('/cart'),
+      await _refreshCartState();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Added to cart. Open cart when you are ready to pay.'),
+          action: SnackBarAction(
+            label: 'View cart',
+            onPressed: () => context.push('/cart'),
+          ),
         ),
-      ),
-    );
+      );
+    } finally {
+      if (mounted) setState(() => _actionBusy = false);
+    }
   }
 
   @override
@@ -476,7 +489,7 @@ class _BookingVehicleCard extends StatelessWidget {
                 child: Image.network(
                   item.image,
                   fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Image.asset(
+                  errorBuilder: (context, error, stackTrace) => Image.asset(
                     'assets/images/placeholder.png',
                     fit: BoxFit.cover,
                     width: double.infinity,

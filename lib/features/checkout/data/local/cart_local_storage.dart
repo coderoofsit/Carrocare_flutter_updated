@@ -37,7 +37,13 @@ class CartLocalStorage {
     return ids.contains(vehicleId);
   }
 
-  /// Same vehicle can exist only once in cart; match booking service too.
+  bool _isSameItem(CartItem a, CartItem b) {
+    return a.carId == b.carId &&
+        (a.serviceType == b.serviceType || a.header == b.header) &&
+        a.scheduleDate == b.scheduleDate &&
+        a.scheduleTime == b.scheduleTime;
+  }
+
   Future<bool> containsVehicleForService({
     required String vehicleId,
     required String serviceHeader,
@@ -70,9 +76,19 @@ class CartLocalStorage {
     final prefs = await SharedPreferences.getInstance();
     final items = await getItems();
     final updated = <CartItem>[
-      ...items.where((entry) => entry.carId != item.carId),
+      ...items.where((entry) => !_isSameItem(entry, item)),
       item,
     ];
+    return prefs.setString(
+      _cartKey,
+      jsonEncode(updated.map((e) => e.toJson()).toList()),
+    );
+  }
+
+  Future<bool> removeItem(CartItem item) async {
+    final prefs = await SharedPreferences.getInstance();
+    final items = await getItems();
+    final updated = items.where((entry) => !_isSameItem(entry, item)).toList();
     return prefs.setString(
       _cartKey,
       jsonEncode(updated.map((e) => e.toJson()).toList()),

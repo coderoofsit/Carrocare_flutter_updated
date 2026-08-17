@@ -6,7 +6,6 @@ import 'package:carrocare_flutter/core/widgets/dotted_loader.dart';
 import 'package:carrocare_flutter/features/checkout/core/autopay_checkout_helper.dart';
 import 'package:carrocare_flutter/features/checkout/core/cart_subscription_toggle_helper.dart';
 import 'package:carrocare_flutter/features/checkout/core/cart_display_helper.dart';
-import 'package:carrocare_flutter/features/checkout/core/checkout_block_reason.dart';
 import 'package:carrocare_flutter/features/checkout/core/checkout_plan_fee_resolver.dart';
 import 'package:carrocare_flutter/features/checkout/core/checkout_gst_config.dart';
 import 'package:carrocare_flutter/features/checkout/core/checkout_constants.dart';
@@ -164,7 +163,7 @@ class _CartPageState extends State<CartPage> {
       ),
     );
     if (confirmed != true) return;
-    await _storage.removeByVehicleId(item.carId);
+    await _storage.removeItem(item);
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Removed')),
@@ -173,6 +172,7 @@ class _CartPageState extends State<CartPage> {
   }
 
   Future<void> _checkout() async {
+    if (_checkingOut) return;
     if (_items.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please choose at least one product')),
@@ -216,54 +216,64 @@ class _CartPageState extends State<CartPage> {
       }
     }
 
-    final repo = sl<CheckoutRepository>();
-    for (final CartItem item in _items) {
-      final monthlyValidation = await repo.validateCheckout(
-        customerId: _customerId,
-        vehicleId: item.carId,
-        serviceType: apiServiceTypeForValidation(item.serviceType),
-        subsType: 'Monthly',
-      );
-      final oneTimeValidation = await repo.validateCheckout(
-        customerId: _customerId,
-        vehicleId: item.carId,
-        serviceType: apiServiceTypeForValidation(item.serviceType),
-        subsType: 'OneTime',
-      );
-      final blockReason = CheckoutBlockReason.fromValidations(
-        monthlyValidation: monthlyValidation,
-        oneTimeValidation: oneTimeValidation,
-      );
-      if (blockReason.blockOneTimeDueToMonthly) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              blockReason.oneTimeMessage.isNotEmpty
-                  ? blockReason.oneTimeMessage
-                  : CheckoutBlockReason.monthlyBlocksOneTimeFallback,
-            ),
+    final hasSubscription = _items.any(
+      (item) =>
+          item.action == 'monthly_pay_now' ||
+          item.action.toLowerCase().contains('monthly') ||
+          item.dbType.toLowerCase().contains('monthly'),
+    );
+    if (hasSubscription) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Cart only supports One-Time orders. Please remove subscription items from your cart to proceed.',
           ),
-        );
-        return;
-      }
+          backgroundColor: AppColors.primary,
+        ),
+      );
+      return;
     }
 
-    final subscriptionEvaluation = await _evaluateSubscriptionToggle(repo);
-    if (!mounted) return;
-    final router = GoRouter.of(context);
-    final priceSummary = _cartPriceSummary();
-    var subscribeFromOneTime = false;
-    final confirmed = await showRazorpayPriceSummarySheet(
-      context: context,
-      summary: priceSummary,
-      showSubscriptionToggle: true,
-      subscriptionToggleEnabled: subscriptionEvaluation.enabled,
-      subscriptionToggleDisabledReason: subscriptionEvaluation.disabledReason,
-      onSubscriptionToggleChanged: (value) => subscribeFromOneTime = value,
-      onConfirmPay: () async {
-        setState(() => _checkingOut = true);
-        try {
+    setState(() => _checkingOut = true);
+    try {
+      final repo = sl<CheckoutRepository>();
+      final validationResults = await Future.wait(
+        _items.map(
+          (item) => repo.validateCheckout(
+            customerId: _customerId,
+            vehicleId: item.carId,
+            serviceType: apiServiceTypeForValidation(item.serviceType),
+            subsType: 'OneTime',
+          ),
+        ),
+      );
+
+      for (final result in validationResults) {
+        if (result.isNotEmpty) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(result),
+            ),
+          );
+          return;
+        }
+      }
+
+      final subscriptionEvaluation = await _evaluateSubscriptionToggle(repo);
+      if (!mounted) return;
+      final router = GoRouter.of(context);
+      final priceSummary = _cartPriceSummary();
+      var subscribeFromOneTime = false;
+      final confirmed = await showRazorpayPriceSummarySheet(
+        context: context,
+        summary: priceSummary,
+        showSubscriptionToggle: true,
+        subscriptionToggleEnabled: subscriptionEvaluation.enabled,
+        subscriptionToggleDisabledReason: subscriptionEvaluation.disabledReason,
+        onSubscriptionToggleChanged: (value) => subscribeFromOneTime = value,
+        onConfirmPay: () async {
           if (subscribeFromOneTime && subscriptionEvaluation.enabled) {
             await _checkoutCartAsSubscriptions(
               repo: repo,
@@ -273,13 +283,13 @@ class _CartPageState extends State<CartPage> {
             await _checkoutOneTimeCart(repo: repo, priceSummary: priceSummary);
           }
           await _storage.clear();
-        } finally {
-          if (mounted) setState(() => _checkingOut = false);
-        }
-      },
-    );
-    if (!confirmed || !mounted) return;
-    goToPaymentSuccess(router);
+        },
+      );
+      if (!confirmed || !mounted) return;
+      goToPaymentSuccess(router);
+    } finally {
+      if (mounted) setState(() => _checkingOut = false);
+    }
   }
 
   Future<void> _checkoutOneTimeCart({
@@ -635,16 +645,59 @@ class _CartPageState extends State<CartPage> {
           ? const CarroCareLoadingOverlay()
           : !hasItems
               ? const _EmptyCart()
-              : ListView.builder(
-                  padding: const EdgeInsets.only(top: 8, bottom: 8),
-                  itemCount: _items.length,
-                  itemBuilder: (context, index) {
-                    final item = _items[index];
-                    return CartItemCard(
-                      item: item,
-                      onDelete: () => _confirmRemove(item),
-                    );
-                  },
+              : Column(
+                  children: <Widget>[
+                    if (_items.any((item) =>
+                        item.action == 'monthly_pay_now' ||
+                        item.action.toLowerCase().contains('monthly') ||
+                        item.dbType.toLowerCase().contains('monthly')))
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                        child: Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: AppColors.primary.withValues(alpha: 0.3),
+                            ),
+                          ),
+                          child: Row(
+                            children: <Widget>[
+                              const Icon(
+                                Icons.warning_amber_rounded,
+                                color: AppColors.primary,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Cart only supports One-Time orders. Please remove subscription items to checkout.',
+                                  style: AppTypography.dmSans(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.primaryDark,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    Expanded(
+                      child: ListView.builder(
+                        padding: const EdgeInsets.only(top: 8, bottom: 8),
+                        itemCount: _items.length,
+                        itemBuilder: (context, index) {
+                          final item = _items[index];
+                          return CartItemCard(
+                            item: item,
+                            onDelete: () => _confirmRemove(item),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
                 ),
     );
   }

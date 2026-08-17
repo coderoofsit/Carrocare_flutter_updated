@@ -360,8 +360,8 @@ class _SmartCheckoutSheetBodyState extends State<_SmartCheckoutSheetBody> {
       _purchaseMode == _SmartPurchaseMode.monthlyAutoRenew;
 
   bool get _canAddToCart {
+    if (_isMonthlyMode) return false;
     if (widget.blockOneTimeDueToMonthly) return false;
-    if (widget.blockMonthlyDueToOneTime) return !_isMonthlyMode;
     return true;
   }
 
@@ -462,6 +462,17 @@ class _SmartCheckoutSheetBodyState extends State<_SmartCheckoutSheetBody> {
   }
 
   Future<void> _addToCart() async {
+    if (_isMonthlyMode) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Subscriptions cannot be added to the cart. Please select One-Time to add this service to your cart.',
+          ),
+        ),
+      );
+      return;
+    }
+
     final needsSchedule = !widget.isWash;
     if (needsSchedule && (_preferDate.isEmpty || _preferTime.isEmpty)) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -731,12 +742,15 @@ class _SmartCheckoutSheetBodyState extends State<_SmartCheckoutSheetBody> {
                         color: AppColors.white,
                       )
                     : Text(
-                        'Add to Cart',
+                        _isMonthlyMode
+                            ? 'Subscriptions cannot be added to cart'
+                            : 'Add to Cart',
                         style: AppTypography.quicksand(
-                          fontSize: 16,
+                          fontSize: _isMonthlyMode ? 14 : 16,
                           fontWeight: FontWeight.w700,
                           color: AppColors.white,
                         ),
+                        textAlign: TextAlign.center,
                       ),
               ),
             ),

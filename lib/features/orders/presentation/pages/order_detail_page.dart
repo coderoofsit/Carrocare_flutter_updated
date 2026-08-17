@@ -256,7 +256,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
       child: SizedBox(
         width: double.infinity,
         child: ElevatedButton(
-          onPressed: onTap,
+          onPressed: _busy ? null : onTap,
           style: _buttonStyle(fullWidth: false),
           child: Text(label),
         ),
@@ -270,7 +270,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
       child: SizedBox(
         width: double.infinity,
         child: ElevatedButton(
-          onPressed: onTap,
+          onPressed: _busy ? null : onTap,
           style: _buttonStyle(),
           child: Text(label),
         ),
@@ -371,22 +371,28 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
   }
 
   Future<void> _manualRenewOrder() async {
-    final prefs = await SharedPreferences.getInstance();
-    final customerId = prefs.getString('customer_id') ?? '';
-    final token = prefs.getString('token') ?? '';
-    if (!mounted) return;
-    if (customerId.isEmpty || token.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please login to renew order')),
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final customerId = prefs.getString('customer_id') ?? '';
+      final token = prefs.getString('token') ?? '';
+      if (!mounted) return;
+      if (customerId.isEmpty || token.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please login to renew order')),
+        );
+        return;
+      }
+      await showRenewSmartCheckoutSheet(
+        context: context,
+        order: _order,
+        customerId: customerId,
+        token: token,
       );
-      return;
+    } finally {
+      if (mounted) setState(() => _busy = false);
     }
-    await showRenewSmartCheckoutSheet(
-      context: context,
-      order: _order,
-      customerId: customerId,
-      token: token,
-    );
   }
 
   int _resolveGstPercent(SharedPreferences prefs) {
