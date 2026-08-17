@@ -19,6 +19,8 @@ import 'package:carrocare_flutter/features/checkout/core/checkout_pricing.dart';
 import 'package:carrocare_flutter/features/checkout/core/convert_to_subscription_checkout.dart';
 import 'package:carrocare_flutter/features/checkout/domain/entities/razorpay_price_summary.dart';
 import 'package:carrocare_flutter/features/checkout/presentation/services/razorpay_checkout_service.dart';
+import 'package:carrocare_flutter/features/checkout/presentation/widgets/smart_checkout_sheet.dart';
+import 'package:carrocare_flutter/features/orders/domain/entities/order_item_filters.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -128,6 +130,11 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                   _fullWidthButton(
                     'Enable auto-renew',
                     _enableAutoRenew,
+                  ),
+                if (ui.showManualRenew)
+                  _fullWidthButton(
+                    'Manual Renew',
+                    _manualRenewOrder,
                   ),
                 if (ui.showViewHistory)
                   _fullWidthButton(
@@ -361,6 +368,25 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  Future<void> _manualRenewOrder() async {
+    final prefs = await SharedPreferences.getInstance();
+    final customerId = prefs.getString('customer_id') ?? '';
+    final token = prefs.getString('token') ?? '';
+    if (!mounted) return;
+    if (customerId.isEmpty || token.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please login to renew order')),
+      );
+      return;
+    }
+    await showRenewSmartCheckoutSheet(
+      context: context,
+      order: _order,
+      customerId: customerId,
+      token: token,
+    );
   }
 
   int _resolveGstPercent(SharedPreferences prefs) {
@@ -711,6 +737,7 @@ class _OrderDetailUi {
     required this.showConvertToSubscription,
     required this.showAutopayPending,
     required this.autopayPendingMessage,
+    required this.showManualRenew,
     required this.showViewHistory,
     required this.showDownloadInvoice,
     required this.showCancelOrder,
@@ -735,6 +762,7 @@ class _OrderDetailUi {
   final bool showConvertToSubscription;
   final bool showAutopayPending;
   final String autopayPendingMessage;
+  final bool showManualRenew;
   final bool showViewHistory;
   final bool showDownloadInvoice;
   final bool showCancelOrder;
@@ -887,6 +915,7 @@ class _OrderDetailUi {
       showConvertToSubscription: showConvertToSubscription,
       showAutopayPending: showAutopayPending,
       autopayPendingMessage: autopayPendingMessage,
+      showManualRenew: !order.isSubscription,
       showViewHistory: showViewHistory,
       showDownloadInvoice: showDownloadInvoice,
       showCancelOrder: showCancelOrder,

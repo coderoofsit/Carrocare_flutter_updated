@@ -12,11 +12,11 @@ class RenewCheckoutMapper {
       booking: VehicleListArgs(
         header: header,
         carName: order.plan.isNotEmpty ? order.plan : order.packageType,
-        carPrice: order.packageValue,
+        carPrice: '',
         carDesc: order.serviceType,
         carImage: order.vehicleImage,
         carId: order.vehicleId,
-        displayPrice: order.totalAmount,
+        displayPrice: '',
       ),
       vehicle: VehicleItem(
         id: order.vehicleId,
@@ -29,8 +29,8 @@ class RenewCheckoutMapper {
         apartmentName: '',
         parkingLotNo: '',
         parkingArea: '',
-        preferredSchedule: order.scheduleDate,
-        preferredTime: order.scheduleTime,
+        preferredSchedule: '',
+        preferredTime: '',
         image: order.vehicleImage,
       ),
     );
@@ -42,16 +42,25 @@ class RenewCheckoutMapper {
     final packageType = order.packageType.toLowerCase();
 
     if (service == 'wash') {
-      if (plan.contains('bike')) return CheckoutConstants.serviceBikeWash;
+      if (plan.contains('bike') || packageType.contains('bike')) {
+        return CheckoutConstants.serviceBikeWash;
+      }
       return CheckoutConstants.serviceWash;
     }
-    if (service.contains('addon') && plan.contains('extrainterior')) {
+    if ((service.contains('addon') || service.contains('extra')) &&
+        (plan.contains('extrainterior') ||
+            plan.contains('extra interior') ||
+            packageType.contains('extrainterior') ||
+            packageType.contains('extra interior'))) {
       return CheckoutConstants.serviceExtraInterior;
     }
-    if (service.contains('disinfection') || packageType.contains('disinfection')) {
+    if (service.contains('disinfection') ||
+        service.contains('disinsfection') ||
+        packageType.contains('disinfection') ||
+        packageType.contains('disinsfection')) {
       return CheckoutConstants.serviceDisinfection;
     }
-    if (service.contains('addon')) {
+    if (service.contains('addon') || service.contains('wax')) {
       return CheckoutConstants.serviceAddon;
     }
     return order.serviceType;

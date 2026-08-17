@@ -146,4 +146,6 @@ class OrderDateTimeDisplay {
     if (t.isEmpty) return d;
     return '$d · $t';
   }
+
+  static DateTime? parseWallClock(String raw) => _parseWallClock(raw);
 }

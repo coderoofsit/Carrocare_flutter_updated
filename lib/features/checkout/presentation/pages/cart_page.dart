@@ -250,6 +250,7 @@ class _CartPageState extends State<CartPage> {
     }
 
     final subscriptionEvaluation = await _evaluateSubscriptionToggle(repo);
+    if (!mounted) return;
     final router = GoRouter.of(context);
     final priceSummary = _cartPriceSummary();
     var subscribeFromOneTime = false;
@@ -302,7 +303,7 @@ class _CartPageState extends State<CartPage> {
           _items.first,
         );
 
-    await _razorpay.openAndWait(
+    final paymentId = await _razorpay.openAndWait(
       keyId: keys.keyId,
       amountPaise: total * 100,
       description: orderId,
@@ -312,6 +313,62 @@ class _CartPageState extends State<CartPage> {
       enableRecurring: useRecurring && _items.length == 1,
       priceSummary: priceSummary,
     );
+
+    for (final CartItem item in _items) {
+      final packageType = CartDisplayHelper.packageType(item);
+      final action = item.action;
+
+      if (action == CheckoutConstants.actionWashOneTime &&
+          item.serviceType != CheckoutConstants.serviceAddon) {
+        await repo.placeOneTimeWashOrder(
+          paymentId: paymentId,
+          customerId: _customerId,
+          token: _token,
+          packAmount: item.packAmount,
+          vehicleId: item.carId,
+          paidMonths: item.paidMonths,
+          fineAmount: item.fineAmount,
+          subTotal: item.subTotal,
+          gst: item.gstPercent,
+          totalAmount: item.totalAmount.isNotEmpty ? item.totalAmount : item.packAmount,
+          serviceType: 'Wash',
+          packType: packageType,
+        );
+      } else if (action == 'onetime_wax_payment' ||
+          (action == CheckoutConstants.actionWashOneTime &&
+              item.serviceType == CheckoutConstants.serviceAddon)) {
+        await repo.placeOneTimeAddOnOrder(
+          paymentId: paymentId,
+          customerId: _customerId,
+          token: _token,
+          packAmount: item.packAmount,
+          vehicleId: item.carId,
+          paidMonths: item.paidMonths,
+          fineAmount: item.fineAmount,
+          subTotal: item.subTotal,
+          gst: item.gstPercent,
+          totalAmount: item.totalAmount.isNotEmpty ? item.totalAmount : item.packAmount,
+          scheduleDate: item.scheduleDate,
+          scheduleTime: item.scheduleTime,
+          packType: packageType,
+        );
+      } else if (action == CheckoutConstants.actionOneTime ||
+          action == 'onetime_disinfection_payment') {
+        await repo.placeOneTimeExtraOrder(
+          action: CheckoutConstants.actionOneTime,
+          paymentId: paymentId,
+          customerId: _customerId,
+          token: _token,
+          packAmount: item.packAmount,
+          vehicleId: item.carId,
+          subTotal: item.subTotal,
+          gst: item.gstPercent,
+          totalAmount: item.totalAmount.isNotEmpty ? item.totalAmount : item.packAmount,
+          scheduleDate: item.scheduleDate,
+          scheduleTime: item.scheduleTime,
+        );
+      }
+    }
   }
 
   Future<_SubscriptionToggleEvaluation> _evaluateSubscriptionToggle(
@@ -496,6 +553,7 @@ class _CartPageState extends State<CartPage> {
       serviceFee: breakdown.serviceFee,
     );
 
+    if (!mounted) return;
     final router = GoRouter.of(context);
     final confirmed = await showRazorpayPriceSummarySheet(
       context: context,

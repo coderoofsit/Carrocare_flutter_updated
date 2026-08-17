@@ -137,13 +137,6 @@ class _SmartCheckoutLoaderSheetState extends State<_SmartCheckoutLoaderSheet> {
 
       final catalogPackAmount = widget.booking.catalogPrice;
 
-      final checkout = await sl<CheckoutRepository>().fetchOneTimeWashCheckout(
-        customerId: widget.customerId,
-        packAmount: catalogPackAmount,
-        vehicleId: widget.vehicle.id,
-        serviceType: CheckoutConstants.oneTimeApiService(widget.booking.header),
-      );
-
       List<CheckoutPlan> plans = <CheckoutPlan>[];
       try {
         final packType = CheckoutPlanParams.packageType(
@@ -202,6 +195,17 @@ class _SmartCheckoutLoaderSheetState extends State<_SmartCheckoutLoaderSheet> {
           planAmount: catalogPackAmount,
         );
       }
+
+      final resolvedPackAmount = plans.isNotEmpty && plans.first.planAmount.isNotEmpty
+          ? plans.first.planAmount
+          : catalogPackAmount;
+
+      final checkout = await sl<CheckoutRepository>().fetchOneTimeWashCheckout(
+        customerId: widget.customerId,
+        packAmount: resolvedPackAmount,
+        vehicleId: widget.vehicle.id,
+        serviceType: CheckoutConstants.oneTimeApiService(widget.booking.header),
+      );
 
       if (!mounted) return;
       if (checkout == null) {

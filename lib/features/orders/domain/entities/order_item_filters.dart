@@ -1,4 +1,5 @@
 import 'package:carrocare_flutter/features/orders/domain/entities/order_item.dart';
+import 'package:carrocare_flutter/features/orders/presentation/utils/order_date_time_display.dart';
 
 extension OrderItemCategory on OrderItem {
   /// Recurring monthly / autopay orders from [payment_type].
@@ -8,11 +9,25 @@ extension OrderItemCategory on OrderItem {
   bool get isOneTimeOrder => !isSubscription;
 }
 
-List<OrderItem> subscriptionOrders(List<OrderItem> orders) =>
-    orders.where((o) => o.isSubscription).toList();
+DateTime _orderSortDateTime(OrderItem order) {
+  final raw = order.dateAndTime.trim();
+  if (raw.isEmpty) return DateTime.fromMillisecondsSinceEpoch(0);
+  final parsed = OrderDateTimeDisplay.parseWallClock(raw);
+  if (parsed != null) return parsed;
+  return DateTime.tryParse(raw) ?? DateTime.fromMillisecondsSinceEpoch(0);
+}
 
-List<OrderItem> oneTimeOrders(List<OrderItem> orders) =>
-    orders.where((o) => o.isOneTimeOrder).toList();
+List<OrderItem> subscriptionOrders(List<OrderItem> orders) {
+  final list = orders.where((o) => o.isSubscription).toList();
+  list.sort((a, b) => _orderSortDateTime(b).compareTo(_orderSortDateTime(a)));
+  return list;
+}
+
+List<OrderItem> oneTimeOrders(List<OrderItem> orders) {
+  final list = orders.where((o) => o.isOneTimeOrder).toList();
+  list.sort((a, b) => _orderSortDateTime(b).compareTo(_orderSortDateTime(a)));
+  return list;
+}
 
 /// Subscription chips — match raw [OrderItem.status] from the API.
 enum SubscriptionStatusFilter {
