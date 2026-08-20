@@ -145,16 +145,19 @@ class _MapAddVehiclePageState extends State<MapAddVehiclePage> {
   Future<void> _pickCategory() async {
     final value = await showModalBottomSheet<String>(
       context: context,
-      builder: (context) => ListView(
-        shrinkWrap: true,
-        children: _categories
-            .map(
-              (e) => ListTile(
-                title: Text(e),
-                onTap: () => Navigator.pop(context, e),
-              ),
-            )
-            .toList(),
+      useSafeArea: true,
+      builder: (context) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: _categories
+              .map(
+                (e) => ListTile(
+                  title: Text(e),
+                  onTap: () => Navigator.pop(context, e),
+                ),
+              )
+              .toList(),
+        ),
       ),
     );
     if (value == null) return;
@@ -171,16 +174,19 @@ class _MapAddVehiclePageState extends State<MapAddVehiclePage> {
     }
     final value = await showModalBottomSheet<String>(
       context: context,
-      builder: (context) => ListView(
-        shrinkWrap: true,
-        children: _makeModels
-            .map(
-              (e) => ListTile(
-                title: Text(e),
-                onTap: () => Navigator.pop(context, e),
-              ),
-            )
-            .toList(),
+      useSafeArea: true,
+      builder: (context) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: _makeModels
+              .map(
+                (e) => ListTile(
+                  title: Text(e),
+                  onTap: () => Navigator.pop(context, e),
+                ),
+              )
+              .toList(),
+        ),
       ),
     );
     if (value != null) setState(() => _makeModel = value);

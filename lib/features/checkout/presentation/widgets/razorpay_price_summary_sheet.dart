@@ -22,6 +22,7 @@ Future<bool> showRazorpayPriceSummarySheet({
   final result = await showModalBottomSheet<bool>(
     context: context,
     isScrollControlled: true,
+    useSafeArea: true,
     backgroundColor: Colors.transparent,
     builder: (sheetContext) {
       return _RazorpayPriceSummarySheet(

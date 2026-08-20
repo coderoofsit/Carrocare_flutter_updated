@@ -56,65 +56,71 @@ class _SplashPageState extends State<SplashPage> {
                   );
                 },
               ),
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: media.height * 0.135,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: List<Widget>.generate(
-                    maxStep,
-                    (i) => Container(
-                      width: 15,
-                      height: 15,
-                      margin: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 10,
-                      ),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: i == state.pageIndex
-                            ? AppColors.primary
-                            : AppColors.grey400,
+              SafeArea(
+                child: Stack(
+                  children: <Widget>[
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: media.height * 0.12,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: List<Widget>.generate(
+                          maxStep,
+                          (i) => Container(
+                            width: 15,
+                            height: 15,
+                            margin: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 10,
+                            ),
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: i == state.pageIndex
+                                  ? AppColors.primary
+                                  : AppColors.grey400,
+                            ),
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                ),
-              ),
-              Positioned(
-                left: 20,
-                right: 20,
-                bottom: 30,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: <Widget>[
-                    isLast
-                        ? const SizedBox(width: 86)
-                        : _CtaButton(
-                            text: 'Skip',
-                            icon: Icons.keyboard_double_arrow_right,
-                            onPressed: () => context.go('/login'),
-                          ),
-                    isLast
-                        ? _CtaButton(
-                            text: 'login',
-                            icon: Icons.login,
-                            onPressed: () => context.go('/login'),
-                          )
-                        : _CtaButton(
-                            text: 'Next',
-                            icon: Icons.arrow_forward,
-                            onPressed: () {
-                              final next = state.pageIndex + 1;
-                              if (next < maxStep) {
-                                _controller.animateToPage(
-                                  next,
-                                  duration: const Duration(milliseconds: 220),
-                                  curve: Curves.easeInOut,
-                                );
-                              }
-                            },
-                          ),
+                    Positioned(
+                      left: 20,
+                      right: 20,
+                      bottom: 16,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: <Widget>[
+                          isLast
+                              ? const SizedBox(width: 86)
+                              : _CtaButton(
+                                  text: 'Skip',
+                                  icon: Icons.keyboard_double_arrow_right,
+                                  onPressed: () => context.go('/login'),
+                                ),
+                          isLast
+                              ? _CtaButton(
+                                  text: 'login',
+                                  icon: Icons.login,
+                                  onPressed: () => context.go('/login'),
+                                )
+                              : _CtaButton(
+                                  text: 'Next',
+                                  icon: Icons.arrow_forward,
+                                  onPressed: () {
+                                    final next = state.pageIndex + 1;
+                                    if (next < maxStep) {
+                                      _controller.animateToPage(
+                                        next,
+                                        duration: const Duration(milliseconds: 220),
+                                        curve: Curves.easeInOut,
+                                      );
+                                    }
+                                  },
+                                ),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),

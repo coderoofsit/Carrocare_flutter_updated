@@ -441,6 +441,7 @@ class _DoorStepServicePageState extends State<DoorStepServicePage> {
     final confirmed = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       backgroundColor: Colors.transparent,
       builder: (context) => _PackageDetailSheet(
         package: package,
@@ -454,6 +455,7 @@ class _DoorStepServicePageState extends State<DoorStepServicePage> {
         await showModalBottomSheet<List<DoorstepAddOn>>(
           context: context,
           isScrollControlled: true,
+          useSafeArea: true,
           backgroundColor: Colors.transparent,
           builder: (context) => _AddOnSheet(package: package),
         ) ??
@@ -463,6 +465,7 @@ class _DoorStepServicePageState extends State<DoorStepServicePage> {
     final draft = await showModalBottomSheet<_DoorstepDraft>(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       backgroundColor: Colors.transparent,
       builder: (context) => _OrderDetailsSheet(
         package: package,
@@ -475,6 +478,7 @@ class _DoorStepServicePageState extends State<DoorStepServicePage> {
     final shouldSubmit = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       backgroundColor: Colors.transparent,
       builder: (context) => _OrderPreviewSheet(
         package: package,

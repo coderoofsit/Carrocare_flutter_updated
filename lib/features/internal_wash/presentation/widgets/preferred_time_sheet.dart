@@ -7,25 +7,28 @@ Future<String?> showPreferredTimeSheet(
 ) {
   return showModalBottomSheet<String>(
     context: context,
+    useSafeArea: true,
     backgroundColor: Colors.transparent,
     builder: (context) {
-      return Card(
-        margin: const EdgeInsets.all(16),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(11)),
-        child: ListView.separated(
-          shrinkWrap: true,
-          itemCount: slots.length,
-          separatorBuilder: (_, __) => const Divider(height: 1),
-          itemBuilder: (context, index) {
-            final slot = slots[index];
-            return ListTile(
-              title: Text(
-                slot,
-                style: const TextStyle(color: AppColors.black, fontSize: 16),
-              ),
-              onTap: () => Navigator.pop(context, slot),
-            );
-          },
+      return SafeArea(
+        child: Card(
+          margin: const EdgeInsets.all(16),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(11)),
+          child: ListView.separated(
+            shrinkWrap: true,
+            itemCount: slots.length,
+            separatorBuilder: (_, __) => const Divider(height: 1),
+            itemBuilder: (context, index) {
+              final slot = slots[index];
+              return ListTile(
+                title: Text(
+                  slot,
+                  style: const TextStyle(color: AppColors.black, fontSize: 16),
+                ),
+                onTap: () => Navigator.pop(context, slot),
+              );
+            },
+          ),
         ),
       );
     },

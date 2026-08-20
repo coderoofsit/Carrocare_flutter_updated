@@ -52,6 +52,7 @@ import 'package:carrocare_flutter/features/support/presentation/pages/contact_us
 import 'package:carrocare_flutter/features/support/presentation/pages/content_webview_page.dart';
 import 'package:carrocare_flutter/features/support/presentation/pages/faq_page.dart';
 import 'package:carrocare_flutter/features/support/presentation/pages/help_and_support_page.dart';
+import 'package:carrocare_flutter/features/support/presentation/pages/complaint_page.dart';
 import 'package:carrocare_flutter/features/support/presentation/pages/privacy_policy_page.dart';
 import 'package:carrocare_flutter/features/support/presentation/pages/terms_and_conditions_page.dart';
 import 'package:carrocare_flutter/features/account/presentation/pages/delete_account_page.dart';
@@ -128,6 +129,10 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/help-support',
       builder: (context, state) => const HelpAndSupportPage(),
+    ),
+    GoRoute(
+      path: '/complaint',
+      builder: (context, state) => const ComplaintPage(),
     ),
     GoRoute(
       path: '/wax-polish',

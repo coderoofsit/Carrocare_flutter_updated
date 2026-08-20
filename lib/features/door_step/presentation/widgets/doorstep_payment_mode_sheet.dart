@@ -8,14 +8,16 @@ Future<DoorstepPaymentMode?> showDoorstepPaymentModeSheet({
 }) {
   return showModalBottomSheet<DoorstepPaymentMode>(
     context: context,
+    useSafeArea: true,
     backgroundColor: Colors.transparent,
     builder: (sheetContext) {
-      return Container(
-        decoration: const BoxDecoration(
-          color: AppColors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-        ),
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+      return SafeArea(
+        child: Container(
+          decoration: const BoxDecoration(
+            color: AppColors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+          ),
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -61,8 +63,9 @@ Future<DoorstepPaymentMode?> showDoorstepPaymentModeSheet({
             ),
           ],
         ),
-      );
-    },
+      ),
+    );
+  },
   );
 }
 

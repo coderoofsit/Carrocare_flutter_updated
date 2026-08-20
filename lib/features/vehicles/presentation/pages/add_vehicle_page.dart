@@ -480,8 +480,10 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
     if (items.isEmpty) return;
     final result = await showModalBottomSheet<String>(
       context: context,
-      builder: (_) => ListView(
-        children: <Widget>[
+      useSafeArea: true,
+      builder: (_) => SafeArea(
+        child: ListView(
+          children: <Widget>[
           Padding(
             padding: const EdgeInsets.all(12),
             child: Text(
@@ -497,7 +499,8 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
           ),
         ],
       ),
-    );
+    ),
+  );
     if (result != null) onSelected(result);
   }
 

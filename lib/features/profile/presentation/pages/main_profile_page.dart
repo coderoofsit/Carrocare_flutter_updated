@@ -174,6 +174,11 @@ class _MainProfilePageState extends State<MainProfilePage> {
                               onTap: () => context.push('/contact-us'),
                             ),
                             _MenuRow(
+                              iconAsset: 'assets/vectors/ic_contact_24.svg',
+                              title: 'Complaints',
+                              onTap: () => context.push('/complaint'),
+                            ),
+                            _MenuRow(
                               iconAsset: 'assets/vectors/ic_privacy_24.svg',
                               title: 'Privacy Policy',
                               onTap: () => context.push('/privacy-policy'),

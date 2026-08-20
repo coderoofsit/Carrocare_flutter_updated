@@ -121,16 +121,19 @@ class _ConfirmFormPageState extends State<ConfirmFormPage> {
   Future<void> _pickVehicleType() async {
     final value = await showModalBottomSheet<String>(
       context: context,
-      builder: (context) => ListView(
-        shrinkWrap: true,
-        children: _vehicleTypes
-            .map(
-              (e) => ListTile(
-                title: Text(e),
-                onTap: () => Navigator.pop(context, e),
-              ),
-            )
-            .toList(),
+      useSafeArea: true,
+      builder: (context) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: _vehicleTypes
+              .map(
+                (e) => ListTile(
+                  title: Text(e),
+                  onTap: () => Navigator.pop(context, e),
+                ),
+              )
+              .toList(),
+        ),
       ),
     );
     if (value == null) return;
@@ -153,16 +156,19 @@ class _ConfirmFormPageState extends State<ConfirmFormPage> {
     }
     final value = await showModalBottomSheet<String>(
       context: context,
-      builder: (context) => ListView(
-        shrinkWrap: true,
-        children: _carCategories
-            .map(
-              (e) => ListTile(
-                title: Text(e),
-                onTap: () => Navigator.pop(context, e),
-              ),
-            )
-            .toList(),
+      useSafeArea: true,
+      builder: (context) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: _carCategories
+              .map(
+                (e) => ListTile(
+                  title: Text(e),
+                  onTap: () => Navigator.pop(context, e),
+                ),
+              )
+              .toList(),
+        ),
       ),
     );
     if (value != null) setState(() => _vecCategory.text = value);

@@ -315,10 +315,6 @@ class _ProfilePageState extends State<ProfilePage> {
                                 controller: _flatNo,
                                 hint: 'Flat Number',
                               ),
-                              _inputField(
-                                controller: _gst,
-                                hint: 'GST Number',
-                              ),
                             ],
                             if (_isDoorstepMode(userType))
                               _addressField(

@@ -27,7 +27,7 @@ class HomeShell extends StatelessWidget {
               gradient: AppGradients.homeBackground,
             ),
             child: SafeArea(
-              bottom: false,
+              bottom: bottomNavigationBar == null,
               child: Column(
                 children: <Widget>[
                   appBar,

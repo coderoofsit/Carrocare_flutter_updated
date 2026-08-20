@@ -391,6 +391,7 @@ class _PaymentOptionPageState extends State<PaymentOptionPage> {
     }
     final selected = await showModalBottomSheet<String>(
       context: context,
+      useSafeArea: true,
       builder: (context) {
         return SafeArea(
           child: Column(

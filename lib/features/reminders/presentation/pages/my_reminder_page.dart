@@ -108,16 +108,19 @@ class _MyReminderPageState extends State<MyReminderPage> {
   }) async {
     final value = await showModalBottomSheet<String>(
       context: context,
-      builder: (context) => ListView(
-        shrinkWrap: true,
-        children: options
-            .map(
-              (e) => ListTile(
-                title: Text(e),
-                onTap: () => Navigator.pop(context, e),
-              ),
-            )
-            .toList(),
+      useSafeArea: true,
+      builder: (context) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: options
+              .map(
+                (e) => ListTile(
+                  title: Text(e),
+                  onTap: () => Navigator.pop(context, e),
+                ),
+              )
+              .toList(),
+        ),
       ),
     );
     if (value != null) onSelected(value);

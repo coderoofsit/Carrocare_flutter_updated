@@ -69,92 +69,117 @@ class _HelpAndSupportPageState extends State<HelpAndSupportPage> {
     return ProfileSubpageScaffold(
       title: 'HELP AND SUPPORT',
       onBack: () => context.pop(),
-      body: ListView.separated(
-        padding: const EdgeInsets.all(12),
-        itemCount: kHelpTopics.length,
-        separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFFBDBDBD)),
-        itemBuilder: (context, index) {
-          final title = kHelpTopics[index];
-          final expanded = _expandedIndex == index;
-          _controllers.putIfAbsent(index, TextEditingController.new);
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              InkWell(
-                onTap: () {
-                  setState(() {
-                    _expandedIndex = expanded ? null : index;
-                  });
-                },
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  child: Row(
-                    children: <Widget>[
-                      Expanded(
-                        child: Text(
-                          title,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            color: AppColors.black,
+      body: Column(
+        children: <Widget>[
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Card(
+              color: AppColors.primary,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              child: ListTile(
+                leading: const Icon(Icons.report_problem, color: Colors.white, size: 28),
+                title: const Text(
+                  'Need to lodge a complaint?',
+                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                ),
+                subtitle: const Text(
+                  'Click here to register & track your complaints',
+                  style: TextStyle(color: Colors.white70, fontSize: 12),
+                ),
+                trailing: const Icon(Icons.arrow_forward_ios, color: Colors.white, size: 16),
+                onTap: () => context.push('/complaint'),
+              ),
+            ),
+          ),
+          Expanded(
+            child: ListView.separated(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              itemCount: kHelpTopics.length,
+              separatorBuilder: (context, index) => const Divider(height: 1, color: Color(0xFFBDBDBD)),
+              itemBuilder: (context, index) {
+                final title = kHelpTopics[index];
+                final expanded = _expandedIndex == index;
+                _controllers.putIfAbsent(index, TextEditingController.new);
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    InkWell(
+                      onTap: () {
+                        setState(() {
+                          _expandedIndex = expanded ? null : index;
+                        });
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        child: Row(
+                          children: <Widget>[
+                            Expanded(
+                              child: Text(
+                                title,
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  color: AppColors.black,
+                                ),
+                              ),
+                            ),
+                            SvgPicture.asset(
+                              'assets/vectors/ic_baseline_arrow_forward_ios_24.svg',
+                              width: 18,
+                              height: 18,
+                              colorFilter: const ColorFilter.mode(
+                                AppColors.black,
+                                BlendMode.srcIn,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    if (expanded) ...<Widget>[
+                      TextField(
+                        controller: _controllers[index],
+                        maxLines: 3,
+                        decoration: InputDecoration(
+                          hintText: 'Type here....',
+                          filled: true,
+                          fillColor: const Color(0xFFF5F5F5),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(4),
                           ),
                         ),
                       ),
-                      SvgPicture.asset(
-                        'assets/vectors/ic_baseline_arrow_forward_ios_24.svg',
-                        width: 18,
-                        height: 18,
-                        colorFilter: const ColorFilter.mode(
-                          AppColors.black,
-                          BlendMode.srcIn,
+                      const SizedBox(height: 8),
+                      Center(
+                        child: ElevatedButton(
+                          onPressed: _submitting
+                              ? null
+                              : () => _submit(title, _controllers[index]!.text),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: AppColors.white,
+                            minimumSize: const Size(120, 40),
+                          ),
+                          child: _submitting
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: AppColors.white,
+                                  ),
+                                )
+                              : const Text('Submit'),
                         ),
                       ),
+                      const SizedBox(height: 8),
                     ],
-                  ),
-                ),
-              ),
-              if (expanded) ...<Widget>[
-                TextField(
-                  controller: _controllers[index],
-                  maxLines: 3,
-                  decoration: InputDecoration(
-                    hintText: 'Type here....',
-                    filled: true,
-                    fillColor: const Color(0xFFF5F5F5),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Center(
-                  child: ElevatedButton(
-                    onPressed: _submitting
-                        ? null
-                        : () => _submit(title, _controllers[index]!.text),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: AppColors.white,
-                      minimumSize: const Size(120, 40),
-                    ),
-                    child: _submitting
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: AppColors.white,
-                            ),
-                          )
-                        : const Text('Submit'),
-                  ),
-                ),
-                const SizedBox(height: 8),
-              ],
-            ],
-          );
-        },
+                  ],
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
 }
-

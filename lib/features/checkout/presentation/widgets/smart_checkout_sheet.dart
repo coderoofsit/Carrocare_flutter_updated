@@ -55,6 +55,7 @@ Future<bool> showSmartCheckoutSheet({
   final added = await showModalBottomSheet<bool>(
     context: context,
     isScrollControlled: true,
+    useSafeArea: true,
     backgroundColor: Colors.transparent,
     builder: (sheetContext) {
       return _SmartCheckoutLoaderSheet(
@@ -252,16 +253,17 @@ class _SmartCheckoutLoaderSheetState extends State<_SmartCheckoutLoaderSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.viewInsetsOf(context).bottom,
-      ),
-      child: Container(
-        decoration: const BoxDecoration(
-          color: AppColors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+    return SafeArea(
+      child: Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.viewInsetsOf(context).bottom,
         ),
-        padding: const EdgeInsets.fromLTRB(16, 24, 16, 24),
+        child: Container(
+          decoration: const BoxDecoration(
+            color: AppColors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+          ),
+          padding: const EdgeInsets.fromLTRB(16, 24, 16, 24),
         child: _loading
             ? Column(
                 mainAxisSize: MainAxisSize.min,
@@ -294,6 +296,7 @@ class _SmartCheckoutLoaderSheetState extends State<_SmartCheckoutLoaderSheet> {
                 plans: _plans,
                 sourceOrderId: widget.sourceOrderId,
               ),
+        ),
       ),
     );
   }
@@ -573,16 +576,17 @@ class _SmartCheckoutSheetBodyState extends State<_SmartCheckoutSheetBody> {
             : 'Car Wash')
         : widget.booking.header;
 
-    return Padding(
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.viewInsetsOf(context).bottom,
-      ),
-      child: Container(
-        decoration: const BoxDecoration(
-          color: AppColors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+    return SafeArea(
+      child: Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.viewInsetsOf(context).bottom,
         ),
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+        child: Container(
+          decoration: const BoxDecoration(
+            color: AppColors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+          ),
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -757,7 +761,8 @@ class _SmartCheckoutSheetBodyState extends State<_SmartCheckoutSheetBody> {
           ],
         ),
       ),
-    );
+    ),
+  );
   }
 
   Widget _row(String label, String value, {bool bold = false, bool strike = false}) {
