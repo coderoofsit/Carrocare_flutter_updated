@@ -5,6 +5,8 @@ import 'package:carrocare_flutter/core/theme/app_typography.dart';
 import 'package:carrocare_flutter/core/widgets/carro_care_scaffold.dart';
 import 'package:carrocare_flutter/core/widgets/dotted_loader.dart';
 import 'package:carrocare_flutter/core/di/injection.dart';
+import 'package:carrocare_flutter/core/utils/profile_prefs_sync.dart';
+import 'package:carrocare_flutter/features/profile/domain/repositories/profile_repository.dart';
 import 'package:carrocare_flutter/features/vehicles/core/vehicle_category_utils.dart';
 import 'package:carrocare_flutter/features/vehicles/data/repositories/vehicles_repository.dart';
 import 'package:carrocare_flutter/features/vehicles/domain/entities/add_vehicle_args.dart';
@@ -27,6 +29,7 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
 
   final TextEditingController _vehicleNo = TextEditingController();
   final TextEditingController _color = TextEditingController();
+  final TextEditingController _apartmentController = TextEditingController();
   final TextEditingController _parkingLot = TextEditingController();
   final TextEditingController _makeController = TextEditingController();
   final TextEditingController _modelController = TextEditingController();
@@ -35,14 +38,12 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
   String _makeModel = '';
   String _make = '';
   String _model = '';
-  String _apartment = '';
   String _parkingArea = '';
   String _preferredSchedule = '';
   String _preferredTime = '';
   bool _loading = false;
 
   List<String> _makeModels = <String>[];
-  List<String> _apartments = <String>[];
   List<String> _parkingAreas = <String>[];
 
   static const List<String> _categories = <String>[
@@ -88,22 +89,28 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
 
   Future<void> _bootstrap() async {
     setState(() => _loading = true);
-    var apartments = <String>[];
     var parking = <String>[];
     var makeModels = <String>[];
+    String profileApartment = '';
 
-    try {
-      apartments = await _repo.getApartmentNames();
-      if (kDebugMode) {
-        debugPrint(
-          '[AddVehicle] apartment dropdown: count=${apartments.length}, '
-          'data=$apartments',
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token') ?? '';
+    final customerId = prefs.getString('customer_id') ?? '';
+
+    profileApartment = prefs.getString('apartment_name') ?? '';
+
+    if (profileApartment.isEmpty && token.isNotEmpty && customerId.isNotEmpty) {
+      try {
+        final profile = await sl<ProfileRepository>().getProfile(
+          token: token,
+          customerId: customerId,
         );
-      }
-    } catch (e, stackTrace) {
-      if (kDebugMode) {
-        debugPrint('[AddVehicle] apartment list failed: $e');
-        debugPrint('$stackTrace');
+        profileApartment = profile.apartmentName;
+        await persistProfileToPrefs(profile, prefs);
+      } catch (e) {
+        if (kDebugMode) {
+          debugPrint('[AddVehicle] profile fetch failed: $e');
+        }
       }
     }
 
@@ -135,7 +142,7 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
 
     if (!mounted) return;
     setState(() {
-      _apartments = apartments;
+      _apartmentController.text = profileApartment;
       _parkingAreas = parking;
       _makeModels = makeModels;
       _loading = false;
@@ -146,6 +153,7 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
   void dispose() {
     _vehicleNo.dispose();
     _color.dispose();
+    _apartmentController.dispose();
     _parkingLot.dispose();
     _makeController.dispose();
     _modelController.dispose();
@@ -230,16 +238,10 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
                   _FormSection(
                     title: 'Parking & location',
                     children: <Widget>[
-                      _selectField(
-                        label: _apartment.isEmpty
-                            ? 'Apartment Name'
-                            : _apartment,
-                        isPlaceholder: _apartment.isEmpty,
-                        onTap: () => _pickList('Apartment Name', _apartments, (
-                          v,
-                        ) {
-                          setState(() => _apartment = v);
-                        }),
+                      _inputField(
+                        controller: _apartmentController,
+                        hint: 'Apartment Name',
+                        readOnly: _apartmentController.text.trim().isNotEmpty,
                       ),
                       _inputField(
                         controller: _parkingLot,
@@ -345,12 +347,14 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
     required TextEditingController controller,
     required String hint,
     ValueChanged<String>? onChanged,
+    bool readOnly = false,
   }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: TextField(
         controller: controller,
         onChanged: onChanged,
+        readOnly: readOnly,
         style: AppTypography.dmSans(
           fontSize: 15,
           color: AppColors.grey800,
@@ -509,7 +513,7 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
     if (_vehicleCategory.isEmpty ||
         _vehicleNo.text.trim().isEmpty ||
         _color.text.trim().isEmpty ||
-        _apartment.isEmpty ||
+        _apartmentController.text.trim().isEmpty ||
         _parkingLot.text.trim().isEmpty ||
         _parkingArea.isEmpty ||
         _preferredSchedule.isEmpty ||
@@ -527,6 +531,7 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
     final token = prefs.getString('token') ?? '';
 
     if (customerId.isEmpty || token.isEmpty) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Session missing. Please login again.')),
       );
@@ -542,7 +547,7 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
         model: _model,
         vehicleNo: _vehicleNo.text.trim(),
         color: _color.text.trim(),
-        apartmentName: _apartment,
+        apartmentName: _apartmentController.text.trim(),
         parkingLotNo: _parkingLot.text.trim(),
         parkingArea: _parkingArea,
         preferredSchedule: _preferredSchedule,

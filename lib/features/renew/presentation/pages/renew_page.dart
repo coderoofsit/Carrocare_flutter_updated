@@ -94,8 +94,10 @@ class _RenewPageState extends State<RenewPage>
     if (order.paymentType.toLowerCase() == 'monthly') {
       return false;
     }
-    if (order.serviceType.toLowerCase() == 'wash' &&
-        order.status.toLowerCase() == 'cancelled') {
+    if (order.serviceType.trim().toLowerCase() != 'wash') {
+      return false;
+    }
+    if (order.status.toLowerCase() == 'cancelled') {
       return false;
     }
     return true;

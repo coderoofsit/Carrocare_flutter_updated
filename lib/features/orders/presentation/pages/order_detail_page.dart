@@ -921,7 +921,8 @@ class _OrderDetailUi {
       showConvertToSubscription: showConvertToSubscription,
       showAutopayPending: showAutopayPending,
       autopayPendingMessage: autopayPendingMessage,
-      showManualRenew: !order.isSubscription,
+      showManualRenew: !order.isSubscription &&
+          order.serviceType.trim().toLowerCase() == 'wash',
       showViewHistory: showViewHistory,
       showDownloadInvoice: showDownloadInvoice,
       showCancelOrder: showCancelOrder,
