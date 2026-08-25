@@ -23,17 +23,21 @@
 	<key>CFBundleSignature</key>
 	<string>????</string>
 	<key>CFBundleVersion</key>
-	<string>56</string>
+	<string>58</string>
 	<key>GMSApiKey</key>
 	<string>AIzaSyASzDacva-y6zpovSwOkgfLKBoRekO0SiU</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Carro Care may use the camera so you can optionally attach a photo when submitting a complaint about a service.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>Carro Care uses your location to display your position on the map and confirm the address where our team should visit for doorstep car wash and related services that you book in the app.</string>
 	<key>NSLocationAlwaysUsageDescription</key>
 	<string>Carro Care uses your location to display your position on the map and confirm the address where our team should visit for doorstep car wash and related services that you book in the app.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Carro Care uses your location while the app is open to show your position on the map, help you select your doorstep service address, and include that location when you book a car wash or related service at your home or office.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Carro Care may access your photo library so you can optionally attach an existing photo when submitting a complaint about a service.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

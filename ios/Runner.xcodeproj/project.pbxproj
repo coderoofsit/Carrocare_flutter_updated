@@ -517,9 +517,11 @@
 				DEVELOPMENT_TEAM = U6AW456VUC;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Runner/Info.plist;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Carro Care may use the camera so you can optionally attach a photo when submitting a complaint about a service.";
 				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "Carro Care uses your location to display your position on the map and confirm the address where our team should visit for doorstep car wash and related services that you book in the app.";
 				INFOPLIST_KEY_NSLocationAlwaysUsageDescription = "Carro Care uses your location to display your position on the map and confirm the address where our team should visit for doorstep car wash and related services that you book in the app.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Carro Care uses your location while the app is open to show your position on the map, help you select your doorstep service address, and include that location when you book a car wash or related service at your home or office.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Carro Care may access your photo library so you can optionally attach an existing photo when submitting a complaint about a service.";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -708,9 +710,11 @@
 				DEVELOPMENT_TEAM = U6AW456VUC;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Runner/Info.plist;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Carro Care may use the camera so you can optionally attach a photo when submitting a complaint about a service.";
 				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "Carro Care uses your location to display your position on the map and confirm the address where our team should visit for doorstep car wash and related services that you book in the app.";
 				INFOPLIST_KEY_NSLocationAlwaysUsageDescription = "Carro Care uses your location to display your position on the map and confirm the address where our team should visit for doorstep car wash and related services that you book in the app.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Carro Care uses your location while the app is open to show your position on the map, help you select your doorstep service address, and include that location when you book a car wash or related service at your home or office.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Carro Care may access your photo library so you can optionally attach an existing photo when submitting a complaint about a service.";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -739,9 +743,11 @@
 				DEVELOPMENT_TEAM = U6AW456VUC;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Runner/Info.plist;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Carro Care may use the camera so you can optionally attach a photo when submitting a complaint about a service.";
 				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "Carro Care uses your location to display your position on the map and confirm the address where our team should visit for doorstep car wash and related services that you book in the app.";
 				INFOPLIST_KEY_NSLocationAlwaysUsageDescription = "Carro Care uses your location to display your position on the map and confirm the address where our team should visit for doorstep car wash and related services that you book in the app.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Carro Care uses your location while the app is open to show your position on the map, help you select your doorstep service address, and include that location when you book a car wash or related service at your home or office.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Carro Care may access your photo library so you can optionally attach an existing photo when submitting a complaint about a service.";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
