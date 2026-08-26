@@ -8,6 +8,28 @@
   "client": [
     {
       "client_info": {
+        "mobilesdk_app_id": "1:1063808094094:android:4d4a173ff5bcd08b765edf",
+        "android_client_info": {
+          "package_name": "com.muviereck.carrocarelabourapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA6FDX0PllY9iHHTtsDJt94f6MOFUkqJ-A"
+        },
+        {
+          "current_key": "AIzaSyBaXR9KcGfyCfz85jexsDdgAdankSntVXw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
         "mobilesdk_app_id": "1:1063808094094:android:1b2ef7cd0e3c98ef765edf",
         "android_client_info": {
           "package_name": "com.muvierecktech.carrocare"
@@ -15,6 +37,9 @@
       },
       "oauth_client": [],
       "api_key": [
+        {
+          "current_key": "AIzaSyA6FDX0PllY9iHHTtsDJt94f6MOFUkqJ-A"
+        },
         {
           "current_key": "AIzaSyBaXR9KcGfyCfz85jexsDdgAdankSntVXw"
         }
