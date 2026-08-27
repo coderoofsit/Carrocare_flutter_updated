@@ -43,13 +43,12 @@ class _IntroductionPageState extends State<IntroductionPage> {
         } catch (_) {
           accessToken = null;
         }
-        if (!mounted) return;
         final prefs = await SharedPreferences.getInstance();
-        final legacyToken = prefs.getString('token') ?? '';
         final customerId = prefs.getString('customer_id') ?? '';
+        final legacyToken = prefs.getString('token') ?? '';
         final canOpenHome =
-            (accessToken != null && accessToken.isNotEmpty) ||
-            (legacyToken.isNotEmpty && customerId.isNotEmpty);
+            (accessToken != null && accessToken.isNotEmpty && customerId.isNotEmpty);
+
         if (canOpenHome) {
           targetRoute = '/home';
           final email =
@@ -64,6 +63,8 @@ class _IntroductionPageState extends State<IntroductionPage> {
             ),
           );
         } else {
+          // Token is expired/invalid; clear stale tokens and send to login
+          await authTokens.clearTokens();
           targetRoute = '/splash';
         }
       }
