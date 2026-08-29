@@ -6,6 +6,8 @@ import 'package:carrocare_flutter/core/network/auth_token_service.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
+import 'package:carrocare_flutter/core/network/app_version_checker.dart';
+
 class ApiClient {
   ApiClient(this._authTokens, this._sessionExpired)
     : dio = Dio(
@@ -45,6 +47,11 @@ class ApiClient {
               );
               return;
             }
+          }
+          if (response.data is Map<String, dynamic>) {
+            AppVersionChecker().checkFromResponse(response.data as Map<String, dynamic>);
+          } else if (response.data is Map) {
+            AppVersionChecker().checkFromResponse(Map<String, dynamic>.from(response.data as Map));
           }
           handler.next(response);
         },
