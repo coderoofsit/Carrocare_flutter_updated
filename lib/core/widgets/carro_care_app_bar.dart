@@ -1,5 +1,6 @@
 import 'package:carrocare_flutter/core/theme/app_colors.dart';
 import 'package:carrocare_flutter/core/theme/app_typography.dart';
+import 'package:carrocare_flutter/features/checkout/data/local/cart_local_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
@@ -193,45 +194,51 @@ class CarroCareCartAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: SizedBox(
-        width: 40,
-        height: 40,
-        child: Stack(
-          clipBehavior: Clip.none,
-          alignment: Alignment.center,
-          children: <Widget>[
-            SvgPicture.asset(
-              'assets/vectors/ic_cart.svg',
-              width: 22,
-              height: 22,
-              colorFilter: ColorFilter.mode(iconColor, BlendMode.srcIn),
-            ),
-            if (count > 0)
-              Positioned(
-                top: 2,
-                right: 2,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: AppColors.white),
-                  ),
-                  child: Text(
-                    '$count',
-                    style: AppTypography.dmSans(
-                      fontSize: 8,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.white,
+    return ValueListenableBuilder<int>(
+      valueListenable: CartLocalStorage.cartCountNotifier,
+      builder: (context, liveCount, child) {
+        final displayCount = liveCount > 0 ? liveCount : count;
+        return GestureDetector(
+          onTap: onTap,
+          child: SizedBox(
+            width: 40,
+            height: 40,
+            child: Stack(
+              clipBehavior: Clip.none,
+              alignment: Alignment.center,
+              children: <Widget>[
+                SvgPicture.asset(
+                  'assets/vectors/ic_cart.svg',
+                  width: 22,
+                  height: 22,
+                  colorFilter: ColorFilter.mode(iconColor, BlendMode.srcIn),
+                ),
+                if (displayCount > 0)
+                  Positioned(
+                    top: 2,
+                    right: 2,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: AppColors.white),
+                      ),
+                      child: Text(
+                        displayCount > 99 ? '99+' : '$displayCount',
+                        style: AppTypography.dmSans(
+                          fontSize: 8,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.white,
+                        ),
+                      ),
                     ),
                   ),
-                ),
-              ),
-          ],
-        ),
-      ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

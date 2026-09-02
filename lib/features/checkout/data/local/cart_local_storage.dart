@@ -1,18 +1,26 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:carrocare_flutter/features/checkout/domain/entities/cart_item.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class CartLocalStorage {
   static const String _cartKey = 'smart_checkout_cart';
+  static final ValueNotifier<int> cartCountNotifier = ValueNotifier<int>(0);
 
   Future<List<CartItem>> getItems() async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_cartKey);
-    if (raw == null || raw.isEmpty) return <CartItem>[];
+    if (raw == null || raw.isEmpty) {
+      cartCountNotifier.value = 0;
+      return <CartItem>[];
+    }
     final decoded = jsonDecode(raw);
-    if (decoded is! List) return <CartItem>[];
-    return decoded
+    if (decoded is! List) {
+      cartCountNotifier.value = 0;
+      return <CartItem>[];
+    }
+    final list = decoded
         .whereType<Map>()
         .map(
           (item) => CartItem.fromJson(
@@ -20,10 +28,13 @@ class CartLocalStorage {
           ),
         )
         .toList();
+    cartCountNotifier.value = list.length;
+    return list;
   }
 
   Future<int> count() async {
     final items = await getItems();
+    cartCountNotifier.value = items.length;
     return items.length;
   }
 
@@ -79,6 +90,7 @@ class CartLocalStorage {
       ...items.where((entry) => !_isSameItem(entry, item)),
       item,
     ];
+    cartCountNotifier.value = updated.length;
     return prefs.setString(
       _cartKey,
       jsonEncode(updated.map((e) => e.toJson()).toList()),
@@ -89,6 +101,7 @@ class CartLocalStorage {
     final prefs = await SharedPreferences.getInstance();
     final items = await getItems();
     final updated = items.where((entry) => !_isSameItem(entry, item)).toList();
+    cartCountNotifier.value = updated.length;
     return prefs.setString(
       _cartKey,
       jsonEncode(updated.map((e) => e.toJson()).toList()),
@@ -100,6 +113,7 @@ class CartLocalStorage {
     final items = await getItems();
     final updated =
         items.where((entry) => entry.carId != vehicleId).toList(growable: false);
+    cartCountNotifier.value = updated.length;
     return prefs.setString(
       _cartKey,
       jsonEncode(updated.map((e) => e.toJson()).toList()),
@@ -108,6 +122,7 @@ class CartLocalStorage {
 
   Future<void> clear() async {
     final prefs = await SharedPreferences.getInstance();
+    cartCountNotifier.value = 0;
     await prefs.remove(_cartKey);
   }
 }

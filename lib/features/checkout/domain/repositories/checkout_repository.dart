@@ -94,6 +94,7 @@ abstract class CheckoutRepository {
     required String totalAmount,
     required String scheduleDate,
     required String scheduleTime,
+    String razorpayOrderId = '',
   });
 
   Future<String> placeOneTimeWashOrder({
@@ -109,6 +110,7 @@ abstract class CheckoutRepository {
     required String totalAmount,
     required String serviceType,
     required String packType,
+    String razorpayOrderId = '',
   });
 
   Future<String> createCartRazorpayOrderId({required int cartTotal});
@@ -135,5 +137,6 @@ abstract class CheckoutRepository {
     required String scheduleDate,
     required String scheduleTime,
     required String packType,
+    String razorpayOrderId = '',
   });
 }

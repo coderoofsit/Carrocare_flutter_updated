@@ -65,13 +65,14 @@ class CheckoutRemoteDataSource {
     required String totalAmount,
     required String scheduleDate,
     required String scheduleTime,
+    String razorpayOrderId = '',
   }) async {
     final response = await _apiClient.dio.post<Map<String, dynamic>>(
       'save_order.php',
       data: <String, dynamic>{
         'action': action,
         'order_id': paymentId,
-        'rzp_order_id': '',
+        'rzp_order_id': razorpayOrderId,
         'customer_id': customerId,
         'token': token,
         'pack_type': packType,
@@ -103,13 +104,14 @@ class CheckoutRemoteDataSource {
     required String totalAmount,
     required String serviceType,
     required String packType,
+    String razorpayOrderId = '',
   }) async {
     return postSaveOrderWithRetry(
       _apiClient.dio,
       <String, dynamic>{
         'action': 'onetime_wash_payment',
         'payment_id': paymentId,
-        'rzp_order_id': '',
+        'rzp_order_id': razorpayOrderId,
         'customer_id': customerId,
         'token': token,
         'pack_amount': packAmount,
@@ -141,13 +143,14 @@ class CheckoutRemoteDataSource {
     required String scheduleDate,
     required String scheduleTime,
     required String packType,
+    String razorpayOrderId = '',
   }) async {
     return postSaveOrderWithRetry(
       _apiClient.dio,
       <String, dynamic>{
         'action': 'onetime_wash_payment',
         'payment_id': paymentId,
-        'rzp_order_id': '',
+        'rzp_order_id': razorpayOrderId,
         'customer_id': customerId,
         'token': token,
         'pack_amount': packAmount,
@@ -194,12 +197,14 @@ class CheckoutRemoteDataSource {
     required String serviceType,
     required String packType,
     required String successAction,
+    String orderId = '',
   }) async {
     final response = await _apiClient.dio.post<Map<String, dynamic>>(
       'save_order.php',
       data: <String, dynamic>{
         'action': 'temp_order',
         'rzp_order_id': razorpayOrderId,
+        'order_id': orderId,
         'customer_id': customerId,
         'token': token,
         'pack_amount': packAmount,
@@ -235,12 +240,14 @@ class CheckoutRemoteDataSource {
     required String scheduleDate,
     required String scheduleTime,
     required String successAction,
+    String orderId = '',
   }) async {
     final response = await _apiClient.dio.post<Map<String, dynamic>>(
       'save_order.php',
       data: <String, dynamic>{
         'action': 'temp_order',
         'rzp_order_id': razorpayOrderId,
+        'order_id': orderId,
         'customer_id': customerId,
         'token': token,
         'pack_amount': packAmount,
@@ -276,12 +283,14 @@ class CheckoutRemoteDataSource {
     required String scheduleDate,
     required String scheduleTime,
     required String successAction,
+    String orderId = '',
   }) async {
     final response = await _apiClient.dio.post<Map<String, dynamic>>(
       'save_order.php',
       data: <String, dynamic>{
         'action': 'temp_order',
         'rzp_order_id': razorpayOrderId,
+        'order_id': orderId,
         'customer_id': customerId,
         'token': token,
         'pack_type': packType,

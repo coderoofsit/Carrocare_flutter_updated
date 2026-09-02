@@ -318,6 +318,7 @@ class CheckoutRepositoryImpl implements CheckoutRepository {
           serviceType: 'Wash',
           packType: packageType,
           successAction: CheckoutConstants.actionWashOneTime,
+          orderId: item.sourceOrderId,
         );
       } else if (action == 'onetime_wax_payment' ||
           (action == CheckoutConstants.actionWashOneTime &&
@@ -339,6 +340,7 @@ class CheckoutRepositoryImpl implements CheckoutRepository {
           scheduleDate: item.scheduleDate,
           scheduleTime: item.scheduleTime,
           successAction: CheckoutConstants.actionWashOneTime,
+          orderId: item.sourceOrderId,
         );
       } else if (action == CheckoutConstants.actionOneTime ||
           action == 'onetime_disinfection_payment') {
@@ -357,6 +359,7 @@ class CheckoutRepositoryImpl implements CheckoutRepository {
           scheduleDate: item.scheduleDate,
           scheduleTime: item.scheduleTime,
           successAction: action,
+          orderId: item.sourceOrderId,
         );
       } else {
         throw Exception('Unsupported cart item type');
@@ -381,6 +384,7 @@ class CheckoutRepositoryImpl implements CheckoutRepository {
     required String totalAmount,
     required String scheduleDate,
     required String scheduleTime,
+    String razorpayOrderId = '',
   }) async {
     final data = await _remote.saveOrderOneTime(
       action: action,
@@ -397,6 +401,7 @@ class CheckoutRepositoryImpl implements CheckoutRepository {
       totalAmount: totalAmount,
       scheduleDate: scheduleDate,
       scheduleTime: scheduleTime,
+      razorpayOrderId: razorpayOrderId,
     );
     return _messageFromSave(data);
   }
@@ -415,6 +420,7 @@ class CheckoutRepositoryImpl implements CheckoutRepository {
     required String totalAmount,
     required String serviceType,
     required String packType,
+    String razorpayOrderId = '',
   }) async {
     final data = await _remote.saveWashOrderOneTime(
       paymentId: paymentId,
@@ -430,6 +436,7 @@ class CheckoutRepositoryImpl implements CheckoutRepository {
       totalAmount: totalAmount,
       serviceType: serviceType,
       packType: packType,
+      razorpayOrderId: razorpayOrderId,
     );
     return _messageFromSave(data);
   }
@@ -449,6 +456,7 @@ class CheckoutRepositoryImpl implements CheckoutRepository {
     required String scheduleDate,
     required String scheduleTime,
     required String packType,
+    String razorpayOrderId = '',
   }) async {
     final data = await _remote.saveAddOnOrderOneTime(
       paymentId: paymentId,
@@ -465,6 +473,7 @@ class CheckoutRepositoryImpl implements CheckoutRepository {
       scheduleDate: scheduleDate,
       scheduleTime: scheduleTime,
       packType: packType,
+      razorpayOrderId: razorpayOrderId,
     );
     return _messageFromSave(data);
   }

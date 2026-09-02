@@ -343,6 +343,7 @@ class _CartPageState extends State<CartPage> {
           totalAmount: item.totalAmount.isNotEmpty ? item.totalAmount : item.packAmount,
           serviceType: 'Wash',
           packType: packageType,
+          razorpayOrderId: orderId,
         );
       } else if (action == 'onetime_wax_payment' ||
           (action == CheckoutConstants.actionWashOneTime &&
@@ -361,6 +362,7 @@ class _CartPageState extends State<CartPage> {
           scheduleDate: item.scheduleDate,
           scheduleTime: item.scheduleTime,
           packType: packageType,
+          razorpayOrderId: orderId,
         );
       } else if (action == CheckoutConstants.actionOneTime ||
           action == 'onetime_disinfection_payment') {
@@ -376,6 +378,7 @@ class _CartPageState extends State<CartPage> {
           totalAmount: item.totalAmount.isNotEmpty ? item.totalAmount : item.packAmount,
           scheduleDate: item.scheduleDate,
           scheduleTime: item.scheduleTime,
+          razorpayOrderId: orderId,
         );
       }
     }

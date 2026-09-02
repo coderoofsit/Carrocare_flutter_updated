@@ -81,6 +81,16 @@ class _RenewPageState extends State<RenewPage>
     );
     if (!mounted || !added) return;
     await _refreshCartState();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('Added to cart. Open cart when you are ready to pay.'),
+        action: SnackBarAction(
+          label: 'View cart',
+          onPressed: () => context.push('/cart'),
+        ),
+      ),
+    );
   }
 
   String _validLabel(OrderItem order) {

@@ -384,12 +384,24 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
         );
         return;
       }
-      await showRenewSmartCheckoutSheet(
+      final added = await showRenewSmartCheckoutSheet(
         context: context,
         order: _order,
         customerId: customerId,
         token: token,
       );
+      if (!mounted) return;
+      if (added) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Added to cart. Open cart when you are ready to pay.'),
+            action: SnackBarAction(
+              label: 'View cart',
+              onPressed: () => context.push('/cart'),
+            ),
+          ),
+        );
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
