@@ -3,6 +3,8 @@ class AppVersionInfo {
   final String androidMaxVersion;
   final String iosMinVersion;
   final String iosMaxVersion;
+  final int iosMinBuild;
+  final int iosMaxBuild;
   final String androidUrl;
   final String iosUrl;
   final String title;
@@ -13,6 +15,8 @@ class AppVersionInfo {
     required this.androidMaxVersion,
     required this.iosMinVersion,
     required this.iosMaxVersion,
+    this.iosMinBuild = 0,
+    this.iosMaxBuild = 0,
     required this.androidUrl,
     required this.iosUrl,
     required this.title,
@@ -25,6 +29,8 @@ class AppVersionInfo {
       androidMaxVersion: (json['android_max_version'] ?? '1.0.0').toString(),
       iosMinVersion: (json['ios_min_version'] ?? '1.0.0').toString(),
       iosMaxVersion: (json['ios_max_version'] ?? '1.0.0').toString(),
+      iosMinBuild: int.tryParse((json['ios_min_build'] ?? '0').toString()) ?? 0,
+      iosMaxBuild: int.tryParse((json['ios_max_build'] ?? '0').toString()) ?? 0,
       androidUrl: (json['android_url'] ?? '').toString(),
       iosUrl: (json['ios_url'] ?? '').toString(),
       title: (json['title'] ?? 'App Update Available').toString(),
@@ -37,6 +43,8 @@ class AppVersionInfo {
         'android_max_version': androidMaxVersion,
         'ios_min_version': iosMinVersion,
         'ios_max_version': iosMaxVersion,
+        'ios_min_build': iosMinBuild,
+        'ios_max_build': iosMaxBuild,
         'android_url': androidUrl,
         'ios_url': iosUrl,
         'title': title,

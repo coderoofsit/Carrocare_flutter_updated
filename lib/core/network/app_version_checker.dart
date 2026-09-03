@@ -53,6 +53,7 @@ class AppVersionChecker {
 
     final packageInfo = await PackageInfo.fromPlatform();
     final currentVersion = packageInfo.version;
+    final currentBuild = int.tryParse(packageInfo.buildNumber) ?? 0;
 
     final isAndroid = defaultTargetPlatform == TargetPlatform.android;
     final isIOS = defaultTargetPlatform == TargetPlatform.iOS;
@@ -69,7 +70,15 @@ class AppVersionChecker {
         ? versionInfo.androidUrl
         : (isIOS ? versionInfo.iosUrl : '');
 
-    final status = _determineStatus(currentVersion, minVersion, maxVersion);
+    final status = _determineStatus(
+      currentVersion: currentVersion,
+      currentBuild: currentBuild,
+      minVersion: minVersion,
+      maxVersion: maxVersion,
+      isIOS: isIOS,
+      iosMinBuild: versionInfo.iosMinBuild,
+      iosMaxBuild: versionInfo.iosMaxBuild,
+    );
 
     if (status == UpdateStatus.forceUpdate) {
       _showForceUpdateDialog(versionInfo.title, versionInfo.message, storeUrl);
@@ -80,17 +89,36 @@ class AppVersionChecker {
     }
   }
 
-  UpdateStatus _determineStatus(
-    String currentVersion,
-    String minVersion,
-    String maxVersion,
-  ) {
-    if (VersionComparator.compare(currentVersion, minVersion) < 0) {
+  UpdateStatus _determineStatus({
+    required String currentVersion,
+    required int currentBuild,
+    required String minVersion,
+    required String maxVersion,
+    required bool isIOS,
+    int iosMinBuild = 0,
+    int iosMaxBuild = 0,
+  }) {
+    // 1. Marketing version comparison
+    final minVersionCmp = VersionComparator.compare(currentVersion, minVersion);
+    if (minVersionCmp < 0) {
       return UpdateStatus.forceUpdate;
     }
-    if (VersionComparator.compare(currentVersion, maxVersion) < 0) {
+
+    // 2. On iOS: if marketing version is equal, check bundle/build number
+    if (isIOS && minVersionCmp == 0 && iosMinBuild > 0 && currentBuild < iosMinBuild) {
+      return UpdateStatus.forceUpdate;
+    }
+
+    // 3. Optional update check against maxVersion / maxBuild
+    final maxVersionCmp = VersionComparator.compare(currentVersion, maxVersion);
+    if (maxVersionCmp < 0) {
       return UpdateStatus.optionalUpdate;
     }
+
+    if (isIOS && maxVersionCmp == 0 && iosMaxBuild > 0 && currentBuild < iosMaxBuild) {
+      return UpdateStatus.optionalUpdate;
+    }
+
     return UpdateStatus.noUpdate;
   }
 
