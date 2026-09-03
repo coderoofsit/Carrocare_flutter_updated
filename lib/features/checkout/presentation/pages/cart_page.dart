@@ -344,6 +344,7 @@ class _CartPageState extends State<CartPage> {
           serviceType: 'Wash',
           packType: packageType,
           razorpayOrderId: orderId,
+          gstAmount: item.gstAmount,
         );
       } else if (action == 'onetime_wax_payment' ||
           (action == CheckoutConstants.actionWashOneTime &&
@@ -363,6 +364,7 @@ class _CartPageState extends State<CartPage> {
           scheduleTime: item.scheduleTime,
           packType: packageType,
           razorpayOrderId: orderId,
+          gstAmount: item.gstAmount,
         );
       } else if (action == CheckoutConstants.actionOneTime ||
           action == 'onetime_disinfection_payment') {

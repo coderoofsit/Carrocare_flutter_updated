@@ -111,6 +111,7 @@ abstract class CheckoutRepository {
     required String serviceType,
     required String packType,
     String razorpayOrderId = '',
+    String gstAmount = '',
   });
 
   Future<String> createCartRazorpayOrderId({required int cartTotal});
@@ -138,5 +139,6 @@ abstract class CheckoutRepository {
     required String scheduleTime,
     required String packType,
     String razorpayOrderId = '',
+    String gstAmount = '',
   });
 }
