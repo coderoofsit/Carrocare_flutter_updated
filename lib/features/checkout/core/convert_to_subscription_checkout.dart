@@ -20,7 +20,8 @@ class ConvertToSubscriptionCheckout {
     required int gstPercent,
     required RazorpayPriceSummary priceSummary,
     required void Function(String message) onError,
-    required Future<void> Function(String chargeAt) onSuccess,
+    required Future<void> Function(String chargeAt, {required bool immediate})
+        onSuccess,
   }) async {
     final repo = sl<CheckoutRepository>();
 
@@ -69,7 +70,7 @@ class ConvertToSubscriptionCheckout {
         gstAmount: CheckoutPricing.moneyString(breakdown.gstAmount),
       );
 
-      await onSuccess(eligibility.chargeAt);
+      await onSuccess(eligibility.chargeAt, immediate: eligibility.immediate);
     } catch (e) {
       final message = e.toString().replaceFirst('Exception: ', '');
       onError(message.isNotEmpty ? message : 'Payment failed');

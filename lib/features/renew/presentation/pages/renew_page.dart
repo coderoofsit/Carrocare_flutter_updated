@@ -1,3 +1,4 @@
+import 'package:carrocare_flutter/app/router.dart';
 import 'package:carrocare_flutter/core/theme/app_colors.dart';
 import 'package:carrocare_flutter/core/widgets/carro_care_app_bar.dart';
 import 'package:carrocare_flutter/core/widgets/carro_care_scaffold.dart';
@@ -82,12 +83,18 @@ class _RenewPageState extends State<RenewPage>
     if (!mounted || !added) return;
     await _refreshCartState();
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
       SnackBar(
         content: const Text('Added to cart. Open cart when you are ready to pay.'),
+        duration: const Duration(seconds: 4),
         action: SnackBarAction(
           label: 'View cart',
-          onPressed: () => context.push('/cart'),
+          onPressed: () {
+            messenger.hideCurrentSnackBar();
+            appRouter.push('/cart');
+          },
         ),
       ),
     );

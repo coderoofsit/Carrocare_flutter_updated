@@ -6,6 +6,7 @@ class ConvertSubscriptionEligibility {
     required this.packType,
     required this.vehicleType,
     required this.serviceType,
+    this.immediate = false,
   });
 
   final String chargeAt;
@@ -14,8 +15,13 @@ class ConvertSubscriptionEligibility {
   final String packType;
   final String vehicleType;
   final String serviceType;
+  final bool immediate;
 
   factory ConvertSubscriptionEligibility.fromJson(Map<String, dynamic> json) {
+    final immediateRaw = json['immediate'];
+    final immediate = immediateRaw == true ||
+        immediateRaw == 1 ||
+        immediateRaw?.toString().toLowerCase() == 'true';
     return ConvertSubscriptionEligibility(
       chargeAt: (json['charge_at'] ?? '').toString(),
       planId: (json['plan_id'] ?? '').toString(),
@@ -23,6 +29,7 @@ class ConvertSubscriptionEligibility {
       packType: (json['pack_type'] ?? '').toString(),
       vehicleType: (json['vehicle_type'] ?? '').toString(),
       serviceType: (json['service_type'] ?? 'Wash').toString(),
+      immediate: immediate,
     );
   }
 }

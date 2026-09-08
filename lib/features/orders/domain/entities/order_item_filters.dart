@@ -42,7 +42,9 @@ enum SubscriptionStatusFilter {
 /// One-time chips — match customer-facing [OrderItem.displayStatus].
 enum OneTimeStatusFilter {
   all,
+  active,
   paid,
+  overDue,
   notCompleted,
   completed,
   cancelRequested,
@@ -79,8 +81,15 @@ bool matchesOneTimeStatusFilter(
   switch (filter) {
     case OneTimeStatusFilter.all:
       return true;
+    case OneTimeStatusFilter.active:
+      return display == 'active' || raw == 'active';
     case OneTimeStatusFilter.paid:
       return display == 'paid';
+    case OneTimeStatusFilter.overDue:
+      return display == 'over due' ||
+          raw == 'over due' ||
+          display == 'overdue' ||
+          raw == 'overdue';
     case OneTimeStatusFilter.notCompleted:
       return display == 'not completed' || raw == 'not yet done!';
     case OneTimeStatusFilter.completed:
@@ -131,8 +140,12 @@ String emptyMessageForOneTimeFilter(OneTimeStatusFilter filter) {
   switch (filter) {
     case OneTimeStatusFilter.all:
       return '';
+    case OneTimeStatusFilter.active:
+      return 'No active orders';
     case OneTimeStatusFilter.paid:
       return 'No paid orders';
+    case OneTimeStatusFilter.overDue:
+      return 'No overdue orders';
     case OneTimeStatusFilter.notCompleted:
       return 'No not-completed orders';
     case OneTimeStatusFilter.completed:

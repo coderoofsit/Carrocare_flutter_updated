@@ -1,12 +1,15 @@
+import 'package:carrocare_flutter/app/router.dart';
 import 'package:carrocare_flutter/core/di/injection.dart';
 import 'package:carrocare_flutter/core/theme/app_colors.dart';
 import 'package:carrocare_flutter/core/theme/app_decorations.dart';
 import 'package:carrocare_flutter/core/theme/app_typography.dart';
 import 'package:carrocare_flutter/core/widgets/animated_gradient_badge.dart';
 import 'package:carrocare_flutter/core/widgets/bill_summary_card.dart';
+import 'package:carrocare_flutter/core/widgets/carro_care_app_bar.dart';
 import 'package:carrocare_flutter/core/widgets/carro_care_scaffold.dart';
 import 'package:carrocare_flutter/core/widgets/dotted_loader.dart';
 import 'package:carrocare_flutter/core/utils/invoice_download_helper.dart';
+import 'package:carrocare_flutter/features/checkout/data/local/cart_local_storage.dart';
 import 'package:carrocare_flutter/features/orders/domain/entities/order_item.dart';
 import 'package:carrocare_flutter/features/orders/domain/entities/payment_detail.dart';
 import 'package:carrocare_flutter/features/orders/domain/repositories/orders_repository.dart';
@@ -47,14 +50,27 @@ class OrderDetailPage extends StatefulWidget {
 }
 
 class _OrderDetailPageState extends State<OrderDetailPage> {
+  final CartLocalStorage _cartStorage = CartLocalStorage();
   bool _showPaymentHistory = false;
   bool _busy = false;
+  int _cartCount = 0;
 
   final OrdersRepository _ordersRepository = sl<OrdersRepository>();
   final InvoiceDownloadHelper _invoiceHelper = InvoiceDownloadHelper();
   final RazorpayCheckoutService _razorpay = RazorpayCheckoutService();
 
   OrderItem get _order => widget.args.order;
+
+  @override
+  void initState() {
+    super.initState();
+    _refreshCartState();
+  }
+
+  Future<void> _refreshCartState() async {
+    _cartCount = await _cartStorage.count();
+    if (mounted) setState(() {});
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -64,6 +80,15 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
     return CarroCareScaffold(
       title: 'Order Details',
       onBack: () => context.pop(),
+      actions: <Widget>[
+        CarroCareCartAction(
+          count: _cartCount,
+          onTap: () async {
+            await context.push('/cart');
+            await _refreshCartState();
+          },
+        ),
+      ],
       body: Stack(
         children: <Widget>[
           SingleChildScrollView(
@@ -312,12 +337,16 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
   }
 
   Future<void> _enableAutoRenew() async {
+    final isOverdue = _order.status.trim().toLowerCase() == 'over due' ||
+        _order.status.trim().toLowerCase() == 'overdue';
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Enable auto-renew'),
-        content: const Text(
-          'Set up monthly auto-renew now. Billing starts after your prepaid plan ends.',
+        content: Text(
+          isOverdue
+              ? 'Set up monthly auto-renew now. You will pay the full plan amount today and your subscription becomes Active immediately.'
+              : 'Set up monthly auto-renew now. Billing starts after your prepaid plan ends.',
         ),
         actions: <Widget>[
           TextButton(
@@ -356,10 +385,15 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
         gstPercent: gstPercent,
         priceSummary: priceSummary,
         onError: _showSnack,
-        onSuccess: (chargeAt) async {
+        onSuccess: (chargeAt, {required bool immediate}) async {
           if (!mounted) return;
-          final dateLabel = chargeAt.isNotEmpty ? chargeAt : 'your prepaid end date';
-          _showSnack('Auto-renew scheduled from $dateLabel');
+          if (immediate) {
+            _showSnack('Auto-renew enabled! Subscription is now active.');
+          } else {
+            final dateLabel =
+                chargeAt.isNotEmpty ? chargeAt : 'your prepaid end date';
+            _showSnack('Auto-renew scheduled from $dateLabel');
+          }
           context.go('/my-orders');
         },
       );
@@ -392,12 +426,20 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
       );
       if (!mounted) return;
       if (added) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        await _refreshCartState();
+        if (!mounted) return;
+        final messenger = ScaffoldMessenger.of(context);
+        messenger.hideCurrentSnackBar();
+        messenger.showSnackBar(
           SnackBar(
             content: const Text('Added to cart. Open cart when you are ready to pay.'),
+            duration: const Duration(seconds: 4),
             action: SnackBarAction(
               label: 'View cart',
-              onPressed: () => context.push('/cart'),
+              onPressed: () {
+                messenger.hideCurrentSnackBar();
+                appRouter.push('/cart');
+              },
             ),
           ),
         );

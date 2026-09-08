@@ -1,7 +1,9 @@
 import 'package:carrocare_flutter/core/theme/app_colors.dart';
 import 'package:carrocare_flutter/core/widgets/animated_gradient_badge.dart';
+import 'package:carrocare_flutter/core/widgets/carro_care_app_bar.dart';
 import 'package:carrocare_flutter/core/widgets/carro_care_scaffold.dart';
 import 'package:carrocare_flutter/core/widgets/dotted_loader.dart';
+import 'package:carrocare_flutter/features/checkout/data/local/cart_local_storage.dart';
 import 'package:carrocare_flutter/features/orders/domain/entities/order_item.dart';
 import 'package:carrocare_flutter/features/orders/domain/entities/order_item_filters.dart';
 import 'package:carrocare_flutter/features/orders/presentation/bloc/my_orders_bloc.dart';
@@ -21,10 +23,12 @@ class MyOrdersPage extends StatefulWidget {
 
 class _MyOrdersPageState extends State<MyOrdersPage>
     with SingleTickerProviderStateMixin {
+  final CartLocalStorage _cartStorage = CartLocalStorage();
   late final TabController _tabController;
   SubscriptionStatusFilter _subscriptionFilter =
       SubscriptionStatusFilter.all;
   OneTimeStatusFilter _oneTimeFilter = OneTimeStatusFilter.all;
+  int _cartCount = 0;
 
   @override
   void initState() {
@@ -34,7 +38,17 @@ class _MyOrdersPageState extends State<MyOrdersPage>
       if (mounted) setState(() {});
     });
     context.read<MyOrdersBloc>().add(const MyOrdersStarted());
-    _loadOrders();
+    _bootstrap();
+  }
+
+  Future<void> _bootstrap() async {
+    await _refreshCartState();
+    await _loadOrders();
+  }
+
+  Future<void> _refreshCartState() async {
+    _cartCount = await _cartStorage.count();
+    if (mounted) setState(() {});
   }
 
   @override
@@ -89,6 +103,15 @@ class _MyOrdersPageState extends State<MyOrdersPage>
       child: CarroCareScaffold(
         title: 'My Orders',
         onBack: _onBack,
+        actions: <Widget>[
+          CarroCareCartAction(
+            count: _cartCount,
+            onTap: () async {
+              await context.push('/cart');
+              await _refreshCartState();
+            },
+          ),
+        ],
         body: Column(
           children: <Widget>[
             BlocBuilder<MyOrdersBloc, MyOrdersState>(
@@ -115,8 +138,8 @@ class _MyOrdersPageState extends State<MyOrdersPage>
                           fontWeight: FontWeight.w700,
                         ),
                         tabs: <Widget>[
-                          Tab(text: 'Subscriptions (${subs.length})'),
                           Tab(text: 'One-time (${oneTime.length})'),
+                          Tab(text: 'Subscriptions (${subs.length})'),
                         ],
                       ),
                     ),
@@ -244,19 +267,6 @@ class _MyOrdersPageState extends State<MyOrdersPage>
                           controller: _tabController,
                           children: <Widget>[
                             _OrdersTabBody(
-                              orders: filteredSubs,
-                              variant: _OrderCardVariant.subscription,
-                              emptyTitle: subsFiltered &&
-                                      subsEmpty.isNotEmpty
-                                  ? subsEmpty
-                                  : 'No active subscriptions',
-                              emptySubtitle: subsFiltered
-                                  ? 'Try another status filter.'
-                                  : 'Monthly autopay plans appear here.',
-                              showRenew: true,
-                              onOpenDetail: _openOrderDetail,
-                            ),
-                            _OrdersTabBody(
                               orders: filteredOneTime,
                               variant: _OrderCardVariant.oneTime,
                               emptyTitle: oneTimeFiltered &&
@@ -267,6 +277,19 @@ class _MyOrdersPageState extends State<MyOrdersPage>
                                   ? 'Try another status filter.'
                                   : 'Prepaid and single purchases appear here.',
                               showRenew: false,
+                              onOpenDetail: _openOrderDetail,
+                            ),
+                            _OrdersTabBody(
+                              orders: filteredSubs,
+                              variant: _OrderCardVariant.subscription,
+                              emptyTitle: subsFiltered &&
+                                      subsEmpty.isNotEmpty
+                                  ? subsEmpty
+                                  : 'No active subscriptions',
+                              emptySubtitle: subsFiltered
+                                  ? 'Try another status filter.'
+                                  : 'Monthly autopay plans appear here.',
+                              showRenew: true,
                               onOpenDetail: _openOrderDetail,
                             ),
                           ],
@@ -310,7 +333,9 @@ class _StatusFilterChips extends StatelessWidget {
   static const List<(OneTimeStatusFilter, String)> _oneTimeOptions =
       <(OneTimeStatusFilter, String)>[
     (OneTimeStatusFilter.all, 'All'),
+    (OneTimeStatusFilter.active, 'Active'),
     (OneTimeStatusFilter.paid, 'Paid'),
+    (OneTimeStatusFilter.overDue, 'Over Due'),
     (OneTimeStatusFilter.notCompleted, 'Not Completed'),
     (OneTimeStatusFilter.completed, 'Completed'),
     (OneTimeStatusFilter.cancelRequested, 'Cancel Requested'),
@@ -319,15 +344,27 @@ class _StatusFilterChips extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isSubscriptionTab = tabIndex == 0;
+    final isOneTimeTab = tabIndex == 0;
     return Material(
       color: AppColors.white,
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         child: Row(
-          children: isSubscriptionTab
+          children: isOneTimeTab
               ? <Widget>[
+                  for (var i = 0; i < _oneTimeOptions.length; i++) ...<
+                      Widget>[
+                    if (i > 0) const SizedBox(width: 8),
+                    _buildChip(
+                      label: _oneTimeOptions[i].$2,
+                      selected: oneTimeFilter == _oneTimeOptions[i].$1,
+                      onSelected: () =>
+                          onOneTimeSelected(_oneTimeOptions[i].$1),
+                    ),
+                  ],
+                ]
+              : <Widget>[
                   for (var i = 0; i < _subscriptionOptions.length; i++) ...<
                       Widget>[
                     if (i > 0) const SizedBox(width: 8),
@@ -337,18 +374,6 @@ class _StatusFilterChips extends StatelessWidget {
                           subscriptionFilter == _subscriptionOptions[i].$1,
                       onSelected: () =>
                           onSubscriptionSelected(_subscriptionOptions[i].$1),
-                    ),
-                  ],
-                ]
-              : <Widget>[
-                  for (var i = 0; i < _oneTimeOptions.length; i++) ...<
-                      Widget>[
-                    if (i > 0) const SizedBox(width: 8),
-                    _buildChip(
-                      label: _oneTimeOptions[i].$2,
-                      selected: oneTimeFilter == _oneTimeOptions[i].$1,
-                      onSelected: () =>
-                          onOneTimeSelected(_oneTimeOptions[i].$1),
                     ),
                   ],
                 ],
