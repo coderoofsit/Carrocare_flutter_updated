@@ -13,6 +13,8 @@ class CheckoutConstants {
   static const int offerPriceMarkup = 50;
   static const String chooseDateTime =
       'Please choose preferred date and time';
+  static const String paymentReceivedPendingMessage =
+      'Payment received. Your order is being confirmed and will appear in My Orders shortly.';
 
   static const List<String> preferredTimes = <String>[
     'Anytime',

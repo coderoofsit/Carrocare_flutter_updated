@@ -67,25 +67,30 @@ class CheckoutRemoteDataSource {
     required String scheduleTime,
     String razorpayOrderId = '',
   }) async {
+    final data = <String, dynamic>{
+      'action': action,
+      'order_id': paymentId,
+      'rzp_order_id': razorpayOrderId,
+      'customer_id': customerId,
+      'token': token,
+      'pack_type': packType,
+      'pack_amount': packAmount,
+      'vehicle_id': vehicleId,
+      'service_type': serviceType,
+      'sub_tot_amt': subTotal,
+      'gst': gst,
+      'gst_amount': gstAmount,
+      'tot_amt': totalAmount,
+      'schedule_date': scheduleDate,
+      'schedule_time': scheduleTime,
+    };
+    // Retry is only safe with a temp_order (server dedupes on its temp_id).
+    if (razorpayOrderId.isNotEmpty) {
+      return postSaveOrderWithRetry(_apiClient.dio, data);
+    }
     final response = await _apiClient.dio.post<Map<String, dynamic>>(
       'save_order.php',
-      data: <String, dynamic>{
-        'action': action,
-        'order_id': paymentId,
-        'rzp_order_id': razorpayOrderId,
-        'customer_id': customerId,
-        'token': token,
-        'pack_type': packType,
-        'pack_amount': packAmount,
-        'vehicle_id': vehicleId,
-        'service_type': serviceType,
-        'sub_tot_amt': subTotal,
-        'gst': gst,
-        'gst_amount': gstAmount,
-        'tot_amt': totalAmount,
-        'schedule_date': scheduleDate,
-        'schedule_time': scheduleTime,
-      },
+      data: data,
     );
     return response.data ?? <String, dynamic>{};
   }
@@ -171,12 +176,37 @@ class CheckoutRemoteDataSource {
 
   Future<Map<String, dynamic>> createRazorpayOrderId({
     required String amount,
+    Map<String, String> context = const <String, String>{},
   }) async {
     final response = await _apiClient.dio.post<Map<String, dynamic>>(
       'save_order.php',
       data: <String, dynamic>{
         'action': 'create_orderid',
         'amount': amount,
+        for (final entry in context.entries)
+          if (entry.value.isNotEmpty) entry.key: entry.value,
+      },
+    );
+    return response.data ?? <String, dynamic>{};
+  }
+
+  /// Generic `temp_order` insert; [fields] are sent as-is next to the ids.
+  Future<Map<String, dynamic>> createTempOrder({
+    required String razorpayOrderId,
+    required String customerId,
+    required String token,
+    required String vehicleId,
+    required Map<String, String> fields,
+  }) async {
+    final response = await _apiClient.dio.post<Map<String, dynamic>>(
+      'save_order.php',
+      data: <String, dynamic>{
+        ...fields,
+        'action': 'temp_order',
+        'rzp_order_id': razorpayOrderId,
+        'customer_id': customerId,
+        'token': token,
+        'vehicle_id': vehicleId,
       },
     );
     return response.data ?? <String, dynamic>{};

@@ -88,13 +88,14 @@ class DoorStepRemoteDataSource {
     required String address,
     required String latitude,
     required String longitude,
+    String razorpayOrderId = '',
   }) async {
     return postSaveOrderWithRetry(
       _apiClient.dio,
       <String, dynamic>{
         'action': 'onetime_payment',
         'order_id': paymentId,
-        'rzp_order_id': '',
+        'rzp_order_id': razorpayOrderId,
         'customer_id': customerId,
         'token': token,
         'pack_type': packType,

@@ -1,6 +1,7 @@
 import 'package:carrocare_flutter/core/constants/api_platform_mode.dart';
 import 'package:carrocare_flutter/core/constants/app_urls.dart';
 import 'package:carrocare_flutter/core/network/api_response_parser.dart';
+import 'package:carrocare_flutter/core/network/app_client_headers.dart';
 import 'package:dart_jsonwebtoken/dart_jsonwebtoken.dart';
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -99,6 +100,7 @@ class AuthTokenService {
           'refresh_token': refreshToken,
           'mode': ApiPlatformMode.android,
         },
+        options: Options(headers: await AppClientHeaders.headers()),
       );
       final raw = response.data;
       final Map<String, dynamic> data = raw is String && raw.isNotEmpty

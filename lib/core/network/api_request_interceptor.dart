@@ -1,6 +1,7 @@
 import 'package:carrocare_flutter/core/auth/session_expired_handler.dart';
 import 'package:carrocare_flutter/core/constants/api_platform_mode.dart';
 import 'package:carrocare_flutter/core/network/api_response_parser.dart';
+import 'package:carrocare_flutter/core/network/app_client_headers.dart';
 import 'package:carrocare_flutter/core/network/auth_token_service.dart';
 import 'package:dio/dio.dart';
 
@@ -31,6 +32,9 @@ class ApiRequestInterceptor extends Interceptor {
     } catch (_) {
       // Allow request through; server will respond with auth error.
     }
+    try {
+      options.headers.addAll(await AppClientHeaders.headers());
+    } catch (_) {}
     _ensureAndroidMode(options);
     handler.next(options);
   }

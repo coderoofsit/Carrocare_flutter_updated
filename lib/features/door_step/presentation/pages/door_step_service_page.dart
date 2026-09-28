@@ -3,10 +3,12 @@ import 'dart:async';
 import 'package:carrocare_flutter/core/di/injection.dart';
 import 'package:carrocare_flutter/core/maps/google_places_service.dart';
 import 'package:carrocare_flutter/core/network/api_client.dart';
+import 'package:carrocare_flutter/core/network/app_client_headers.dart';
 import 'package:carrocare_flutter/core/theme/app_colors.dart';
 import 'package:carrocare_flutter/core/theme/app_gradients.dart';
 import 'package:carrocare_flutter/core/theme/app_typography.dart';
 import 'package:carrocare_flutter/core/widgets/carro_care_scaffold.dart';
+import 'package:carrocare_flutter/features/checkout/core/checkout_constants.dart';
 import 'package:carrocare_flutter/features/checkout/core/checkout_gst_config.dart';
 import 'package:carrocare_flutter/features/checkout/core/checkout_pricing.dart';
 import 'package:carrocare_flutter/features/checkout/domain/entities/razorpay_price_summary.dart';
@@ -568,7 +570,31 @@ class _DoorStepServicePageState extends State<DoorStepServicePage> {
         context: context,
         summary: priceSummary,
         onConfirmPay: () async {
-          final keys = await sl<CheckoutRepository>().getRazorpayKeys();
+          final repo = sl<CheckoutRepository>();
+          final keys = await repo.getRazorpayKeys();
+          // No Razorpay order + temp_order means no payment: the server must
+          // be able to finish the order if the app dies after paying.
+          final session = await repo.prepareDirectCheckout(
+            amount: '${breakdown.total}',
+            customerId: orderFields['customerId']!,
+            token: orderFields['token']!,
+            vehicleId: orderFields['vehicleId']!,
+            tempOrderFields: <String, String>{
+              'pack_type': orderFields['packType']!,
+              'pack_amount': orderFields['packAmount']!,
+              'service_type': orderFields['serviceType']!,
+              'sub_tot_amt': orderFields['subTotal']!,
+              'gst': orderFields['gst']!,
+              'gst_amount': orderFields['gstAmount']!,
+              'tot_amt': orderFields['totalAmount']!,
+              'schedule_date': orderFields['scheduleDate']!,
+              'schedule_time': orderFields['scheduleTime']!,
+              'address': orderFields['address']!,
+              'latitude': orderFields['latitude']!,
+              'longitude': orderFields['longitude']!,
+              'success_action': CheckoutConstants.actionOneTime,
+            },
+          );
           if (!mounted) return;
           final paymentId = await _razorpay.openAndWait(
             keyId: keys.keyId,
@@ -576,27 +602,41 @@ class _DoorStepServicePageState extends State<DoorStepServicePage> {
             description: orderFields['packType']!,
             email: email,
             contact: mobile,
+            orderId: session.razorpayOrderId,
             priceSummary: priceSummary,
+            extraNotes: session.razorpayNotes(
+              customerId: orderFields['customerId']!,
+              vehicleId: orderFields['vehicleId']!,
+              appVersion: AppClientHeaders.versionTag,
+            ),
           );
-          final data = await _remote.saveDoorstepOnlineOrder(
-            paymentId: paymentId,
-            customerId: orderFields['customerId']!,
-            token: orderFields['token']!,
-            packType: orderFields['packType']!,
-            packAmount: orderFields['packAmount']!,
-            vehicleId: orderFields['vehicleId']!,
-            serviceType: orderFields['serviceType']!,
-            subTotal: orderFields['subTotal']!,
-            gst: orderFields['gst']!,
-            gstAmount: orderFields['gstAmount']!,
-            totalAmount: orderFields['totalAmount']!,
-            scheduleDate: orderFields['scheduleDate']!,
-            scheduleTime: orderFields['scheduleTime']!,
-            address: orderFields['address']!,
-            latitude: orderFields['latitude']!,
-            longitude: orderFields['longitude']!,
-          );
-          successMessage = _orderMessage(data);
+          try {
+            final data = await _remote.saveDoorstepOnlineOrder(
+              paymentId: paymentId,
+              customerId: orderFields['customerId']!,
+              token: orderFields['token']!,
+              packType: orderFields['packType']!,
+              packAmount: orderFields['packAmount']!,
+              vehicleId: orderFields['vehicleId']!,
+              serviceType: orderFields['serviceType']!,
+              subTotal: orderFields['subTotal']!,
+              gst: orderFields['gst']!,
+              gstAmount: orderFields['gstAmount']!,
+              totalAmount: orderFields['totalAmount']!,
+              scheduleDate: orderFields['scheduleDate']!,
+              scheduleTime: orderFields['scheduleTime']!,
+              address: orderFields['address']!,
+              latitude: orderFields['latitude']!,
+              longitude: orderFields['longitude']!,
+              razorpayOrderId: session.razorpayOrderId,
+            );
+            successMessage = _orderMessage(data);
+          } catch (e) {
+            // Payment is already captured; the webhook finishes the order from
+            // temp_order, so close the sheet instead of re-offering "Pay".
+            debugPrint('[doorstep][online] save failed after payment: $e');
+            successMessage = CheckoutConstants.paymentReceivedPendingMessage;
+          }
         },
       );
       if (!mounted) return;

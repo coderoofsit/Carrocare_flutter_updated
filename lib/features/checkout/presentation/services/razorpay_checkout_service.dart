@@ -24,6 +24,7 @@ class RazorpayCheckoutService {
     String? customerId,
     bool enableRecurring = false,
     RazorpayPriceSummary? priceSummary,
+    Map<String, String> extraNotes = const <String, String>{},
   }) {
     final completer = Completer<String>();
     open(
@@ -36,6 +37,7 @@ class RazorpayCheckoutService {
       customerId: customerId,
       enableRecurring: enableRecurring,
       priceSummary: priceSummary,
+      extraNotes: extraNotes,
       onSuccess: completer.complete,
       onError: (message) {
         if (!completer.isCompleted) {
@@ -56,6 +58,7 @@ class RazorpayCheckoutService {
     String? customerId,
     bool enableRecurring = false,
     RazorpayPriceSummary? priceSummary,
+    Map<String, String> extraNotes = const <String, String>{},
     required void Function(String paymentId) onSuccess,
     required void Function(String message) onError,
   }) {
@@ -79,8 +82,11 @@ class RazorpayCheckoutService {
         'contact': contact,
       },
     };
-    if (priceSummary != null) {
-      options['notes'] = priceSummary.notes;
+    if (priceSummary != null || extraNotes.isNotEmpty) {
+      options['notes'] = <String, String>{
+        ...?priceSummary?.notes,
+        ...extraNotes,
+      };
     }
     if (orderId != null && orderId.isNotEmpty) {
       options['order_id'] = orderId;

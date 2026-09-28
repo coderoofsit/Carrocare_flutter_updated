@@ -143,6 +143,21 @@ class _RazorpayPriceSummarySheetState
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
 
+    // While paying, block back/barrier (PopScope) and drag-to-dismiss (the
+    // sheet's drag handler calls Navigator.pop directly, bypassing PopScope).
+    return PopScope(
+      canPop: !_processing,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onVerticalDragStart: _processing ? (_) {} : null,
+        onVerticalDragUpdate: _processing ? (_) {} : null,
+        onVerticalDragEnd: _processing ? (_) {} : null,
+        child: _buildSheet(context, bottomInset),
+      ),
+    );
+  }
+
+  Widget _buildSheet(BuildContext context, double bottomInset) {
     return Padding(
       padding: EdgeInsets.fromLTRB(12, 0, 12, 12 + bottomInset),
       child: Material(

@@ -1,5 +1,6 @@
 import 'package:carrocare_flutter/core/constants/app_urls.dart';
 import 'package:carrocare_flutter/core/di/injection.dart';
+import 'package:carrocare_flutter/core/network/app_client_headers.dart';
 import 'package:carrocare_flutter/core/theme/app_colors.dart';
 import 'package:carrocare_flutter/core/theme/app_decorations.dart';
 import 'package:carrocare_flutter/core/theme/app_typography.dart';
@@ -520,7 +521,17 @@ class _PaymentOptionPageState extends State<PaymentOptionPage> {
         context: context,
         summary: priceSummary,
         onConfirmPay: () async {
-          final keys = await sl<CheckoutRepository>().getRazorpayKeys();
+          final repo = sl<CheckoutRepository>();
+          final keys = await repo.getRazorpayKeys();
+          // No Razorpay order + temp_order means no payment: the server must
+          // be able to finish the order if the app dies after paying.
+          final session = await repo.prepareDirectCheckout(
+            amount: _finalAmount(base).toString(),
+            customerId: _customerId,
+            token: _token,
+            vehicleId: _a.vehicle.id,
+            tempOrderFields: _directTempOrderFields(monthlyCard: monthlyCard),
+          );
           if (!mounted) return;
 
           final paymentId = await _razorpay.openAndWait(
@@ -529,13 +540,20 @@ class _PaymentOptionPageState extends State<PaymentOptionPage> {
             description: _displayServiceType(),
             email: _email,
             contact: _mobile,
+            orderId: session.razorpayOrderId,
             priceSummary: priceSummary,
+            extraNotes: session.razorpayNotes(
+              customerId: _customerId,
+              vehicleId: _a.vehicle.id,
+              appVersion: AppClientHeaders.versionTag,
+            ),
           );
           await _placeOrder(
             paymentId: paymentId,
             action: action,
             monthlyCard: monthlyCard,
             navigateOnSuccess: false,
+            razorpayOrderId: session.razorpayOrderId,
           );
         },
       );
@@ -548,11 +566,56 @@ class _PaymentOptionPageState extends State<PaymentOptionPage> {
     }
   }
 
+  /// temp_order fields for direct "Pay"; must match what [_placeOrder] saves so
+  /// the webhook creates the same order when the app's save call is lost.
+  Map<String, String> _directTempOrderFields({required bool monthlyCard}) {
+    final base = monthlyCard ? _monthlyBase : _oneTimeBase;
+    final breakdown = _breakdownFor(base, monthly: monthlyCard);
+    final common = <String, String>{
+      'pack_amount': _inclusivePackAmount,
+      'sub_tot_amt': CheckoutPricing.moneyString(breakdown.subTotal),
+      'gst': _gstPercent.toString(),
+      'tot_amt': breakdown.total.toString(),
+    };
+    if (_isExtraInterior) {
+      return <String, String>{
+        ...common,
+        'pack_type': 'ExtraInterior',
+        'service_type': 'AddOn',
+        'gst_amount': '0',
+        'schedule_date': _preferDate,
+        'schedule_time': _preferTime,
+        'success_action': CheckoutConstants.actionOneTime,
+      };
+    }
+    if (_isAddon) {
+      return <String, String>{
+        ...common,
+        'pack_type': _apiPackType,
+        'service_type': 'AddOn',
+        'paid_months': '1',
+        'fine_amount': _fineAmount,
+        'schedule_date': _preferDate,
+        'schedule_time': _preferTime,
+        'success_action': CheckoutConstants.actionWashOneTime,
+      };
+    }
+    return <String, String>{
+      ...common,
+      'pack_type': _apiPackType,
+      'service_type': 'Wash',
+      'paid_months': _selectedMonths.toString(),
+      'fine_amount': _fineAmount,
+      'success_action': CheckoutConstants.actionWashOneTime,
+    };
+  }
+
   Future<void> _placeOrder({
     required String paymentId,
     required String action,
     required bool monthlyCard,
     bool navigateOnSuccess = true,
+    String razorpayOrderId = '',
   }) async {
     if (_payingCard == null) {
       setState(
@@ -581,6 +644,7 @@ class _PaymentOptionPageState extends State<PaymentOptionPage> {
           totalAmount: total,
           scheduleDate: _preferDate,
           scheduleTime: _preferTime,
+          razorpayOrderId: razorpayOrderId,
         );
       } else if (_isAddon) {
         message = await sl<CheckoutRepository>().placeOneTimeAddOnOrder(
@@ -597,6 +661,7 @@ class _PaymentOptionPageState extends State<PaymentOptionPage> {
           scheduleDate: _preferDate,
           scheduleTime: _preferTime,
           packType: _apiPackType,
+          razorpayOrderId: razorpayOrderId,
         );
       } else {
         message = await sl<CheckoutRepository>().placeOneTimeWashOrder(
@@ -612,6 +677,7 @@ class _PaymentOptionPageState extends State<PaymentOptionPage> {
           totalAmount: total,
           serviceType: 'Wash',
           packType: _apiPackType,
+          razorpayOrderId: razorpayOrderId,
         );
       }
 
@@ -621,7 +687,13 @@ class _PaymentOptionPageState extends State<PaymentOptionPage> {
         goToPaymentSuccess(GoRouter.of(context));
       }
     } catch (e) {
-      _toast(e.toString());
+      // Payment is captured; with a Razorpay order + temp_order the webhook
+      // still creates the order, so don't show the raw save error.
+      _toast(
+        razorpayOrderId.isNotEmpty
+            ? CheckoutConstants.paymentReceivedPendingMessage
+            : e.toString(),
+      );
     } finally {
       if (mounted) setState(() => _payingCard = null);
     }

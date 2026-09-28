@@ -11,26 +11,29 @@ class CheckoutRepositoryImpl implements CheckoutRepository {
   CheckoutRepositoryImpl(this._remote);
 
   final CheckoutRemoteDataSource _remote;
-  static const String _razorpayKeyId = 'rzp_test_SwKFnmjXZGAt93';
 
+  static const String _startPaymentFailed =
+      'Unable to start payment. Please check your internet and try again.';
+
+  /// The Razorpay key always comes from the server; never fall back to a
+  /// bundled key (a stale/test key in a release build breaks payments).
   @override
   Future<({String keyId, String secretKey})> getRazorpayKeys() async {
-    try {
-      final data = await _remote.getRazorpayMode();
-      if ((data['code'] ?? '').toString() == '200') {
-        final keyId = (data['keyid'] ?? data['key_id'] ?? '').toString();
-        if (keyId.isNotEmpty) {
-          return (
-            keyId: keyId,
-            secretKey: (data['secretkey'] ?? '').toString(),
-          );
+    for (var attempt = 1; attempt <= 2; attempt++) {
+      try {
+        final data = await _remote.getRazorpayMode();
+        if ((data['code'] ?? '').toString() == '200') {
+          final keyId = (data['keyid'] ?? data['key_id'] ?? '').toString();
+          if (keyId.isNotEmpty) {
+            return (
+              keyId: keyId,
+              secretKey: (data['secretkey'] ?? '').toString(),
+            );
+          }
         }
-      }
-    } catch (_) {}
-    return (
-      keyId: _razorpayKeyId,
-      secretKey: '',
-    );
+      } catch (_) {}
+    }
+    throw const CheckoutException(_startPaymentFailed);
   }
 
   @override
@@ -110,9 +113,12 @@ class CheckoutRepositoryImpl implements CheckoutRepository {
       );
     }
     final subscriptionId = (data['subscription_id'] ?? '').toString();
-    final keyId = (data['razorpay_keyid'] ?? _razorpayKeyId).toString();
     if (subscriptionId.isEmpty) {
       throw Exception('Subscription id missing');
+    }
+    var keyId = (data['razorpay_keyid'] ?? '').toString();
+    if (keyId.isEmpty) {
+      keyId = (await getRazorpayKeys()).keyId;
     }
     return SubscriptionCheckoutSession(
       keyId: keyId,
@@ -286,6 +292,67 @@ class CheckoutRepositoryImpl implements CheckoutRepository {
       throw Exception('Unable to create payment order');
     }
     return orderId;
+  }
+
+  @override
+  Future<DirectCheckoutSession> prepareDirectCheckout({
+    required String amount,
+    required String customerId,
+    required String token,
+    required String vehicleId,
+    required Map<String, String> tempOrderFields,
+  }) async {
+    try {
+      final orderData = await _remote.createRazorpayOrderId(
+        amount: amount,
+        context: <String, String>{
+          'customer_id': customerId,
+          'vehicle_id': vehicleId,
+          'service_type': tempOrderFields['service_type'] ?? '',
+          'success_action': tempOrderFields['success_action'] ?? '',
+          'checkout_source': 'direct',
+        },
+      );
+      if ((orderData['code'] ?? '').toString() != '200') {
+        throw CheckoutException(_serverMessage(orderData));
+      }
+      final razorpayOrderId = (orderData['rzp_order_id'] ?? '').toString();
+      if (razorpayOrderId.isEmpty) {
+        throw const CheckoutException(_startPaymentFailed);
+      }
+
+      final tempData = await _remote.createTempOrder(
+        razorpayOrderId: razorpayOrderId,
+        customerId: customerId,
+        token: token,
+        vehicleId: vehicleId,
+        fields: tempOrderFields,
+      );
+      if ((tempData['code'] ?? '').toString() != '200') {
+        throw CheckoutException(_serverMessage(tempData));
+      }
+      return DirectCheckoutSession(
+        razorpayOrderId: razorpayOrderId,
+        tempId: (tempData['temp_id'] ?? '').toString(),
+      );
+    } on CheckoutException {
+      rethrow;
+    } catch (_) {
+      throw const CheckoutException(_startPaymentFailed);
+    }
+  }
+
+  /// Server-provided reason (e.g. a pre-payment check in temp_order), else a
+  /// generic message; legacy payloads use "error"/"Failure" as placeholders.
+  String _serverMessage(Map<String, dynamic> data) {
+    for (final key in const <String>['result', 'message']) {
+      final text = (data[key] ?? '').toString().trim();
+      final lower = text.toLowerCase();
+      if (text.isNotEmpty && lower != 'error' && lower != 'failure') {
+        return text;
+      }
+    }
+    return _startPaymentFailed;
   }
 
   @override
