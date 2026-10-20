@@ -54,6 +54,25 @@ class OrdersRemoteDataSource {
     return _asMap(response.data);
   }
 
+  Future<Map<String, dynamic>> getCustomerFullSchedule({
+    required String token,
+    required String customerId,
+    String? vehicleId,
+  }) async {
+    final data = <String, dynamic>{
+      'token': token,
+      'customer_id': customerId,
+    };
+    if (vehicleId != null && vehicleId.isNotEmpty) {
+      data['vehicle_id'] = vehicleId;
+    }
+    final response = await _apiClient.dio.post<dynamic>(
+      'customer_full_schedule.php',
+      data: data,
+    );
+    return _asMap(response.data);
+  }
+
   Future<Map<String, dynamic>> getExtraInteriorDetails({
     required String token,
     required String customerId,

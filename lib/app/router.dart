@@ -43,6 +43,7 @@ import 'package:carrocare_flutter/features/checkout/presentation/pages/payment_s
 import 'package:carrocare_flutter/features/checkout/presentation/pages/payment_web_page.dart';
 import 'package:carrocare_flutter/features/orders/presentation/pages/order_detail_page.dart';
 import 'package:carrocare_flutter/features/internal_wash/presentation/pages/internal_wash_page.dart';
+import 'package:carrocare_flutter/features/orders/presentation/pages/customer_wash_schedule_page.dart';
 import 'package:carrocare_flutter/features/orders/presentation/pages/wash_calendar_page.dart';
 import 'package:carrocare_flutter/features/profile/presentation/pages/main_profile_page.dart';
 import 'package:carrocare_flutter/features/profile/presentation/pages/profile_page.dart';
@@ -327,6 +328,10 @@ final GoRouter appRouter = GoRouter(
         }
         return WashCalendarPage(args: args);
       },
+    ),
+    GoRoute(
+      path: '/customer-wash-schedule',
+      builder: (context, state) => const CustomerWashSchedulePage(),
     ),
     GoRoute(
       path: '/forgot-password',

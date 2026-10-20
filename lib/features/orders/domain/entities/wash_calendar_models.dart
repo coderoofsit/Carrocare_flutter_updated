@@ -1,4 +1,4 @@
-enum CalendarEventKind { wash, internalSchedule, extraInterior }
+enum CalendarEventKind { wash, internalSchedule, extraInterior, addon }
 
 class CalendarMarkedDay {
   const CalendarMarkedDay({

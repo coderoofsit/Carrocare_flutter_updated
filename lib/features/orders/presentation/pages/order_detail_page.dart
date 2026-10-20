@@ -116,13 +116,17 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                       if (ui.showWashDetails)
                         Expanded(
                           child: _actionButton(
-                            'Wash Details',
+                            _order.serviceType.toLowerCase() == 'addon'
+                                ? 'Service Details'
+                                : 'Wash Details',
                             () => context.push(
                               '/wash-calendar',
                               extra: WashCalendarArgs(
                                 vehicleId: _order.vehicleId,
                                 orderId: _order.orderId,
-                                type: 'wash',
+                                type: _order.serviceType.toLowerCase() == 'addon'
+                                    ? 'addon'
+                                    : 'wash',
                               ),
                             ),
                           ),
@@ -870,8 +874,10 @@ class _OrderDetailUi {
       showValid = false;
       showDownloadInvoice = true;
       showImageField = order.workDone.toLowerCase() != 'no';
+      // One-time Add-on (Wax Polish) should open the same wash-details calendar.
+      showWashDetails = true;
     } else if (service == 'addon' && paymentType == 'monthly') {
-      showWashDetails = _flagVisible(order.washDetails);
+      showWashDetails = true;
       if (order.washDetails == '0') {
         validText = order.valid;
       } else if (order.washDetails == '1') {

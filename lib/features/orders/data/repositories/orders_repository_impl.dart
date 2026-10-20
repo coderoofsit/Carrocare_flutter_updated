@@ -1,5 +1,6 @@
 import 'package:carrocare_flutter/features/internal_wash/domain/entities/internal_wash_form.dart';
 import 'package:carrocare_flutter/features/orders/data/datasources/orders_remote_data_source.dart';
+import 'package:carrocare_flutter/features/orders/domain/entities/customer_full_schedule.dart';
 import 'package:carrocare_flutter/features/orders/domain/entities/order_item.dart';
 import 'package:carrocare_flutter/features/orders/domain/entities/wash_calendar_models.dart';
 import 'package:carrocare_flutter/features/orders/domain/repositories/orders_repository.dart';
@@ -195,6 +196,28 @@ class OrdersRepositoryImpl implements OrdersRepository {
       }
     }
 
+    final addonList = data['addon_details'];
+    if (addonList is List) {
+      for (final raw in addonList) {
+        if (raw is! Map) continue;
+        final map = raw.map((k, v) => MapEntry(k.toString(), v));
+        final date = _parseDate(
+          (map['schedule_date'] ?? map['date'] ?? '').toString(),
+        );
+        if (date == null) continue;
+        washDays.add(
+          CalendarMarkedDay(
+            date: date,
+            kind: CalendarEventKind.addon,
+            title: (map['package_type'] ?? 'Wax Polish').toString(),
+            subtitle: (map['schedule_time'] ?? '').toString(),
+            imageUrl: (map['vehicle_image'] ?? '').toString(),
+            status: (map['wash_status'] ?? '').toString(),
+          ),
+        );
+      }
+    }
+
     final internalList = data['internal_details'];
     if (internalList is List) {
       for (final raw in internalList) {
@@ -289,6 +312,46 @@ class OrdersRepositoryImpl implements OrdersRepository {
       }
     }
     return ExtraInteriorCalendarData(days: days);
+  }
+
+  @override
+  Future<CustomerFullSchedule> getCustomerFullSchedule({
+    required String token,
+    required String customerId,
+    String? vehicleId,
+  }) async {
+    final data = await _remoteDataSource.getCustomerFullSchedule(
+      token: token,
+      customerId: customerId,
+      vehicleId: vehicleId,
+    );
+    _throwOnSession(data);
+    final code = (data['code'] ?? '').toString();
+    if (code != '200') {
+      throw Exception(
+        (data['message'] ?? 'Failed to load wash schedule').toString(),
+      );
+    }
+
+    List<Map<String, dynamic>> asMaps(Object? raw) {
+      if (raw is! List) return const [];
+      return raw
+          .whereType<Map>()
+          .map((e) => e.map((k, v) => MapEntry(k.toString(), v)))
+          .toList();
+    }
+
+    return CustomerFullSchedule(
+      vehicles: asMaps(data['vehicles'])
+          .map(CustomerScheduleVehicle.fromJson)
+          .toList(growable: false),
+      subscriptionEvents: asMaps(data['subscription_events'])
+          .map(CustomerScheduleEvent.fromJson)
+          .toList(growable: false),
+      extraInteriorEvents: asMaps(data['extra_interior_events'])
+          .map(CustomerScheduleEvent.fromJson)
+          .toList(growable: false),
+    );
   }
 
   @override

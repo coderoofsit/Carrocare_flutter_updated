@@ -1,4 +1,5 @@
 import 'package:carrocare_flutter/features/internal_wash/domain/entities/internal_wash_form.dart';
+import 'package:carrocare_flutter/features/orders/domain/entities/customer_full_schedule.dart';
 import 'package:carrocare_flutter/features/orders/domain/entities/order_item.dart';
 import 'package:carrocare_flutter/features/orders/domain/entities/wash_calendar_models.dart';
 
@@ -31,6 +32,12 @@ abstract class OrdersRepository {
     required String token,
     required String customerId,
     required String vehicleId,
+  });
+
+  Future<CustomerFullSchedule> getCustomerFullSchedule({
+    required String token,
+    required String customerId,
+    String? vehicleId,
   });
 
   Future<String> cancelSubscription({

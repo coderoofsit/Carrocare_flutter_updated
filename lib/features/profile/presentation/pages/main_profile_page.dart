@@ -149,6 +149,12 @@ class _MainProfilePageState extends State<MainProfilePage> {
                               onTap: () => context.push('/my-orders'),
                             ),
                             _MenuRow(
+                              iconAsset: 'assets/vectors/ic_orders_24.svg',
+                              title: 'Wash Details',
+                              onTap: () =>
+                                  context.push('/customer-wash-schedule'),
+                            ),
+                            _MenuRow(
                               iconAsset: 'assets/images/ic_billings.png',
                               title: 'My Billings',
                               onTap: () => context.push('/my-billings'),

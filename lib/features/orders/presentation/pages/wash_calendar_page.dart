@@ -79,12 +79,25 @@ class _WashCalendarPageState extends State<WashCalendarPage> {
           orderId: widget.args.orderId,
         );
         _washData = data;
-        _events = <CalendarMarkedDay>[
-          ...data.washDays,
-          ...data.internalDays,
-        ];
-        _showAddInternal =
-            data.canScheduleDate1 || data.canScheduleDate2;
+        if (widget.args.type == 'addon') {
+          // Add-on (Wax Polish): show addon schedule days; fall back to wash days.
+          final addonDays = data.washDays
+              .where((d) => d.kind == CalendarEventKind.addon)
+              .toList();
+          _events = addonDays.isNotEmpty
+              ? addonDays
+              : data.washDays
+                  .where((d) => d.kind == CalendarEventKind.wash)
+                  .toList();
+          _showAddInternal = false;
+        } else {
+          _events = <CalendarMarkedDay>[
+            ...data.washDays.where((d) => d.kind != CalendarEventKind.addon),
+            ...data.internalDays,
+          ];
+          _showAddInternal =
+              data.canScheduleDate1 || data.canScheduleDate2;
+        }
       }
       if (mounted) {
         setState(() => _loading = false);
@@ -109,8 +122,13 @@ class _WashCalendarPageState extends State<WashCalendarPage> {
 
   @override
   Widget build(BuildContext context) {
+    final title = widget.args.type == 'extra'
+        ? 'Extra Interior'
+        : widget.args.type == 'addon'
+        ? 'Add-on Details'
+        : 'Wash Calendar';
     return CarroCareScaffold(
-      title: 'Wash Calendar',
+      title: title,
       onBack: () => context.pop(),
       actions: <Widget>[
         if (_showAddInternal && widget.args.type != 'extra')
