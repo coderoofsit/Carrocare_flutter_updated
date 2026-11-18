@@ -232,7 +232,7 @@ class _HomePageState extends State<HomePage> {
             return;
           }
           if (index == 2) {
-            context.push('/profile');
+            context.push('/customer-wash-schedule');
             return;
           }
           setState(() => _bottomIndex = index);
@@ -247,8 +247,8 @@ class _HomePageState extends State<HomePage> {
             label: 'Internal Car Wash',
           ),
           AppBottomNavItem(
-            iconAsset: 'assets/images/profile.png',
-            label: 'Profile',
+            icon: Icons.local_car_wash_outlined,
+            label: 'Wash Details',
           ),
         ],
       ),

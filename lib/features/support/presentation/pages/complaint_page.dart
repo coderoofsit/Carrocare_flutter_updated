@@ -38,6 +38,33 @@ class _ComplaintPageState extends State<ComplaintPage>
   List<Map<String, dynamic>> _myComplaints = <Map<String, dynamic>>[];
   bool _loadingComplaints = false;
   String _customerId = '';
+  String _token = '';
+
+  List<Map<String, dynamic>> _targets = <Map<String, dynamic>>[];
+  Map<String, dynamic>? _selectedTarget;
+  bool _loadingTargets = false;
+  final Set<String> _expandedComplaintIds = <String>{};
+
+  String _formatToIndianTime(String rawDate, [String? displayTimeIst]) {
+    if (displayTimeIst != null && displayTimeIst.trim().isNotEmpty) {
+      return displayTimeIst.trim();
+    }
+    final s = rawDate.trim();
+    if (s.isEmpty) return '';
+    try {
+      DateTime dt;
+      if (s.endsWith('Z') || s.contains('+')) {
+        dt = DateTime.parse(s).toUtc().add(const Duration(hours: 5, minutes: 30));
+      } else if (RegExp(r'^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}').hasMatch(s)) {
+        dt = DateTime.parse(s.replaceFirst(' ', 'T'));
+      } else {
+        dt = DateTime.parse(s);
+      }
+      return '${DateFormat('dd MMM yyyy, hh:mm a').format(dt)} (IST)';
+    } catch (_) {
+      return s;
+    }
+  }
 
   @override
   void initState() {
@@ -59,6 +86,7 @@ class _ComplaintPageState extends State<ComplaintPage>
   Future<void> _loadProfileData() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
+      _token = prefs.getString('token') ?? '';
       _customerId = prefs.getString('customer_id') ?? '';
       _nameController.text =
           prefs.getString('username') ?? prefs.getString('name') ?? '';
@@ -68,6 +96,28 @@ class _ComplaintPageState extends State<ComplaintPage>
           prefs.getString('useremail') ?? prefs.getString('email') ?? '';
     });
     _fetchComplaints();
+    _fetchComplaintTargets();
+  }
+
+  Future<void> _fetchComplaintTargets() async {
+    if (_customerId.isEmpty) return;
+    setState(() => _loadingTargets = true);
+    try {
+      final list = await _dataSource.fetchComplaintTargets(
+        customerId: _customerId,
+        token: _token,
+      );
+      if (mounted) {
+        setState(() {
+          _targets = list;
+          _loadingTargets = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _loadingTargets = false);
+      }
+    }
   }
 
   Future<void> _fetchComplaints() async {
@@ -82,6 +132,7 @@ class _ComplaintPageState extends State<ComplaintPage>
         customerId: _customerId,
         mobile: _mobileController.text.trim(),
         email: _emailController.text.trim(),
+        token: _token,
       );
       if (mounted) {
         setState(() {
@@ -152,6 +203,14 @@ class _ComplaintPageState extends State<ComplaintPage>
         note: _noteController.text.trim(),
         images: base64Images.isNotEmpty ? base64Images : null,
         customerId: _customerId,
+        token: _token,
+        vehicleId: _selectedTarget?['vehicle_id']?.toString(),
+        vehicleNo: _selectedTarget?['vehicle_no']?.toString(),
+        labourId: _selectedTarget?['labour_id']?.toString(),
+        labourName: _selectedTarget?['labour_name']?.toString(),
+        labourMobile: _selectedTarget?['labour_mobile']?.toString(),
+        apartmentName: _selectedTarget?['apartment_name']?.toString(),
+        complaintBy: 'customer',
       );
 
       if (!mounted) return;
@@ -171,6 +230,7 @@ class _ComplaintPageState extends State<ComplaintPage>
         _noteController.clear();
         setState(() {
           _selectedImages.clear();
+          _selectedTarget = null;
         });
         await _fetchComplaints();
         _tabController.animateTo(1); // Switch to My Complaints tab
@@ -322,6 +382,118 @@ class _ComplaintPageState extends State<ComplaintPage>
                       style: TextStyle(fontSize: 13, color: Colors.grey),
                     ),
                     const SizedBox(height: 16),
+                    // Vehicle & Assigned Cleaner Dropdown (Optional / Default General)
+                    const Text(
+                      'Complaint Target (Vehicle / Cleaner)',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.black,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Container(
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey.shade400),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<Map<String, dynamic>?>(
+                          isExpanded: true,
+                          value: _selectedTarget,
+                          icon: _loadingTargets
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                )
+                              : const Icon(Icons.arrow_drop_down),
+                          hint: const Text('General Complaint (App / Billing / Other)'),
+                          items: [
+                            const DropdownMenuItem<Map<String, dynamic>?>(
+                              value: null,
+                              child: Row(
+                                children: [
+                                  Icon(Icons.help_outline, color: Colors.grey, size: 20),
+                                  SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      'General Complaint (App / Billing / Other)',
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            ..._targets.map((target) {
+                              final vNo = target['vehicle_no']?.toString() ?? '';
+                              final lName = target['labour_name']?.toString() ?? '';
+                              return DropdownMenuItem<Map<String, dynamic>?>(
+                                value: target,
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.directions_car, color: AppColors.primary, size: 20),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        lName.isNotEmpty
+                                            ? '$vNo — Cleaner: $lName'
+                                            : vNo,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(fontWeight: FontWeight.w600),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }),
+                          ],
+                          onChanged: (val) {
+                            setState(() => _selectedTarget = val);
+                          },
+                        ),
+                      ),
+                    ),
+                    if (_selectedTarget != null) ...[
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade50,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: Colors.blue.shade200),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.info_outline, color: Colors.blue, size: 20),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Vehicle: ${_selectedTarget!['vehicle_no'] ?? ''}',
+                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                  ),
+                                  if ((_selectedTarget!['labour_name']?.toString() ?? '').isNotEmpty)
+                                    Text(
+                                      'Assigned Cleaner: ${_selectedTarget!['labour_name']}',
+                                      style: TextStyle(color: Colors.blue.shade900, fontSize: 12),
+                                    ),
+                                  if ((_selectedTarget!['apartment_name']?.toString() ?? '').isNotEmpty)
+                                    Text(
+                                      'Apartment: ${_selectedTarget!['apartment_name']}',
+                                      style: TextStyle(color: Colors.grey.shade700, fontSize: 11),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 14),
                     // Name Field (Required)
                     TextFormField(
                       controller: _nameController,
@@ -570,16 +742,15 @@ class _ComplaintPageState extends State<ComplaintPage>
           final String id = (item['id'] ?? '').toString();
           final String status = (item['status'] ?? 'Pending').toString();
           final String note = (item['note'] ?? '').toString();
-          final String rawDate = (item['dateandtime'] ?? '').toString();
+          final String rawDate = (item['dateandtime'] ?? item['created_at'] ?? '').toString();
+          final String displayTimeIst = (item['display_time_ist'] ?? '').toString();
           final List images = (item['images'] is List) ? (item['images'] as List) : [];
-
-          String formattedDate = rawDate;
-          if (rawDate.isNotEmpty) {
-            try {
-              final dt = DateTime.parse(rawDate);
-              formattedDate = DateFormat('dd MMM yyyy, hh:mm a').format(dt);
-            } catch (_) {}
-          }
+          final String formattedDate = _formatToIndianTime(rawDate, displayTimeIst);
+          final bool isExpanded = _expandedComplaintIds.contains(id);
+          final bool isLong = note.length > 80 || note.contains('\n');
+          final String displayNote = (isLong && !isExpanded)
+              ? '${note.substring(0, (note.length > 80 ? 80 : note.length)).trim()}...'
+              : note;
 
           return Card(
             margin: const EdgeInsets.only(bottom: 12),
@@ -629,11 +800,105 @@ class _ComplaintPageState extends State<ComplaintPage>
                       style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                     ),
                   ],
+                  if ((item['vehicle_no']?.toString() ?? '').isNotEmpty ||
+                      (item['labour_name']?.toString() ?? '').isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
+                      children: [
+                        if ((item['vehicle_no']?.toString() ?? '').isNotEmpty)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: Colors.blue.shade50,
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(color: Colors.blue.shade200),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.directions_car, size: 14, color: Colors.blue),
+                                const SizedBox(width: 4),
+                                Text(
+                                  item['vehicle_no'].toString(),
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.blue.shade900,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        if ((item['labour_name']?.toString() ?? '').isNotEmpty)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: Colors.orange.shade50,
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(color: Colors.orange.shade200),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.person, size: 14, color: Colors.orange),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'Cleaner: ${item['labour_name']}',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.orange.shade900,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
                   const Divider(height: 18),
                   Text(
-                    note,
-                    style: const TextStyle(fontSize: 14, color: AppColors.black),
+                    displayNote,
+                    style: const TextStyle(fontSize: 14, color: AppColors.black, height: 1.35),
                   ),
+                  if (isLong)
+                    GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          if (isExpanded) {
+                            _expandedComplaintIds.remove(id);
+                          } else {
+                            _expandedComplaintIds.add(id);
+                          }
+                        });
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 6),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              isExpanded
+                                  ? Icons.keyboard_arrow_up
+                                  : Icons.keyboard_arrow_down,
+                              size: 16,
+                              color: Theme.of(context).primaryColor,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              isExpanded ? 'Show less' : 'Tap to view message',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: Theme.of(context).primaryColor,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   if (images.isNotEmpty) ...[
                     const SizedBox(height: 12),
                     const Text(

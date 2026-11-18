@@ -57,19 +57,21 @@ class AppBottomNav extends StatelessWidget {
                               selected ? AppColors.primary : AppColors.grey500,
                               BlendMode.srcIn,
                             ),
-                            child: Image.asset(
-                              item.iconAsset,
-                              width: _iconRenderSize,
-                              height: _iconRenderSize,
-                              fit: BoxFit.contain,
-                              errorBuilder: (_, __, ___) => Icon(
-                                Icons.circle_outlined,
-                                size: _iconRenderSize,
-                                color: selected
-                                    ? AppColors.primary
-                                    : AppColors.grey500,
-                              ),
-                            ),
+                            child: item.icon != null
+                                ? Icon(item.icon, size: _iconSlotSize - 2)
+                                : Image.asset(
+                                    item.iconAsset,
+                                    width: _iconRenderSize,
+                                    height: _iconRenderSize,
+                                    fit: BoxFit.contain,
+                                    errorBuilder: (_, __, ___) => Icon(
+                                      Icons.circle_outlined,
+                                      size: _iconRenderSize,
+                                      color: selected
+                                          ? AppColors.primary
+                                          : AppColors.grey500,
+                                    ),
+                                  ),
                           ),
                         ),
                       ),
@@ -103,11 +105,11 @@ class AppBottomNav extends StatelessWidget {
 }
 
 class AppBottomNavItem {
-  const AppBottomNavItem({
-    required this.iconAsset,
-    required this.label,
-  });
+  const AppBottomNavItem({this.iconAsset = '', required this.label, this.icon});
 
   final String iconAsset;
   final String label;
+
+  /// When set, used instead of [iconAsset].
+  final IconData? icon;
 }

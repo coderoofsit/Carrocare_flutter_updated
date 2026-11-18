@@ -115,6 +115,16 @@ class _CustomerWashSchedulePageState extends State<CustomerWashSchedulePage>
     return CarroCareScaffold(
       title: 'Wash Details',
       onBack: () => context.pop(),
+      actions: <Widget>[
+        IconButton(
+          tooltip: 'Raise a complaint',
+          onPressed: () => context.push('/complaint'),
+          icon: const Icon(
+            Icons.report_gmailerrorred_rounded,
+            color: AppColors.primary,
+          ),
+        ),
+      ],
       body: Column(
         children: <Widget>[
           Material(

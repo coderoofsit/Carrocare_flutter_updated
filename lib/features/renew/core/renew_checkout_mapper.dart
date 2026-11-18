@@ -8,15 +8,18 @@ class RenewCheckoutMapper {
     OrderItem order,
   ) {
     final header = _resolveHeader(order);
+    final resolvedPrice = order.totalAmount.isNotEmpty
+        ? order.totalAmount
+        : order.packageValue;
     return (
       booking: VehicleListArgs(
         header: header,
         carName: order.plan.isNotEmpty ? order.plan : order.packageType,
-        carPrice: '',
+        carPrice: resolvedPrice,
         carDesc: order.serviceType,
         carImage: order.vehicleImage,
         carId: order.vehicleId,
-        displayPrice: '',
+        displayPrice: resolvedPrice,
       ),
       vehicle: VehicleItem(
         id: order.vehicleId,

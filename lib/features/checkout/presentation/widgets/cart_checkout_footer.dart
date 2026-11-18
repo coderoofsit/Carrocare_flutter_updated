@@ -46,7 +46,8 @@ class CartCheckoutFooter extends StatelessWidget {
               BillSummaryCard(
                 title: 'Order Summary',
                 lines: <BillLine>[
-                  BillLine(label: 'Items ($itemCount)', amount: totalText),
+                  if (platformFee == null || platformFee! <= 0)
+                    BillLine(label: 'Items ($itemCount)', amount: totalText),
                   if (platformFee != null && platformFee! > 0)
                     BillLine(
                       label: 'Platform fee',

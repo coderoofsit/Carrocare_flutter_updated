@@ -244,7 +244,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
     required bool showDiscount,
   }) {
     final lines = <BillLine>[
-      if (pricing.showPackageValue)
+      if (pricing.showPackageValue && pricing.platformFee <= 0 && pricing.serviceFee <= 0)
         BillLine(label: 'Plan amount', amount: pricing.packageValueLabel),
       if (showDiscount && _order.discountAmount.isNotEmpty)
         BillLine(label: 'Discount', amount: '₹ ${_order.discountAmount}'),

@@ -66,7 +66,7 @@ class OrderPricingDisplay {
       if (CheckoutPricing.round2(apiPlatform + apiService) == total) {
         platform = breakdown.platformFee;
         service = apiService > 0 ? apiService : breakdown.serviceFee;
-      } else if (CheckoutPricing.round2(apiPlatform + apiService + gst) ==
+      } else if (CheckoutPricing.round2(apiPlatform + apiService + breakdown.gstAmount) ==
           total) {
         platform = apiPlatform;
         service = apiService;
@@ -86,10 +86,25 @@ class OrderPricingDisplay {
     } else if (total > 0 && taxable <= 0) {
       taxable = total.toDouble();
       gst = 0;
+    } else if (apiService > 0 && apiService < total) {
+      final grossPlatform = (total - apiService).round();
+      final customBreakdown = CheckoutPricing.breakdownWithPlatformFee(
+        inclusiveTotal: total,
+        planAmount: total,
+        platformFeeAmt: grossPlatform,
+        gstPercent: gstPercent,
+      );
+      platform = customBreakdown.platformFee;
+      service = customBreakdown.serviceFee;
+      gst = customBreakdown.gstAmount;
+      taxable = customBreakdown.subTotal;
     }
 
-    final showPackageValue =
-        package > 0 && package != taxable && package != total;
+    final hasPlatformBreakdown = platform > 0 || service > 0;
+    final showPackageValue = !hasPlatformBreakdown &&
+        package > 0 &&
+        package != taxable &&
+        package != total;
 
     return OrderPricingDisplay(
       taxableAmount: taxable,
